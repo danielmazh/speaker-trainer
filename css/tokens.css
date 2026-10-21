@@ -1,0 +1,133 @@
+/* Design tokens. Source: CONTRACT.md + docs/reference.webp */
+:root {
+  --primary: #6C3BF5;
+  --primary-600: #5A2BE0;
+  --primary-700: #4A1FC4;
+  --primary-50: #F1ECFF;
+  --primary-100: #E4DAFF;
+  --primary-200: #CFC0FF;
+  --primary-300: #8A63FF;
+  --band-top: #7B4DFF;
+  --gold-300: #FFD36B;
+  --warn-ink: #B26A00;
+  --scrim: rgba(18,13,36,.65);
+  --on-band-12: rgba(255,255,255,.12);
+  --on-band-15: rgba(255,255,255,.15);
+  --on-band-20: rgba(255,255,255,.20);
+  --on-band-70: rgba(255,255,255,.70);
+  --on-band-80: rgba(255,255,255,.80);
+  --grad-band: linear-gradient(180deg, #7B4DFF 0%, #5A2BE0 100%);
+  --grad-button: linear-gradient(180deg, #8A63FF 0%, #5A2BE0 100%);
+  --grad-xp: linear-gradient(90deg, #FFD36B 0%, #FFB020 100%);
+  --r-tile: 12px;
+  --sh-card: 0 12px 32px rgba(108,59,245,.14);
+  --sh-card-sm: 0 8px 24px rgba(108,59,245,.10);
+  --sh-tile: 0 6px 18px rgba(108,59,245,.08);
+  --sh-cta: 0 10px 24px rgba(108,59,245,.32);
+  --sh-nav: 0 12px 32px rgba(108,59,245,.25);
+  --sh-mic: 0 12px 28px rgba(108,59,245,.40);
+  --sh-modal: 0 24px 60px rgba(18,13,36,.40);
+  --bg: #F6F3FF;
+  --surface: #FFFFFF;
+  --surface-2: #FBFAFF;
+  --ink: #1B1530;
+  --ink-2: #3B3355;
+  --muted: #8A84A3;
+  --muted-ink: #6F6890;
+  --line: #ECE7F8;
+  --gold: #FFB020;
+  --gold-50: #FFF4DC;
+  --flame: #FF7A1A;
+  --flame-50: #FFF1E6;
+  --good: #22C55E;
+  --good-ink: #15803D;
+  --good-50: #E8F9EE;
+  --bad: #F04438;
+  --bad-ink: #C42B20;
+  --bad-50: #FEECEB;
+  --warn: #F5A524;
+  --warn-50: #FEF4E2;
+  --on-primary: #FFFFFF;
+
+  --band-1: #7B4BFF;
+  --band-2: #5A2BE0;
+
+  --r-card: 24px;
+  --r-inner: 16px;
+  --r-pill: 999px;
+  --shadow: 0 12px 32px rgba(108, 59, 245, .14);
+  --shadow-sm: 0 4px 14px rgba(108, 59, 245, .10);
+  --shadow-lg: 0 20px 48px rgba(108, 59, 245, .24);
+
+  --f-ui: "Rubik", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-en: "Plus Jakarta Sans", "Rubik", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --gutter: 20px;
+  --nav-h: 64px;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #120D24;
+    --surface: #1C1534;
+    --surface-2: #221A3F;
+    --ink: #F2EEFF;
+    --ink-2: #D9D2F5;
+    --muted: #A49CC4;
+    --muted-ink: #B9B1DA;
+    --line: #2C2350;
+    --primary-50: #2A1F55;
+    --primary-100: #3A2C72;
+    --primary-200: #4A3A8F;
+    --gold-50: #3A2C10;
+    --flame-50: #3A220E;
+    --good-50: #11331F;
+    --good-ink: #6FD08C;
+    --warn-ink: #F0B357;
+    --bad-50: #3A1614;
+    --bad-ink: #FF8A80;
+    --warn-50: #3A2A0E;
+    --band-1: #7B4BFF;
+    --band-2: #5A2BE0;
+    --shadow: 0 12px 32px rgba(0, 0, 0, .35);
+    --shadow-sm: 0 4px 14px rgba(0, 0, 0, .28);
+    --shadow-lg: 0 20px 48px rgba(0, 0, 0, .45);
+    --sh-card: 0 12px 32px rgba(0,0,0,.35); --sh-card-sm: 0 8px 24px rgba(0,0,0,.3); --sh-tile: 0 6px 18px rgba(0,0,0,.28); --sh-nav: 0 12px 32px rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #120D24;
+  --surface: #1C1534;
+  --surface-2: #221A3F;
+  --ink: #F2EEFF;
+  --ink-2: #D9D2F5;
+  --muted: #A49CC4;
+    --muted-ink: #B9B1DA;
+  --line: #2C2350;
+  --primary-50: #2A1F55;
+  --primary-100: #3A2C72;
+  --primary-200: #4A3A8F;
+  --gold-50: #3A2C10;
+  --flame-50: #3A220E;
+  --good-50: #11331F;
+  --good-ink: #6FD08C;
+    --warn-ink: #F0B357;
+  --bad-50: #3A1614;
+  --bad-ink: #FF8A80;
+  --warn-50: #3A2A0E;
+  --band-1: #7B4BFF;
+  --band-2: #5A2BE0;
+  --shadow: 0 12px 32px rgba(0, 0, 0, .35);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, .28);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, .45);
+  --sh-card: 0 12px 32px rgba(0,0,0,.35); --sh-card-sm: 0 8px 24px rgba(0,0,0,.3); --sh-tile: 0 6px 18px rgba(0,0,0,.28); --sh-nav: 0 12px 32px rgba(0,0,0,.45);
+  color-scheme: dark;
+}

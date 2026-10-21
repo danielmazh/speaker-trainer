@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Speaker Trainer</title>
+  <meta name="description" content="משחק קצר כל יום שמאמן אנגלית מדוברת להרצאות טכניות.">
+  <meta name="theme-color" content="#6C3BF5">
+  <meta name="color-scheme" content="light dark">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Speaker">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <link rel="stylesheet" href="css/play.css">
+  <script>
+    // Apply the saved theme before first paint (no flash).
+    try {
+      var s = JSON.parse(localStorage.getItem('speakerTrainer.v1') || '{}');
+      var t = s && s.settings && s.settings.theme;
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#view">דלג לתוכן</a>
+  <div id="app">
+    <main id="view" tabindex="-1" aria-live="polite"></main>
+  </div>
+  <nav id="nav" class="nav" aria-label="ניווט ראשי" hidden></nav>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <div id="overlay-root"></div>
+  <noscript><p style="padding:24px">המשחק צריך JavaScript כדי לעבוד.</p></noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

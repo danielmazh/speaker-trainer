@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>html{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>Speaking Gym</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column, sticky tab bar, Hebrew RTL frame with English LTR practice cards set in serif */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e7ecea; --fg:#18211f; --muted:#5b6865; --line:#d3dbd8;
+  --accent:#0d6e62; --accent-ink:#ffffff; --accent-soft:#d6ece8;
+  --good:#1d7a3a; --good-soft:#dcefe2; --warn:#a15c00; --warn-soft:#f6e7cf; --bad:#b3261e; --bad-soft:#f7dcd9;
+  --mark:#ffe08a;
+  --f-ui:"Rubik","Segoe UI",Arial,sans-serif;
+  --f-en:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211f; --sunk:#0c1210; --fg:#e6edeb; --muted:#9aa9a5; --line:#2b3835;
+  --accent:#4fc2b1; --accent-ink:#06201c; --accent-soft:#16352f;
+  --good:#6fd08c; --good-soft:#163222; --warn:#f0b357; --warn-soft:#3a2a10; --bad:#f2867e; --bad-soft:#3d1916;
+  --mark:#6b5a12; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211f; --sunk:#0c1210; --fg:#e6edeb; --muted:#9aa9a5; --line:#2b3835;
+  --accent:#4fc2b1; --accent-ink:#06201c; --accent-soft:#16352f;
+  --good:#6fd08c; --good-soft:#163222; --warn:#f0b357; --warn-soft:#3a2a10; --bad:#f2867e; --bad-soft:#3d1916;
+  --mark:#6b5a12; color-scheme:dark}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:16px;line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 64px}
+header.top{display:flex;flex-direction:column;gap:4px;padding-block:20px 8px}
+header.top h1{margin:0;font-size:1.75rem;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+header.top p{margin:0;color:var(--muted)}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:6px;overflow-x:auto;padding-block:10px;border-bottom:1px solid var(--line);scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);font-weight:500;padding:7px 14px;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+nav.tabs a[aria-current="page"]{background:var(--fg);color:var(--bg)}
+nav.tabs a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+section.view{display:flex;flex-direction:column;gap:18px;padding-top:20px}
+h2{margin:0;font-size:1.3rem;text-wrap:balance}
+h3{margin:0;font-size:1.05rem;text-wrap:balance}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.plain{display:flex;flex-direction:column;gap:10px}
+ol.steps,ul.list{margin:0;padding-inline-start:1.3em;display:flex;flex-direction:column;gap:6px}
+.en{direction:ltr;text-align:left;font-family:var(--f-en);font-size:1.12rem;line-height:1.55}
+.en.big{font-size:1.3rem}
+.ts{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);direction:ltr;unicode-bidi:isolate}
+.quote{direction:ltr;text-align:left;font-family:var(--f-en);color:var(--muted);border-inline-start:3px solid var(--line);padding-inline-start:10px;font-style:italic}
+.quote.bad{border-color:var(--bad)}
+.tag{display:inline-block;font-size:.75rem;font-weight:500;letter-spacing:.04em;padding:2px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.tag.acc{background:var(--accent-soft);color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spread{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+button{font:inherit;font-weight:500;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:9px 16px;min-height:44px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.good{background:var(--good-soft);color:var(--good);border-color:transparent}
+button.again{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+button.ghost{background:transparent}
+button:disabled{opacity:.45;cursor:default}
+.stations{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.station{text-align:start;display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);min-height:auto}
+.station b{font-size:1rem}
+.station span{font-size:.85rem;color:var(--muted);font-weight:400}
+.station .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.card .answer{background:var(--accent-soft);border-radius:10px;padding:12px 14px}
+.card .answer .en{color:var(--fg)}
+.progress{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);direction:ltr}
+.choice{display:flex;flex-direction:column;gap:8px}
+.choice button{text-align:left;direction:ltr;font-family:var(--f-en);font-weight:400;font-size:1.05rem}
+.choice button.right{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.choice button.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.timer{font-family:var(--f-mono);font-size:3rem;font-weight:500;text-align:center;direction:ltr;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.timer.done{color:var(--accent)}
+.banned{display:flex;flex-wrap:wrap;gap:6px;direction:ltr}
+.banned s{font-family:var(--f-en);background:var(--bad-soft);color:var(--bad);padding:1px 8px;border-radius:6px}
+.must{display:flex;flex-wrap:wrap;gap:6px;direction:ltr}
+.must span{font-family:var(--f-en);background:var(--good-soft);color:var(--good);padding:1px 8px;border-radius:6px}
+.cloze .w{display:inline}
+.cloze .hid{color:transparent;background:var(--sunk);border-radius:4px;user-select:none}
+.cloze .first{color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:start;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.8rem}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;direction:ltr;text-align:end}
+.tablebox{overflow-x:auto}
+.pill{display:inline-block;font-size:.78rem;font-weight:500;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.mid{background:var(--warn-soft);color:var(--warn)}
+.pill.far{background:var(--bad-soft);color:var(--bad)}
+textarea,input[type=number]{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;box-sizing:border-box}
+textarea{direction:ltr;font-family:var(--f-en);min-height:160px;resize:vertical}
+input[type=number]{max-width:120px;direction:ltr}
+label.field{display:flex;flex-direction:column;gap:6px;font-weight:500}
+.marked{direction:ltr;text-align:left;font-family:var(--f-en);line-height:1.8;max-height:320px;overflow:auto;background:var(--sunk);border-radius:10px;padding:12px}
+.marked mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.check:last-child{border-bottom:0}
+.check input{width:22px;height:22px;margin-top:3px;accent-color:var(--accent);flex:0 0 auto}
+.dots{display:flex;gap:5px;direction:ltr;flex-wrap:wrap}
+.dots i{width:14px;height:14px;border-radius:4px;background:var(--sunk);display:inline-block}
+.dots i.on{background:var(--accent)}
+.streak{font-family:var(--f-mono);font-size:2rem;font-weight:500;direction:ltr}
+details{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+details summary{cursor:pointer;padding:12px 16px;font-weight:500;list-style-position:inside}
+details .inner{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
+.why{font-size:.88rem;color:var(--muted)}
+.why b{color:var(--fg);font-weight:500}
+.toast{position:fixed;inset-inline:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;pointer-events:none}
+.toast span{background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .2s}
+.toast span.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div dir="rtl" lang="he">
+<div class="wrap">
+  <header class="top">
+    <h1>Speaking Gym</h1>
+    <p>אימון אנגלית להרצאה הבאה. כל תרגיל כאן בנוי על משפט אמיתי מההרצאה "Local LLM" מ-2026-10-20.</p>
+  </header>
+  <nav class="tabs" aria-label="ניווט">
+    <a href="#how">איך משתמשים</a>
+    <a href="#today">האימון של היום</a>
+    <a href="#drills">תרגילים</a>
+    <a href="#stage">איך להציג</a>
+    <a href="#check">בדיקה שבועית</a>
+    <a href="#before">לפני הרצאה</a>
+  </nav>
+
+  <!-- HOW -->
+  <section class="view" id="v-how">
+    <div class="plain">
+      <h2>הרעיון בשלוש שורות</h2>
+      <p>ההרצאה שלך נפגעה בעיקר מ-5 דפוסים שחוזרים. הדף הזה מאמן רק אותם.</p>
+      <p>15 דקות ביום. בטלפון, באוטובוס, לפני שינה. אין צורך בשום דבר חוץ מהדף והקול שלך.</p>
+      <p>פעם בשבוע: מקליטים 5 דקות, מדביקים את התמלול בלשונית "בדיקה שבועית", ורואים מספרים.</p>
+    </div>
+
+    <div class="panel">
+      <h3>5 הדפוסים שהדף מתקן</h3>
+      <div class="tablebox"><table>
+        <thead><tr><th>מה</th><th>דוגמה שלך</th><th>תרגיל</th></tr></thead>
+        <tbody>
+          <tr><td>שמטת is/are</td><td><span class="ts">[04:49]</span> <span class="en small">"when we gonna add some users"</span></td><td>דקדוק</td></tr>
+          <tr><td>מילות מילוי</td><td>so 105, basically 25, whatever 19</td><td>דיבור 60 שניות</td></tr>
+          <tr><td>he על AI</td><td><span class="ts">[12:01]</span> <span class="en small">"i ask him"</span></td><td>it, לא he</td></tr>
+          <tr><td>תרגום מעברית</td><td><span class="ts">[02:03]</span> <span class="en small">"ask a special approval"</span></td><td>ניסוח טבעי</td></tr>
+          <tr><td>פתיחה, סיום, מספרים</td><td><span class="ts">[28:06]</span> <span class="en small">"That's it. If anyone has any questions"</span></td><td>טקסטים, מספרים</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="panel">
+      <h3>חמשת הכללים של האימון</h3>
+      <ol class="steps">
+        <li><b>תמיד בקול.</b> קריאה בשקט לא מאמנת את הפה. גם לחישה עדיפה על שקט.</li>
+        <li><b>קודם אתה, אחר כך התשובה.</b> אמור את הגרסה שלך, ורק אז לחץ "הצג".</li>
+        <li><b>שתיקה במקום מילת מילוי.</b> כשאתה מרגיש so או basically עולה, עצור חצי שנייה. שתיקה נשמעת בטוחה.</li>
+        <li><b>"שוב" זה לא כישלון.</b> כרטיס שסימנת "שוב" יחזור מוקדם יותר. זו כל השיטה.</li>
+        <li><b>משפט אחד, רעיון אחד, נקודה.</b> אם משפט הולך לאיבוד, אמור "Let me say that again" ומשפט קצר.</li>
+      </ol>
+    </div>
+
+    <div class="panel">
+      <h3>איך להפיק את המקסימום</h3>
+      <ul class="list">
+        <li><b>הקלט את עצמך</b> באפליקציית ההקלטה בטלפון. שמיעה של הקול שלך שווה פי 3 מקריאה.</li>
+        <li><b>אנדרואיד:</b> פתח את הדף ב-Chrome, תפריט, "הוספה למסך הבית". הוא ייפתח כמו אפליקציה.</li>
+        <li><b>ההתקדמות נשמרת רק בדפדפן הזה</b>, במכשיר הזה. בחר מכשיר אחד קבוע לאימון היומי.</li>
+        <li><b>שבוע 1 עד 2:</b> דקדוק ודיבור. <b>שבוע 3:</b> טקסטים בעל פה. <b>שבוע 4:</b> מספרים, וחזרה מלאה.</li>
+        <li><b>אם יש לך רק 3 דקות:</b> 5 כרטיסי דקדוק. זה התרגיל עם ההשפעה הכי גדולה.</li>
+      </ul>
+    </div>
+    <div class="row"><button class="primary" data-go="today">התחל את האימון של היום</button></div>
+  </section>
+
+  <!-- TODAY -->
+  <section class="view" id="v-today" hidden>
+    <div class="spread">
+      <div class="plain">
+        <h2>האימון של היום</h2>
+        <p class="muted small">4 שלבים, כ-15 דקות. סמן כל שלב כשסיימת.</p>
+      </div>
+      <div style="text-align:center">
+        <div class="streak" id="streakNum">0</div>
+        <div class="muted small">ימי אימון</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="small muted">14 הימים האחרונים</div>
+      <div class="dots" id="dots" aria-label="ימי אימון ב-14 הימים האחרונים"></div>
+    </div>
+    <div class="panel" id="todaySteps"></div>
+    <div class="row"><button class="primary" id="dayDone">סיימתי את האימון של היום</button></div>
+  </section>
+
+  <!-- DRILLS -->
+  <section class="view" id="v-drills" hidden>
+    <div id="drillMenu" class="plain">
+      <h2>תרגילים</h2>
+      <p class="muted small">כל תחנה מתקנת נקודה אחת מהדוח. המספר בתגית הוא כמה כרטיסים יש.</p>
+      <div class="stations" id="stationList"></div>
+    </div>
+    <div id="drillStage" hidden></div>
+  </section>
+
+  <!-- STAGE -->
+  <section class="view" id="v-stage" hidden>
+    <div class="plain">
+      <h2>איך להציג</h2>
+      <p>הטכניקה, לא רק האנגלית. איך פותחים, איך סוגרים, איך עונים לשאלות, ומה אומרים לכל קהל. החלקים באנגלית הם משפטים לאמירה בקול.</p>
+      <p class="muted small">כלל הזהב: הקהל לא זוכר מה אמרת. הוא זוכר איך הרגיש, ומספר אחד. תחליט מראש מה המספר.</p>
+    </div>
+
+    <div class="panel">
+      <h3>מול מי אתה מציג היום?</h3>
+      <div class="row" id="audBtns" role="tablist"></div>
+      <div id="audOut" class="plain"></div>
+    </div>
+
+    <div class="panel">
+      <div class="spread"><h3>שובר קרח</h3><button class="primary" id="iceBtn">תן לי עוד אחד</button></div>
+      <div class="en big" id="iceLine"></div>
+      <p class="why" id="iceWhen"></p>
+      <p class="small muted">חוקי הומור בהרצאה: צוחקים על עצמך, על המצב, או על הטכנולוגיה. אף פעם לא על עמית, לא על מי שבקהל, ולא על ההנהלה. בדיחה אחת בפתיחה, אחת בהדגמה, וזהו. אתה מהנדס, לא סטנדאפיסט. (עדיין.)</p>
+    </div>
+
+    <details open><summary>איך פותחים: 30 השניות הראשונות</summary><div class="inner">
+      <ol class="steps">
+        <li><b>אל תתחיל ב-"So, we're here to present".</b> זה מה שעשית ב-<span class="ts">[01:25]</span>. כולם כבר יודעים למה הם פה. הם רוצים לדעת למה להקשיב.</li>
+        <li><b>שאלה, מספר או סיפור קצר.</b> אחד מהם. "Who hit the monthly limit this month?" עובד, כי כל אחד בקהל עונה בראש.</li>
+        <li><b>מפה.</b> "Three things: the problem, the demo, the cost." הקהל נרגע כשהוא יודע כמה זמן נשאר.</li>
+        <li><b>משפט ה"למה אכפת לי".</b> משפט אחד אמיתי, אישי. ראה "איך להראות שאכפת לך" למטה.</li>
+        <li><b>ב-Teams:</b> מצלמה פתוחה בדקה הראשונה, גם אם אחר כך עוברים לשיתוף מסך. פנים בונות אמון מהר יותר משקף.</li>
+      </ol>
+    </div></details>
+
+    <details><summary>איך מסיימים: הדקה האחרונה</summary><div class="inner">
+      <ol class="steps">
+        <li><b>אף פעם לא "That's it".</b> זה מה שאמרת ב-<span class="ts">[28:06]</span>. זה נשמע כמו "נגמר לי הזמן", לא כמו סיום.</li>
+        <li><b>שלוש נקודות.</b> "Three things to remember." ואז מספרים: One, Two, Three.</li>
+        <li><b>משפט אחד שזוכרים.</b> כבר יש לך: "AI should be a daily tool for everyone, not a rare treat."</li>
+        <li><b>בקשה.</b> מה אתה רוצה שהם יעשו מחר בבוקר? מפתח בפורטל, משימה לאוטומציה, החלטה על תקציב. בלי בקשה, ההרצאה היא סרט, לא פגישה.</li>
+        <li><b>רק אז: "Questions?"</b> ושתוק 5 שניות. ספור בראש. השקט הזה לא שלך לשבור.</li>
+      </ol>
+      <div class="answer"><div class="en">So, three things to remember. One, it's ours. Two, it's the same tool. Three, it already works on real tickets. AI should be a daily tool for everyone, not a rare treat. My ask: get your key this week. Questions?</div></div>
+    </div></details>
+
+    <details><summary>שאלות מהקהל: 6 טכניקות</summary><div class="inner">
+      <ol class="steps">
+        <li><b>חזור על השאלה.</b> "Alex asked if it works with Claude Code." זה נותן לך 3 שניות לחשוב, וגם ההקלטה שומעת אותה. ב-<span class="ts">[13:42]</span> ענית ל-"as you said" שאף אחד בהקלטה לא שמע.</li>
+        <li><b>תשובה קודם, הסבר אחר כך.</b> "Yes." "No." "About [X] a month." ורק אז למה. מנהלים במיוחד: המספר בהתחלה.</li>
+        <li><b>שאלה ספקנית: הסכם עם הדאגה, לא עם המסקנה.</b> "That's a fair concern. Here's what we did about it."</li>
+        <li><b>לא יודע? תגיד יפה.</b> "I don't know yet. I'll check and send it to you today." ולשלוח באמת. "first triage i don't know response" <span class="ts">[22:05]</span> הוא לא "לא יודע", זה חיפוש מילה בקול. ההבדל חשוב.</li>
+        <li><b>שאלה מחוץ לנושא:</b> "Good one. Let's take it offline, I'll ping you after." חונה אותה בלי להעליב.</li>
+        <li><b>אף אחד לא שואל?</b> שאלה שתולה משלך: "A question I usually get is: what if the GPU dies?" ואז עונה. זה מוריד את הלחץ מהחדר.</li>
+      </ol>
+      <div class="row"><button class="primary" data-station="tough">תרגל שאלות קשות</button></div>
+    </div></details>
+
+    <details><summary>איך להראות שאכפת לך (בלי למכור)</summary><div class="inner">
+      <ul class="list">
+        <li><b>רגע אישי אחד, אמיתי.</b> מתי אתה נתקעת בלי טוקנים? מה עשית אז? משפט אחד. תבנית: <span class="en">"Two weeks into the month, I ran out of tokens in the middle of an incident. That's when I started this."</span> השתמש רק אם זה נכון. אם לא, מצא את הרגע האמיתי שלך.</li>
+        <li><b>"I built" כשזה שלך, "we" כשזה של הצוות.</b> אמרת "an actual automation that i built" <span class="ts">[17:55]</span>. טוב. אל תתבייש בזה.</li>
+        <li><b>אל תקטין את העבודה שלך.</b> "it's not so impressive" <span class="ts">[07:41]</span> הוא משפט שהקהל זוכר. במקום: <span class="en">"The page is simple on purpose."</span></li>
+        <li><b>אנרגיה בקול על 3 משפטים בלבד:</b> הבעיה, הרגע שההדגמה עובדת, והבקשה בסוף. השאר רגוע. מי שמתלהב מהכול, לא מתלהב מכלום.</li>
+        <li><b>תן קרדיט בשם.</b> עשית את זה כשנתת קרדיט לעמית <span class="ts">[06:28]</span>. זה מראה ביטחון, לא חולשה.</li>
+        <li><b>הצע עזרה.</b> <span class="en">"Ping me on Teams. I'll help you set it up in five minutes."</span> אנשים מאמצים כלים של אנשים, לא של שקפים.</li>
+      </ul>
+    </div></details>
+
+    <details><summary>הדגמות: איך לא להיתקע</summary><div class="inner">
+      <ul class="list">
+        <li><b>הכול פתוח מראש.</b> 2:20 דקות של הכנה בשקט <span class="ts">[08:26 עד 10:44]</span> הן נצח ב-Teams.</li>
+        <li><b>לפני:</b> מה הולך לקרות ולאן להסתכל. <b>בזמן:</b> משפט מוכן. <b>אחרי:</b> "So what did we just see?"</li>
+        <li><b>תוכנית ב':</b> הקלטה מוכנה. "Let's not wait. Here's one it already finished." עשית את זה ב-<span class="ts">[23:14]</span>, וזה עבד.</li>
+        <li><b>הדגמה נכשלה?</b> צחק, הסבר, המשך: <span class="en">"Live demos. My favorite kind of incident. Let me show you the recording."</span></li>
+      </ul>
+      <div class="row"><button class="primary" data-script="demo">תרגל טקסט הדגמה</button></div>
+    </div></details>
+
+    <details><summary>יכולת הצגה: 10 כללים קצרים</summary><div class="inner">
+      <ol class="steps">
+        <li><b>רעיון אחד לשקף.</b> קרא את הכותרת בקול. השקפים שלך כתובים טוב יותר מהדיבור, אז תן להם לעבוד.</li>
+        <li><b>כלל השלוש.</b> שלוש סיבות, שלושה צעדים, שלוש נקודות בסוף. המוח אוהב שלוש.</li>
+        <li><b>תווית אמת לכל דבר:</b> live, planned, idea. מהנדסים סולחים על "planned". הם לא סולחים על "live" שהוא בעצם planned.</li>
+        <li><b>מספרים: לאט, ופעם שנייה.</b> "[X] dollars a month. [X]." מספר שנאמר פעמיים נזכר.</li>
+        <li><b>שתיקה היא כלי.</b> אחרי משפט חשוב, עצור שנייה. זה לא חור, זה הדגשה.</li>
+        <li><b>בלי מילים שמחלישות</b> במשפטים חשובים: probably, I think, basically, whatever.</li>
+        <li><b>הסתכל במצלמה</b> כשאתה אומר את המספר ואת הבקשה. לא במסך.</li>
+        <li><b>סיים בזמן.</b> 25 דקות שמסתיימות ב-24 זוכרות טוב יותר מ-25 שמסתיימות ב-29.</li>
+        <li><b>שתי גרסאות מוכנות:</b> 30 שניות (מעלית) ו-5 דקות. אם מנהל אומר "I only have five minutes", אתה מוכן.</li>
+        <li><b>תרגל מול אדם אחד</b> שישאל שאלות קשות. עדיף שיצחק עליך בחזרה מאשר בהרצאה.</li>
+      </ol>
+      <div class="row"><button class="primary" data-script="exec30">תרגל גרסת מעלית, 30 שניות</button></div>
+    </div></details>
+  </section>
+
+  <!-- CHECK -->
+  <section class="view" id="v-check" hidden>
+    <div class="plain">
+      <h2>בדיקה שבועית</h2>
+      <p>הקלט את עצמך 5 דקות, מסביר נושא אחד מההרצאה. תמלל את ההקלטה (Whisper, או אפליקציית ההקלטה של Google שמתמללת לבד). הדבק כאן את הטקסט.</p>
+      <p class="muted small">תמלול אוטומטי מוחק חלק ממילות המילוי. המספרים כאן הם הערכה נמוכה, בדיוק כמו בדוח. השוואה משבוע לשבוע עדיין אמינה, כי הטעות זהה.</p>
+    </div>
+    <div class="panel">
+      <label class="field" for="ckText">התמלול
+        <textarea id="ckText" placeholder="Paste your transcript here..."></textarea>
+      </label>
+      <label class="field" for="ckMin">אורך ההקלטה בדקות
+        <input type="number" id="ckMin" min="0.5" step="0.5" value="5">
+      </label>
+      <div class="row"><button class="primary" id="ckRun">בדוק</button><button class="ghost" id="ckSample">טען דוגמה מההרצאה</button></div>
+    </div>
+    <div id="ckOut" class="plain" hidden></div>
+    <div class="panel">
+      <h3>היסטוריה</h3>
+      <div id="ckHist" class="tablebox"></div>
+    </div>
+  </section>
+
+  <!-- BEFORE -->
+  <section class="view" id="v-before" hidden>
+    <div class="plain">
+      <h2>לפני הרצאה</h2>
+      <p class="muted small">שבוע לפני, ובבוקר של ההרצאה. הסימונים נשמרים.</p>
+    </div>
+    <div class="panel" id="beforeList"></div>
+    <div class="row"><button class="ghost" id="beforeReset">נקה את כל הסימונים</button></div>
+  </section>
+</div>
+</div>
+<div class="toast" aria-live="polite"><span id="toast"></span></div>
+
+<script>
+/* ---------- storage (per-device convenience only) ---------- */
+const KEY='speakingGym.v1';
+let S={cards:{},days:[],today:{},hist:[],before:{},cloze:{}};
+try{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(S,JSON.parse(raw));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),1600);}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function todayStr(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+/* ---------- data: every item comes from the lecture transcript ---------- */
+const GRAMMAR=[
+ {t:'04:49',q:'Well, when we gonna add some users,',a:'When we add more users,',n:'אין "we gonna". או "we\'re going to", או פשוט הווה.'},
+ {t:'04:56',q:'so he gonna fully consume the GPU as per his requests.',a:'They\'re going to use the full GPU.',n:'חסר is/are לפני gonna. ובמקום he: they.'},
+ {t:'05:03',q:'we can see that both of them sharing the same GPU,',a:'You can see they are sharing the same GPU.',n:'ing צריך is/are לפניו.'},
+ {t:'04:41',q:'if he is the only user that using the GPU machine,',a:'If they\'re the only user who is using the GPU,',n:'that/who + ing = that is / who is.'},
+ {t:'02:39',q:'fixing stuff that not working so well',a:'fixing things that are not working well',n:'that + not + ing = that are not.'},
+ {t:'14:43',q:'the names of the engineers that working on',a:'the names of the engineers who are using it',n:'אנשים: who are.'},
+ {t:'16:02',q:'the automation that using the gpu',a:'the automations that are using the GPU',n:'that + ing = that are.'},
+ {t:'16:24',q:'some gonna use uh two 200k',a:'and some will use 200K.',n:'"will" קצר וברור.'},
+ {t:'20:26',q:'how we gonna perform actual actions',a:'how we are going to take real actions',n:'we + are + going to.'},
+ {t:'06:28',q:'here we have a brain that connected',a:'Here we have a brain that is connected.',n:'that + is.'},
+ {t:'24:56',q:'here we also managing user',a:'Here we also manage users.',n:'הווה פשוט: we manage.'},
+ {t:'25:27',q:'that currently consuming the local llm',a:'that is currently using the local LLM',n:'that + is + ing.'},
+ {t:'27:05',q:'the user that not used to work with',a:'users who are not used to working with',n:'who are, ו-used to + ing.'},
+ {t:'19:09',q:'the events that happening here out there',a:'the events that are happening out there',n:'that + are + ing.'},
+ {t:'06:42',q:'it\'s make all the connections',a:'It makes all the connections.',n:'it + פועל + s. בלי "it\'s".'},
+ {t:'17:55',q:'an actual automation that i built that are consuming our local model',a:'an automation I built that uses our local model',n:'automation = יחיד: uses.'},
+ {t:'03:24',q:'the pros of this solution is that is in-house',a:'The main advantage is that it\'s in-house.',n:'pros = רבים. ו-"that it\'s", לא "that is".'},
+ {t:'20:42',q:'urgent bugs that needs to be taken care of',a:'urgent bugs that need to be fixed now',n:'bugs = רבים: need.'},
+ {t:'23:27',q:'why there is facts that are going through verification',a:'There are facts, and they\'re verified.',n:'facts = רבים: there are.'},
+ {t:'24:05',q:'this pr is already has been merged',a:'This PR has already been merged.',n:'רק has, בלי is.'},
+ {t:'25:11',q:'for example she send this it\'s refused',a:'She sent this, and it was refused.',n:'עבר: sent, was.'},
+ {t:'01:41',q:'so today the pain is the your organization is the um',a:'Today, the pain in our organization is this.',n:'בלי "the" לפני your.'},
+ {t:'02:52',q:'we want the people to enjoy the work',a:'We want people to enjoy their work.',n:'אנשים באופן כללי: בלי the.'},
+ {t:'04:14',q:'shown eventually in the Grafana.',a:'shown in Grafana.',n:'שם של מוצר: בלי the.'},
+ {t:'06:28',q:'it\'s a employee called Alex',a:'an employee called Alex',n:'לפני תנועה: an.'},
+ {t:'13:06',q:'all we need is bigger gpu machine or whatever',a:'All we need is a bigger GPU machine.',n:'חסר a. ובלי whatever.'},
+ {t:'04:37',q:'Each user getting is their own limitations,',a:'Each user gets their own limits.',n:'each user = יחיד: gets.'},
+ {t:'15:29',q:'how much it\'s going to cost us',a:'How much is it going to cost us?',n:'בשאלה: is לפני it.'}
+];
+const PRONOUN=[
+ {t:'12:01',q:'so here i ask him what does the project contain',a:'So here I ask it what the project contains.',n:'מודל = it. ובשאלה עקיפה: what the project contains.'},
+ {t:'12:20',q:'fix apply he fixed something',a:'Fix applied. It fixed the bug.',n:'it, ולהגיד מה בדיוק תוקן.'},
+ {t:'12:45',q:'you can see that he changed line six whatever',a:'You can see it remembers: it changed line six.',n:'it, ובלי whatever.'},
+ {t:'23:01',q:'let\'s give him another ticket',a:'Let\'s give it another ticket.',n:'agent = it.'},
+ {t:'23:08',q:'because again he\'s connecting to git he\'s doing his investigation',a:'It\'s connecting to Git and doing its investigation.',n:'its, לא his.'},
+ {t:'24:50',q:'we need to approve uh whatever he\'s doing',a:'We need to approve everything it does.',n:'it, ו-everything במקום whatever.'},
+ {t:'18:31',q:'whatever you configure this agent to do he will do',a:'The agent does what you configure it to do.',n:'agent = it.'},
+ {t:'02:03',q:'so he needs to ask a special approval to increase this.',a:'They need to ask for approval to increase it.',n:'משתמש כללי = they. ו-ask for.'},
+ {t:'06:01',q:'can generate his own key then use it paired the ide that he\'s using',a:'can generate their own key and use it in their IDE.',n:'their, ו-in their IDE.'}
+];
+const CALQUE=[
+ {t:'02:03',q:'ask a special approval',o:['ask for special approval','ask special approval','request for a special approval'],c:0,n:'ask for = לבקש.'},
+ {t:'01:49',q:'we can call it that way',o:['we can call it that way','let\'s call it token starvation','we call it like that way'],c:1,n:'"that way" לא טבעי כאן.'},
+ {t:'02:35',q:'we\'re asking for increments every while in there',o:['every while in there','every now and then','each while'],c:1,n:'כל כמה זמן = every now and then.'},
+ {t:'12:52',q:'we\'re not expecting of it to be like very aggressive',o:['we\'re not expecting of it to be','we don\'t expect it to be','we don\'t expect from it to be'],c:1,n:'expect + it + to. בלי of / from.'},
+ {t:'19:37',q:'very good user experience from our opinion',o:['from our opinion','in our opinion','by our opinion'],c:1,n:'in my opinion, in our opinion.'},
+ {t:'20:17',q:'if tomorrow um different new need is born',o:['a new need is born','a new need comes up','a new need is opening'],c:1,n:'נולד צורך = a need comes up.'},
+ {t:'23:01',q:'another ticket that already have been chewed',o:['already been chewed','that was already handled','that already was eaten'],c:1,n:'"לעוס" לא עובר לאנגלית.'},
+ {t:'15:54',q:'it\'s uh worth to maintain this kind of uh machine',o:['worth to maintain','worth maintaining','worth for maintaining'],c:1,n:'worth + ing.'},
+ {t:'26:48',q:'in matter of security',o:['in matter of security','in terms of security','in security matter'],c:1,n:'in terms of = בהקשר של.'},
+ {t:'07:35',q:'you can use it whatever you want',o:['use it whatever you want','use it however you want','use it what you want'],c:1,n:'however = בכל דרך.'},
+ {t:'04:45',q:'he will get the most effect of the machine',o:['the most effect of the machine','the most out of the machine','the most from the machine effect'],c:1,n:'ביטוי קבוע: get the most out of.'},
+ {t:'19:15',q:'it can be more smarter',o:['more smarter','smarter','more smart'],c:1,n:'smart הוא קצר: smarter, בלי more.'},
+ {t:'03:21',q:'now we\'re gonna show how this is working off',o:['how this is working off','how this works','how this is working out of'],c:1,n:'פשוט: how this works.'},
+ {t:'23:08',q:'it\'s taking a lot of a bit time',o:['a lot of a bit time','a bit of time','a bit lot of time'],c:1,n:'a bit of time.'},
+ {t:'02:18',q:'it\'s not the best practice working as an SRE or DevOps engineer in this method.',o:['in this method','this way','by this method way'],c:1,n:'בשיטה הזו = this way.'},
+ {t:'15:07',q:'to make more efficiency and and to more productivity',o:['to make more efficiency','to make us more efficient and productive','to do more efficiency'],c:1,n:'make + us + תואר.'}
+];
+const SPEAK=[
+ {id:'pain',title:'הבעיה',t:'01:41',bad:'so today the pain is the your organization is the um currently we have a token starvation',prompt:'Explain the problem. 45 seconds.',must:['token starvation','a monthly budget','approval'],model:'Today we have a problem. Let\'s call it token starvation. Each of us gets a fixed monthly budget of Claude tokens. When it runs out, you ask for approval, and you wait. So the first question becomes "how do I save tokens?", not "how do I solve this well?". That\'s not how SRE and DevOps work should look.'},
+ {id:'arch',title:'ארכיטקטורה: בקשה אחת',t:'03:48',bad:'So only users that are connected to the VPN through the reverse proxy to the LytleLM, to the GPU consuming the tokens.',prompt:'Walk through one request, end to end. 60 seconds.',must:['VPN','nginx','LiteLLM','vLLM','gpt-oss-20b','two A10 GPUs'],model:'Here\'s one request, end to end. You\'re on the VPN. The request goes to nginx, over TLS. Then to LiteLLM, our gateway. It checks your key and your limit: three requests at a time. Then vLLM runs the model, gpt-oss-20b, on two A10 GPUs. The answer streams back to you. And every request is saved in PostgreSQL.'},
+ {id:'small',title:'מודל קטן, ועדיין שימושי',t:'12:52',bad:'again this is very uh small and weak we call it a model so we\'re not expecting of it to be like very aggressive',prompt:'Explain why a small model is still useful. 45 seconds.',must:['20 billion parameters','simple bugs','no cost per token'],model:'To be clear, this is a small model. Twenty billion parameters. It won\'t write big features. But for summaries, logs and simple bugs, it works. And it costs us nothing per token.'},
+ {id:'cost',title:'עלות ונקודת איזון',t:'16:09',bad:'but basically this is the break even okay this is the most logical i think average something that i can see happening',prompt:'Explain the cost and the break-even. 60 seconds.',must:['host cost','users','paid API cost','savings','break-even'],model:'The host costs [host cost] a month. Fixed, used or not. Our base case: [N] users, [N] million tokens each per day, plus [N] automations. On a paid API, that\'s about [API cost] a month. So we save about [savings] a month. And break-even is only [N] users.'},
+ {id:'chops',title:'ChannelOps וטיקט חדש',t:'22:05',bad:'again this is only read only um first triage i don\'t know response',prompt:'Explain what ChannelOps does with a new support ticket. 60 seconds.',must:['picks it up','facts, a guess, a fix','read-only','a human decides'],model:'A new support ticket lands in Teams. The agent picks it up. It reads the ticket, checks Git, and finds similar tickets. Then it posts a first triage: facts, a guess, and a suggested fix. It also shows its own confidence. It\'s read-only. A human decides.'},
+ {id:'sec',title:'אבטחה',t:'26:48',bad:'uh so in matter of security so again anything that is not in the vpn cannot access probably we already said that',prompt:'Explain security in four points. 45 seconds.',must:['no VPN, no access','own key','logged','read-only','admin approval'],model:'Security, in four points. One: no VPN, no access. Two: every user has their own key, with limits. Three: every request is logged. Four: agents are read-only, and every SSH command needs an admin\'s approval.'},
+ {id:'adopt',title:'אימוץ',t:'27:05',bad:'how the the user that not used to work with let\'s say cursor or something else gonna implement uh gonna like adopt the the solution',prompt:'Explain why people will actually use it. 45 seconds.',must:['same tool','Claude Code','different key','nothing new to learn'],model:'People don\'t like new tools. But this is the same tool they use today: Claude Code. Same commands, same screen. Just a different key. So there\'s nothing new to learn.'},
+ {id:'status',title:'מה חי, מה מתוכנן, מה רעיון',t:'17:55',bad:'so here we have an actual automation that i built that are consuming our local model',prompt:'Say clearly what is live, planned, and only an idea. 45 seconds.',must:['live','on a cloud API today','planned','an idea','not tested yet'],model:'Let me be clear about status. The gateway and the portal are live. ChannelOps is live, on a cloud API today. The local model profile is tested and ready. The Grafana monitoring is planned. Hybrid mode is an idea. We haven\'t tested it yet.'},
+ {id:'q1',title:'שאלה: למה לא לקנות עוד טוקנים?',t:'Q&A',bad:'',prompt:'Answer: "Why not just buy more tokens?" 30 seconds.',must:['fixed price','cheaper per token','no approval'],model:'We could. But that cost grows with every token. Our host is a fixed price. The more we use it, the cheaper each token gets. And nobody has to ask for approval.'},
+ {id:'q2',title:'שאלה: זה איטי?',t:'Q&A',bad:'i need to mention that this is a bit slower than we used to with the antropics because um obviously',prompt:'Answer: "Is it slow?" 30 seconds.',must:['first response time','95 out of 100','fine for bulk work'],model:'It\'s slower than Anthropic, yes. The typical first response is [X] seconds. Ninety-five percent of answers start in under [Y] seconds. For bulk work, that\'s fine.'},
+ {id:'q3',title:'שאלה: מה קורה כשהרבה משתמשים ביחד?',t:'04:34',bad:'We\'re utilizing each GPU for each user.',prompt:'Answer: "What if many people use it at once?" 30 seconds.',must:['vLLM batches','three parallel requests','HTTP 429','retry'],model:'vLLM batches requests from all users on both GPUs. Each key gets three parallel requests. If you send more, you get HTTP 429, and you retry after a few seconds.'}
+];
+const BANNED=['so','basically','whatever','like','um','uh','let\'s say','again'];
+const SCRIPTS=[
+ {id:'open',title:'פתיחה (60 שניות)',why:'היום: "so we\'re here to present the local llm that we recently have been working on um" [01:25]',text:'Quick question. Who here hit the monthly Claude limit this month? Put a hand up in the chat. That\'s what we call token starvation. When you run out, you stop. Or you ask for approval and wait. So we built our own model. It runs in our OCI cloud, on two GPUs, for a fixed price. In the next 20 minutes I\'ll show you three things: how it works, two live demos, and what it costs. Let\'s start with the problem.'},
+ {id:'close',title:'סיום (45 שניות)',why:'היום: "We don\'t own it to anyone, so we can do whatever we want, basically. That\'s it. If anyone has any questions" [27:52]',text:'So, three things to remember. One: we run our own model, in our cloud, for a fixed price. Two: you keep the same tool, Claude Code, just with a different key. Three: ChannelOps already reviews new support tickets every hour. AI should be a daily tool for everyone, not a rare treat. My ask: get your key in the portal this week, and tell me one task you would automate. Thank you. Questions?'},
+ {id:'demo',title:'הדגמה: לפני, בזמן, אחרי',why:'היום: "so this is probably gonna take maybe a minute or two i hope less no it\'s gonna take less" [12:07]',text:'Let me show you. I\'ll ask it to find the failing test and fix it. Watch the bottom line: it says LOCAL, not Anthropic. While it runs: this is gpt-oss, twenty billion parameters, on our two A10 GPUs. So what did we just see? It read two files, found the bug, fixed one line, and the tests pass. On our GPU.'},
+ {id:'trans',title:'משפטי מעבר',why:'היום: כמעט כל מעבר הוא "So" או "Okay, so". 105 פעמים so.',text:'I\'ll cover three things: the problem, the solution, and what it costs. That\'s the problem. Now, the solution. This is the important part. To be clear, this is not live yet. It\'s planned. Remember the monthly limit? This is where it matters. So, to sum up. One last thing.'},
+ {id:'slow',title:'כשההדגמה איטית',why:'טוב שעשית: "we\'re not gonna wait because i can see for example here" [23:14]. לנסח קצר.',text:'It takes a minute, because it\'s reading Git. Let\'s not wait. Here\'s one it already finished. Look at the structure: facts, a guess, and a fix. And it shows its own confidence. Here it\'s Medium.'},
+ {id:'exec30',title:'גרסת מעלית, 30 שניות (להנהלה)',why:'מנהל אמר "I only have five minutes"? אתה צריך 30 שניות, עם מספר ובקשה.',text:'Today every engineer gets a fixed monthly budget of Claude tokens, and then they stop. We built our own model, in our cloud, for a fixed price. At our usage, that saves money every month, and nobody waits for approval. It already triages support tickets every hour. My ask: approve a pilot for all DevOps for one quarter.'},
+ {id:'ice',title:'שובר קרח לפתיחה',why:'פתיחה עם חיוך מורידה את הלחץ שלך ושל הקהל.',text:'Before we start, a small confession. I promised myself not to say "basically" today. If you hear it, write it in the chat. Whoever counts the most gets free tokens. Unlimited. Because that\'s the whole point of this talk.'},
+ {id:'qa',title:'מענה לשאלה מהקהל',why:'היום: "so the simple task will go as you reset to the our model" [13:42]. המאזין בהקלטה לא שמע את השאלה.',text:'Good question. A colleague asked if this works with Claude Code. The short answer is yes. Let me show you how.'}
+];
+const FACTS=[
+ {q:'How much does each user get today?',a:'Say your exact budget, per month. Unit and time, always: "[X] dollars a month".',t:'מספר מכרטיס המספרים'},
+ {q:'What does the host cost?',a:'"[X] dollars a month. Fixed, used or not." Say the number twice.',t:'מספר מכרטיס המספרים'},
+ {q:'What is the base case in the calculator?',a:'"[N] users, [N] million tokens per user per day, plus [N] automations." Check the automation tokens. Last time the number was off by 10x.',t:'בפעם הקודמת: טעות פי 10'},
+ {q:'What does the same work cost on a paid API?',a:'"About [X] a month. So we save about [Y] a month."',t:'מספר מכרטיס המספרים'},
+ {q:'Where is break-even?',a:'"Break-even is [N] users." Say it even if nobody asks. It answers "is it worth it?".',t:'בפעם הקודמת: לא נאמר'},
+ {q:'What does a bigger host cost?',a:'The real number, not "a little bit more". If it almost doubles, say "almost double".',t:'בפעם הקודמת: "a little bit more"'},
+ {q:'How fast is it?',a:'"Typical first response: [X] seconds. Ninety-five out of a hundred: under [Y] seconds."',t:'בפעם הקודמת: היה על השקף, לא נאמר'},
+ {q:'What are the key limits?',a:'"[N] parallel requests per key. Over the limit, you get HTTP 429 and retry."',t:'DevOps אוהבים rate limits'},
+ {q:'Which model, which server?',a:'Name the model and the serving stack. Never just "a local LLM machine".',t:'בפעם הקודמת: שם המודל לא נאמר'},
+ {q:'Is the automation running on our model today?',a:'Say exactly where it runs today, and what is only ready. "It runs on [X] today. The local profile is tested and ready."',t:'בפעם הקודמת: נאמר שזה רץ מקומית, והשקף אמר אחרת'},
+ {q:'Is the monitoring dashboard live?',a:'"No. It\'s planned. The numbers are real POC data."',t:'live / planned / idea'},
+ {q:'Is hybrid mode working?',a:'"No. It\'s an idea. We haven\'t tested it yet."',t:'live / planned / idea'}
+];
+const VOICE=[
+ {w:'Claude',he:'קְלוֹד, כמו clawed',vs:'cloud = קְלָאוּד',why:'Whisper כתב "cloud" בערך 12 פעמים. בהרצאה שלך יש גם our cloud וגם Claude.',say:'Claude Code runs in our cloud. Claude, not cloud.'},
+ {w:'Anthropic',he:'אַנְ-THRO-פִּיק. בלי s בסוף',vs:'לא Anthropics',why:'Whisper כתב "Anthropix", "antropics", "on tropics".',say:'Anthropic\'s model is smarter. Our model is cheaper.'},
+ {w:'Teams',he:'טִימְז. t רגילה',vs:'לא themes',why:'Whisper כתב "themes" [18:46].',say:'Microsoft Teams. Every team uses Teams.'},
+ {w:'cost',he:'קוֹסְט קצר',vs:'לא coast (קוֹאוּסְט)',why:'Whisper כתב "coast of the infra" [16:53].',say:'The cost is fixed. The cost per token goes down.'},
+ {w:'tokens',he:'TOH-kens, הדגש בהתחלה',vs:'',why:'Whisper כתב "talking per day" [14:35].',say:'Two million tokens per user per day.'},
+ {w:'LiteLLM',he:'לַייט, אֶל, אֶל, אֶם',vs:'',why:'Whisper כתב "LytleLM" [03:56].',say:'LiteLLM checks your key and your limit.'},
+ {w:'vLLM',he:'וִי, אֶל, אֶל, אֶם',vs:'',why:'לא נאמר בכלל בהרצאה. כדאי להתחיל לומר.',say:'vLLM runs the model on the GPU.'},
+ {w:'VCN',he:'וִי, סִי, אֶן. ה-N ברורה',vs:'',why:'Whisper שמע "VCA" [05:15].',say:'Everything is in a private VCN.'}
+];
+const BEFORE=[
+ ['שבוע לפני','פתיחה של 60 שניות, בעל פה, עם שאלה לקהל'],
+ ['שבוע לפני','מפה בתחילת ההרצאה: "I\'ll cover three things"'],
+ ['שבוע לפני','לכל פיצ\'ר תווית: live / planned / idea'],
+ ['שבוע לפני','כרטיס מספרים מודפס ליד המסך'],
+ ['שבוע לפני','שם המודל, vLLM, LiteLLM ומגבלות לכל מפתח נמצאים בטקסט'],
+ ['שבוע לפני','אבטחה: דקה שלמה, 4 נקודות'],
+ ['שבוע לפני','חזרה מלאה עם טיימר, פעם אחת מול עמית שישאל שאלות קשות'],
+ ['בוקר ההרצאה','כל הלשוניות פתוחות. טרמינל claude-local פתוח בתיקיית ההדגמה'],
+ ['בוקר ההרצאה','טיקט support מוכן, והקלטת גיבוי לכל הדגמה'],
+ ['בוקר ההרצאה','ההקלטה תופסת גם את קול הקהל (בפעם הקודמת השאלות לא נקלטו)'],
+ ['בזמן ההרצאה','"Claude Code" תמיד במלואו. "OCI" במקום "our cloud"'],
+ ['בזמן ההרצאה','it על AI, they על משתמשים'],
+ ['בזמן ההרצאה','אפס whatever, אפס basically'],
+ ['בזמן ההרצאה','לפני כל הדגמה "watch this", אחרי כל הדגמה "what we saw"'],
+ ['בזמן ההרצאה','לחזור על שאלה מהקהל לפני התשובה'],
+ ['בזמן ההרצאה','סיום: 3 נקודות, "AI should be a daily tool for everyone, not a rare treat", ובקשה ברורה'],
+ ['אחרי','הקלט, תמלל, ובדוק בלשונית "בדיקה שבועית"']
+];
+
+const TOUGH=[
+ {q:'What do you need from us?',a:'A decision. Approve the pilot for all DevOps for one quarter, at a fixed monthly price. I\'ll report usage and savings every month.',t:'הנהלה. תמיד שאלה שאתה צריך תשובה מוכנה אליה. התאם את הבקשה למה שאתה באמת רוצה.'},
+ {q:'Is our data safe? You said you log everything.',a:'Fair concern. The data never leaves our cloud. Access is VPN only, every user has their own key, and the log is there for audit, not for reading people\'s prompts. That\'s also why the portal tells users: don\'t send personal data.',t:'אבטחה. קודם מסכים עם הדאגה, אחר כך עובדות.'},
+ {q:'Is the model actually good enough?',a:'For hard design work, no. Keep using Anthropic. For summaries, logs, triage and simple fixes, yes. All our POC coding tasks passed.',t:'מהנדסים. כנות היא הנשק שלך כאן.'},
+ {q:'What happens if the GPU host goes down?',a:'Then people use Anthropic, like they do today. Nothing that works today breaks. For production, we\'d add a second host.',t:'בדוק שזה נכון למערכת שלך לפני שאתה אומר את זה.'},
+ {q:'Who maintains this when you\'re on vacation?',a:'Good question. Today it\'s mostly me. That\'s a risk, and it\'s why everything is in Git, with a runbook. Part of the ask is a second owner.',t:'בדוק את המצב האמיתי. תשובה כנה על סיכון בונה אמון.'},
+ {q:'Why not just use a managed cloud AI service?',a:'Those are still pay per token. They solve where the model runs, not the cost. Our host is a fixed price, and the more we use it, the cheaper each token gets.',t:'השוואה למתחרים. תשובה במספרים, בלי לזלזל באף אחד.'},
+ {q:'How much of your time did this take?',a:'Most of it was built over a few weeks, next to my regular work. The point is: it\'s already built. Running it is cheap.',t:'התאם למציאות. אל תקטין ואל תגדיל.'},
+ {q:'Can the agents change things in production?',a:'No. Today they\'re read-only. The next step is SSH, still read-only, and every command needs an admin\'s approval. Human in the loop, always.',t:'Security ו-SRE. תשובה קצרה, "No" בהתחלה.'},
+ {q:'Is it slow?',a:'Slower than Anthropic, yes. Typical first response is [X] seconds, and 95 out of 100 answers start in under [Y] seconds. For bulk work, that\'s fine.',t:'מספרים מהשקף שלך.'},
+ {q:'So are we really saving money?',a:'At our usage, yes: [savings] a month. Break-even is [N] users. Below that, we pay for the option, not the savings.',t:'אל תגיד "it\'s not actually true" (17:24). תן את המספר ואת התנאי.'}
+];
+const AUD={
+ exec:{name:'הנהלה',focus:['שורה תחתונה קודם: כסף, זמן, סיכון. הטכנולוגיה אחר כך, אם בכלל.','מספר אחד לכל שקף. עלות קבועה, חיסכון בחודש, נקודת איזון.','הסיכונים לפני שהם שואלים: מי מתחזק, מה אם זה נופל, אבטחה.','בקשה ברורה בסוף: מה אתה צריך שהם יחליטו היום.','גרסה של 5 דקות. אם קיבלת 20, מצוין, יש זמן לשאלות.'],skip:'ארכיטקטורה מפורטת, vLLM, HMAC, גלילה בתפריטים.',open:'I\'ll give you the bottom line first, in case someone pulls you into another meeting. We can cut our AI cost per token, and stop the approval queue, for a fixed price.',joke:'The good news: this costs less than the coffee machine. The bad news: I haven\'t checked how much the coffee machine costs.'},
+ eng:{name:'מהנדסים / DevOps',focus:['מסלול של בקשה אחת: VPN, nginx, LiteLLM, vLLM, GPU.','מגבלות ו-failure modes: 3 בקשות במקביל, HTTP 429, מה קורה כשהשרת נופל.','הדגמה חיה, אמיתית, עם הוכחה שזה המודל שלנו: LOCAL gpt-oss-20b.','כנות: מה המודל לא יודע לעשות.','איך מתחילים מחר: שלושה צעדים, בלי ללמוד כלי חדש.'],skip:'מצגת עסקית ארוכה, משפטים כמו "very good user experience".',open:'Quick question. Who here hit the monthly Claude limit this month? Okay. Today I\'ll show you how to stop counting tokens, with the same tool you already use.',joke:'Yes, it\'s a live demo. If it fails, we\'ll call it an incident and do a postmortem together. We\'re DevOps. We\'re good at those.'},
+ sec:{name:'אבטחה / IT',focus:['איפה הדאטה נמצא, ואיפה הוא לא יוצא: OCI, VPN בלבד.','זהות וגישה: מפתח לכל משתמש, ביטול מפתח, 5 מפתחות ביום.','לוגים ו-audit: כל בקשה נשמרת. מי רואה אותם.','Teams: למה הוא מחוץ ל-VPN, ומה מגן עליו (webhook עם HMAC).','agents: read-only, ואישור אדם לכל פקודת SSH.'],skip:'הדגמת קוד, מחשבון עלות.',open:'Let me start with what you care about: where the data goes. Short answer: nowhere. It stays in our cloud, behind the VPN.',joke:'I know, a talk about AI and security. I promise, no slide says "trust me".'},
+ mix:{name:'קהל מעורב / כל החברה',focus:['סיפור לפני טכנולוגיה: מישהו שנתקע בלי טוקנים.','מה זה נותן לכל אחד מהם, במשפט אחד.','הדגמה אחת, הכי ויזואלית: טיקט שנכנס ותשובה שיוצאת.','מילים פשוטות. אם צריך מונח, הסבר אותו בחצי משפט.','בקשה קלה: "try it this week".'],skip:'כל ראשי התיבות. מספרי GPU. HTTP 429.',open:'Imagine you\'re in the middle of solving a problem, and a message pops up: budget exceeded. That happens to us every month. Today I\'ll show you how we fixed it.',joke:'Don\'t worry, there\'s no exam at the end. Only a small demo that may or may not work. Like all good demos.'}
+};
+const ICE=[
+ {l:'Before we start, a small confession. I promised myself not to say "basically" today. If you hear it, write it in the chat.',w:'פתיחה. הופך את מה שאתה מתאמן עליו לבדיחה, והקהל בצד שלך.'},
+ {l:'Today I\'ll show you how to get free tokens. Legally.',w:'פתיחה, לקהל מהנדסים.'},
+ {l:'Yes, it\'s a live demo. If it fails, we\'ll call it an incident and write a postmortem together.',w:'לפני הדגמה חיה.'},
+ {l:'It\'s thinking. Like me before my first coffee.',w:'כשהמודל איטי.'},
+ {l:'This model is small, but it\'s ours. Like my first apartment.',w:'כשמסבירים למה מודל קטן מספיק.'},
+ {l:'My English has an accent. The model doesn\'t. That\'s why I brought the model.',w:'פתיחה, אם זה מרגיש לך טבעי. הומור עצמי מוריד לחץ.'},
+ {l:'I\'ll give you the bottom line first, in case someone pulls you into another meeting.',w:'פתיחה מול הנהלה. מצחיק ומכבד את הזמן שלהם.'},
+ {l:'No tokens were harmed in the making of this demo.',w:'אחרי שההדגמה עבדה.'},
+ {l:'Questions? Easy ones first, please. Hard ones I\'ll answer by email. Next year.',w:'מעבר לשאלות. אמור עם חיוך, ואז באמת ענה.'},
+ {l:'Fun fact: the hardest part of this project was not the GPU. It was the name.',w:'כשמציגים את ChannelOps.'}
+];
+function renderStage(){
+  const btns=document.getElementById('audBtns');
+  const cur=S.aud||'exec';
+  btns.innerHTML=Object.entries(AUD).map(([k,v])=>`<button role="tab" aria-selected="${k===cur}" class="${k===cur?'primary':''}" data-aud="${k}">${v.name}</button>`).join('');
+  const a=AUD[cur];
+  document.getElementById('audOut').innerHTML=`
+    <span class="small muted">על מה להתמקד</span>
+    <ol class="steps">${a.focus.map(f=>`<li>${esc(f)}</li>`).join('')}</ol>
+    <p class="small"><b>לדלג על:</b> ${esc(a.skip)}</p>
+    <span class="small muted">משפט פתיחה</span>
+    <div class="answer"><div class="en">${esc(a.open)}</div></div>
+    <span class="small muted">בדיחה מתאימה</span>
+    <div class="en">${esc(a.joke)}</div>`;
+  btns.querySelectorAll('[data-aud]').forEach(b=>b.onclick=()=>{S.aud=b.dataset.aud;save();renderStage();});
+  nextIce();
+}
+let iceIdx=-1;
+function nextIce(){iceIdx=(iceIdx+1+Math.floor(Math.random()*(ICE.length-1)))%ICE.length;document.getElementById('iceLine').textContent=ICE[iceIdx].l;document.getElementById('iceWhen').innerHTML='<b>מתי:</b> '+esc(ICE[iceIdx].w);}
+document.getElementById('iceBtn').onclick=nextIce;
+document.addEventListener('click',e=>{
+  const s=e.target.closest('[data-station]');if(s){openStation(s.dataset.station);return;}
+  const c=e.target.closest('[data-script]');if(c){openStation('scripts');runCloze(document.getElementById('drillStage'),c.dataset.script);document.getElementById('backBtn').onclick=()=>openMenu();}
+});
+
+/* ---------- tabs ---------- */
+const VIEWS=['how','today','drills','stage','check','before'];
+function show(v){
+  if(!VIEWS.includes(v))v='how';
+  VIEWS.forEach(x=>{document.getElementById('v-'+x).hidden=(x!==v);});
+  document.querySelectorAll('nav.tabs a').forEach(a=>{a.toggleAttribute('aria-current',a.getAttribute('href')==='#'+v);if(a.getAttribute('href')==='#'+v)a.setAttribute('aria-current','page');});
+  if(v==='today')renderToday();
+  if(v==='drills')openMenu();
+  if(v==='check')renderHist();
+  if(v==='stage')renderStage();
+  if(v==='before')renderBefore();
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){e.preventDefault();location.hash=g.dataset.go;}});
+
+/* ---------- spaced flashcards ---------- */
+function cardStat(id){return S.cards[id]||{g:0,a:0,last:0};}
+function orderDeck(deck,prefix){
+  return deck.map((c,i)=>({c,id:prefix+i,s:cardStat(prefix+i)}))
+    .sort((x,y)=>{const px=x.s.a*2-x.s.g, py=y.s.a*2-y.s.g; if(py!==px)return py-px; return x.s.last-y.s.last;});
+}
+function mark(id,good){const s=cardStat(id);if(good)s.g++;else s.a++;s.last=Date.now();S.cards[id]=s;save();}
+
+const STATIONS=[
+ {id:'grammar',name:'דקדוק: is / are',sub:'שמטת be. הדפוס הכי נפוץ, כ-20 מקרים.',n:GRAMMAR.length,kind:'flip',deck:GRAMMAR,p:'g'},
+ {id:'pronoun',name:'it, לא he',sub:'מודל ו-agent הם it. משתמש כללי הוא they.',n:PRONOUN.length,kind:'flip',deck:PRONOUN,p:'p'},
+ {id:'calque',name:'ניסוח טבעי',sub:'תרגום ישיר מעברית. בחר את האנגלית הטבעית.',n:CALQUE.length,kind:'quiz',deck:CALQUE,p:'c'},
+ {id:'speak',name:'דיבור 60 שניות',sub:'הסבר נושא בלי מילות מילוי. שתיקה במקום so.',n:SPEAK.length,kind:'speak'},
+ {id:'scripts',name:'טקסטים בעל פה',sub:'פתיחה, סיום, הדגמה ומעברים. מילים נעלמות בהדרגה.',n:SCRIPTS.length,kind:'cloze'},
+ {id:'tough',name:'שאלות קשות',sub:'שאלות שהנהלה ומהנדסים ישאלו. ענה בקול, ואז השווה.',n:TOUGH.length,kind:'flip2',deck:TOUGH,p:'t'},
+ {id:'facts',name:'מספרים וסטטוס',sub:'מה נאמר לא נכון מול השקפים. live / planned / idea.',n:FACTS.length,kind:'flip2',deck:FACTS,p:'f'},
+ {id:'voice',name:'הגייה',sub:'מילים ש-Whisper שמע לא נכון. השערה, לא ודאות.',n:VOICE.length,kind:'voice'}
+];
+function openMenu(){
+  document.getElementById('drillMenu').hidden=false;
+  const st=document.getElementById('drillStage');st.hidden=true;st.innerHTML='';
+  document.getElementById('stationList').innerHTML=STATIONS.map(s=>{
+    let learned='';
+    if(s.deck){const k=s.deck.filter((_,i)=>{const c=cardStat(s.p+i);return c.g>c.a&&c.g>=2;}).length;learned=`<span class="tag acc">${k}/${s.n} נשלטו</span>`;}
+    return `<button class="station" data-st="${s.id}"><b>${s.name}</b><span>${s.sub}</span><span class="meta"><span class="tag">${s.n} כרטיסים</span>${learned}</span></button>`;}).join('');
+}
+document.getElementById('stationList').addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(b)openStation(b.dataset.st);});
+function stageHead(title,sub){return `<div class="spread"><div class="plain"><h2>${title}</h2>${sub?`<p class="muted small">${sub}</p>`:''}</div><button class="ghost" id="backBtn">חזרה לתרגילים</button></div>`;}
+function openStation(id,limit){
+  const s=STATIONS.find(x=>x.id===id);
+  document.getElementById('drillMenu').hidden=true;
+  const st=document.getElementById('drillStage');st.hidden=false;
+  if(location.hash!=='#drills'){history.replaceState(null,'','#drills');VIEWS.forEach(x=>document.getElementById('v-'+x).hidden=(x!=='drills'));document.querySelectorAll('nav.tabs a').forEach(a=>{if(a.getAttribute('href')==='#drills')a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});}
+  if(s.kind==='flip')runFlip(st,s,limit);
+  else if(s.kind==='flip2')runFacts(st,s,limit);
+  else if(s.kind==='quiz')runQuiz(st,s,limit);
+  else if(s.kind==='speak')runSpeak(st);
+  else if(s.kind==='cloze')runCloze(st);
+  else if(s.kind==='voice')runVoice(st);
+  st.querySelector('#backBtn').onclick=()=>openMenu();
+  window.scrollTo(0,0);
+}
+
+/* flip: say the fix aloud, then reveal */
+function runFlip(st,s,limit){
+  let q=orderDeck(s.deck,s.p);if(limit)q=q.slice(0,limit);
+  let i=0,done=0;
+  const intro=s.id==='grammar'?'קרא את המשפט המקורי. אמור בקול את הגרסה הנכונה. רק אז הצג.':'אמור בקול את המשפט עם it או they. רק אז הצג.';
+  function draw(){
+    if(!q.length){st.innerHTML=stageHead(s.name)+`<div class="card"><h3>סיימת את הסבב</h3><p>${done} כרטיסים. כרטיסים שסימנת "שוב" יופיעו ראשונים בפעם הבאה.</p><div class="row"><button class="primary" id="again">סבב נוסף</button></div></div>`;st.querySelector('#again').onclick=()=>runFlip(st,s,limit);st.querySelector('#backBtn').onclick=()=>openMenu();return;}
+    const it=q[0];
+    st.innerHTML=stageHead(s.name,intro)+`
+    <div class="card">
+      <div class="spread"><span class="ts">[${it.c.t}]</span><span class="progress">${done+1} / ${done+q.length}</span></div>
+      <div class="quote bad">${esc(it.c.q)}</div>
+      <div class="row"><button class="primary" id="rev">הצג תיקון</button></div>
+      <div class="answer" id="ans" hidden><div class="en big">${esc(it.c.a)}</div><p class="small" style="margin-top:6px">${esc(it.c.n)}</p></div>
+      <div class="row" id="rate" hidden><button class="good" id="ok">ידעתי</button><button class="again" id="no">שוב</button></div>
+      <p class="why" id="tip" hidden>אמור את התיקון בקול עוד פעם, לפני שאתה ממשיך.</p>
+    </div>`;
+    st.querySelector('#backBtn').onclick=()=>openMenu();
+    st.querySelector('#rev').onclick=()=>{st.querySelector('#ans').hidden=false;st.querySelector('#rate').hidden=false;st.querySelector('#tip').hidden=false;st.querySelector('#rev').hidden=true;};
+    st.querySelector('#ok').onclick=()=>{mark(it.id,true);q.shift();done++;draw();};
+    st.querySelector('#no').onclick=()=>{mark(it.id,false);q.push(q.shift());if(q.length>1){const x=q.pop();q.splice(Math.min(2,q.length),0,x);}draw();};
+  }
+  draw();
+}
+/* facts: question in English, answer and source */
+function runFacts(st,s,limit){
+  let q=orderDeck(s.deck,s.p);if(limit)q=q.slice(0,limit);let done=0;
+  function draw(){
+    if(!q.length){st.innerHTML=stageHead(s.name)+`<div class="card"><h3>סיימת את הסבב</h3><p>${done} שאלות.</p><div class="row"><button class="primary" id="again">סבב נוסף</button></div></div>`;st.querySelector('#again').onclick=()=>runFacts(st,s,limit);st.querySelector('#backBtn').onclick=()=>openMenu();return;}
+    const it=q[0];
+    st.innerHTML=stageHead(s.name,s.id==='tough'?'ענה בקול, 20 עד 30 שניות. תשובה קודם, הסבר אחר כך. רק אז הצג.':'ענה בקול, במשפט מלא באנגלית. בהרצאה הבאה אלה המספרים שאתה אומר.')+`
+    <div class="card">
+      <div class="spread"><span class="tag">${esc(it.c.t)}</span><span class="progress">${done+1} / ${done+q.length}</span></div>
+      <div class="en big">${esc(it.c.q)}</div>
+      <div class="row"><button class="primary" id="rev">הצג תשובה</button></div>
+      <div class="answer" id="ans" hidden><div class="en">${esc(it.c.a)}</div></div>
+      <div class="row" id="rate" hidden><button class="good" id="ok">ידעתי</button><button class="again" id="no">שוב</button></div>
+    </div>`;
+    st.querySelector('#backBtn').onclick=()=>openMenu();
+    st.querySelector('#rev').onclick=()=>{st.querySelector('#ans').hidden=false;st.querySelector('#rate').hidden=false;st.querySelector('#rev').hidden=true;};
+    st.querySelector('#ok').onclick=()=>{mark(it.id,true);q.shift();done++;draw();};
+    st.querySelector('#no').onclick=()=>{mark(it.id,false);q.push(q.shift());draw();};
+  }
+  draw();
+}
+/* quiz: pick the natural English */
+function runQuiz(st,s,limit){
+  let q=orderDeck(s.deck,s.p);if(limit)q=q.slice(0,limit);let done=0,right=0;
+  function draw(){
+    if(!q.length){st.innerHTML=stageHead(s.name)+`<div class="card"><h3>${right} מתוך ${done} נכון</h3><p>עכשיו אמור בקול את כל התשובות הנכונות שטעית בהן, 3 פעמים כל אחת.</p><div class="row"><button class="primary" id="again">סבב נוסף</button></div></div>`;st.querySelector('#again').onclick=()=>runQuiz(st,s,limit);st.querySelector('#backBtn').onclick=()=>openMenu();return;}
+    const it=q[0];
+    const order=it.c.o.map((t,k)=>({t,k})).sort(()=>Math.random()-.5);
+    st.innerHTML=stageHead(s.name,'מה אמרת, ומה דובר אנגלית היה אומר. בחר, ואז אמור את הנכון בקול.')+`
+    <div class="card">
+      <div class="spread"><span class="ts">[${it.c.t}]</span><span class="progress">${done+1} / ${done+q.length}</span></div>
+      <div class="quote bad">${esc(it.c.q)}</div>
+      <div class="choice">${order.map(o=>`<button data-k="${o.k}">${esc(o.t)}</button>`).join('')}</div>
+      <p class="small" id="note" hidden></p>
+      <div class="row" id="next" hidden><button class="primary" id="nx">הבא</button></div>
+    </div>`;
+    st.querySelector('#backBtn').onclick=()=>openMenu();
+    st.querySelectorAll('.choice button').forEach(b=>b.onclick=()=>{
+      const k=+b.dataset.k,ok=k===it.c.c;
+      st.querySelectorAll('.choice button').forEach(x=>{x.disabled=true;if(+x.dataset.k===it.c.c)x.classList.add('right');});
+      if(!ok)b.classList.add('wrong');
+      mark(it.id,ok);if(ok)right++;
+      const n=st.querySelector('#note');n.hidden=false;n.textContent=(ok?'נכון. ':'לא. ')+it.c.n;
+      st.querySelector('#next').hidden=false;
+      st.querySelector('#nx').onclick=()=>{q.shift();done++;draw();};
+    });
+  }
+  draw();
+}
+/* speak: timer + must-say + model answer */
+let timerInt=null;
+function runSpeak(st,onlyIdx){
+  const pick=onlyIdx!=null?onlyIdx:0;
+  function draw(idx){
+    const it=SPEAK[idx];
+    clearInterval(timerInt);
+    st.innerHTML=stageHead('דיבור 60 שניות','בחר נושא. הפעל טיימר. דבר. אחר כך השווה לתשובת המודל.')+`
+    <label class="field" for="spSel">נושא
+      <select id="spSel" style="font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg)">${SPEAK.map((s,k)=>`<option value="${k}" ${k===idx?'selected':''}>${esc(s.title)}</option>`).join('')}</select>
+    </label>
+    <div class="card">
+      <div class="en big">${esc(it.prompt)}</div>
+      ${it.bad?`<div class="plain"><span class="small muted">מה אמרת בהרצאה <span class="ts">[${it.t}]</span></span><div class="quote bad">${esc(it.bad)}</div></div>`:''}
+      <div class="plain"><span class="small muted">חובה להגיד</span><div class="must">${it.must.map(m=>`<span>${esc(m)}</span>`).join('')}</div></div>
+      <div class="plain"><span class="small muted">אסור להגיד</span><div class="banned">${BANNED.map(b=>`<s>${esc(b)}</s>`).join('')}</div></div>
+      <div class="timer" id="tm">0:60</div>
+      <div class="row" style="justify-content:center"><button class="primary" id="t60">60 שניות</button><button id="t45">45</button><button id="t30">30</button><button class="ghost" id="tStop">עצור</button></div>
+      <p class="why"><b>טיפ:</b> הקלט את עצמך בטלפון במקביל. בהאזנה, ספור כמה פעמים אמרת so.</p>
+      <div class="row"><button id="rev">הצג תשובת מודל</button></div>
+      <div class="answer" id="ans" hidden><div class="en">${esc(it.model)}</div><p class="small" style="margin-top:8px">קרא את זה בקול פעמיים. אחר כך נסה שוב עם הטיימר, בלי להסתכל.</p></div>
+    </div>`;
+    st.querySelector('#backBtn').onclick=()=>{clearInterval(timerInt);openMenu();};
+    st.querySelector('#spSel').onchange=e=>draw(+e.target.value);
+    const tm=st.querySelector('#tm');
+    function run(sec){clearInterval(timerInt);let left=sec;tm.classList.remove('done');const f=()=>{tm.textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');};f();timerInt=setInterval(()=>{left--;f();if(left<=0){clearInterval(timerInt);tm.textContent='זמן';tm.classList.add('done');}},1000);}
+    st.querySelector('#t60').onclick=()=>run(60);st.querySelector('#t45').onclick=()=>run(45);st.querySelector('#t30').onclick=()=>run(30);
+    st.querySelector('#tStop').onclick=()=>clearInterval(timerInt);
+    st.querySelector('#rev').onclick=()=>{st.querySelector('#ans').hidden=false;st.querySelector('#rev').hidden=true;};
+  }
+  draw(pick);
+}
+/* cloze: progressively hide words to memorize */
+const LEVELS=['כל הטקסט','כל מילה שלישית מוסתרת','חצי מוסתר','רק אות ראשונה','הכול מוסתר'];
+function clozeHTML(text,level,seed){
+  const words=text.split(/\s+/);
+  return words.map((w,i)=>{
+    let hide=false;
+    if(level===1)hide=(i+seed)%3===0;
+    else if(level===2)hide=(i+seed)%2===0;
+    else if(level>=3)hide=true;
+    if(!hide)return `<span class="w">${esc(w)}</span>`;
+    if(level===3){const m=w.match(/^([^A-Za-z0-9]*)([A-Za-z0-9])(.*)$/);if(m)return `<span class="w first">${esc(m[1]+m[2])}${'_'.repeat(Math.min(m[3].length,8))}</span>`;}
+    return `<span class="w hid">${esc(w)}</span>`;
+  }).join(' ');
+}
+function runCloze(st,onlyId){
+  let idx=onlyId?Math.max(0,SCRIPTS.findIndex(s=>s.id===onlyId)):0;
+  function draw(){
+    const it=SCRIPTS[idx];const lv=S.cloze[it.id]||0;
+    st.innerHTML=stageHead('טקסטים בעל פה','אמור את הטקסט בקול. כשהוא זורם, עלה רמה. המטרה: רמה 5, בלי להסתכל.')+`
+    <label class="field" for="clSel">טקסט
+      <select id="clSel" style="font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg)">${SCRIPTS.map((s,k)=>`<option value="${k}" ${k===idx?'selected':''}>${esc(s.title)}${S.cloze[s.id]?' · רמה '+(S.cloze[s.id]+1):''}</option>`).join('')}</select>
+    </label>
+    <div class="card">
+      <p class="why"><b>למה:</b> ${esc(it.why)}</p>
+      <div class="spread"><span class="tag acc">רמה ${lv+1} מתוך 5: ${LEVELS[lv]}</span></div>
+      <div class="en big cloze" id="cz">${clozeHTML(it.text,lv,1)}</div>
+      <div class="row"><button class="ghost" id="peek">הצג הכול לרגע</button></div>
+      <div class="row"><button class="good" id="up" ${lv>=4?'disabled':''}>זורם, עלה רמה</button><button class="again" id="down" ${lv<=0?'disabled':''}>רד רמה</button></div>
+    </div>`;
+    st.querySelector('#backBtn').onclick=()=>openMenu();
+    st.querySelector('#clSel').onchange=e=>{idx=+e.target.value;draw();};
+    const cz=st.querySelector('#cz');
+    const peek=st.querySelector('#peek');
+    const showAll=()=>{cz.innerHTML=clozeHTML(it.text,0,1);};const back=()=>{cz.innerHTML=clozeHTML(it.text,lv,1);};
+    peek.addEventListener('pointerdown',showAll);peek.addEventListener('pointerup',back);peek.addEventListener('pointerleave',back);
+    peek.addEventListener('click',()=>{showAll();setTimeout(back,2500);});
+    st.querySelector('#up').onclick=()=>{S.cloze[it.id]=Math.min(4,lv+1);save();draw();};
+    st.querySelector('#down').onclick=()=>{S.cloze[it.id]=Math.max(0,lv-1);save();draw();};
+  }
+  draw();
+}
+/* voice */
+function runVoice(st){
+  st.innerHTML=stageHead('הגייה','השערה בלבד: אין הקלטת קול בניתוח, רק מה ש-Whisper שמע. אמור כל משפט 3 פעמים, לאט, ואז בקצב רגיל.')+
+  VOICE.map(v=>`<div class="card">
+    <div class="spread"><span class="en big"><b>${esc(v.w)}</b></span><span class="small">${esc(v.he)}</span></div>
+    ${v.vs?`<p class="small muted">${esc(v.vs)}</p>`:''}
+    <p class="why"><b>למה:</b> ${esc(v.why)}</p>
+    <div class="answer"><div class="en">${esc(v.say)}</div></div>
+  </div>`).join('')+
+  `<div class="card"><h3>משפט הבדיקה</h3><div class="en big">Claude Code runs on our own model, in our OCI cloud, for a fixed cost. Anthropic's tokens are not used. The results go to Teams.</div><p class="small muted">הקלט את המשפט הזה פעם בשבוע. האזן: האם Claude ו-cloud נשמעים שונה?</p></div>`;
+}
+
+/* ---------- today ---------- */
+const TODAY=[
+ {id:'g',t:'דקדוק: 8 כרטיסים',d:'is/are ו-it/he. כ-5 דקות.',run:()=>openStation(((new Date()).getDate()%3===0)?'pronoun':'grammar',8)},
+ {id:'s',t:'דיבור: נושא אחד, פעמיים',d:'60 שניות, תשובת מודל, ושוב 60 שניות. כ-5 דקות.',run:()=>{openStation('speak');}},
+ {id:'q',t:'ניסוח או מספרים: 5 שאלות',d:'יום זוגי ניסוח, יום אי זוגי מספרים. כ-3 דקות.',run:()=>openStation(((new Date()).getDate()%2===0)?'calque':'facts',5)},
+ {id:'c',t:'טקסט בעל פה: אחד',d:'פתיחה או סיום. עלה רמה אחת. כ-2 דקות.',run:()=>openStation('scripts')}
+];
+function renderToday(){
+  const d=todayStr();if(!S.today||S.today.date!==d)S.today={date:d,done:{}};
+  const box=document.getElementById('todaySteps');
+  box.innerHTML=TODAY.map((s,k)=>`<div class="check"><input type="checkbox" id="td-${s.id}" ${S.today.done[s.id]?'checked':''}><div class="plain" style="flex:1;min-width:0;gap:4px"><label for="td-${s.id}"><b>${k+1}. ${s.t}</b></label><span class="small muted">${s.d}</span><div><button class="ghost" data-run="${k}">פתח</button></div></div></div>`).join('');
+  box.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{S.today.done[inp.id.slice(3)]=inp.checked;save();});
+  box.querySelectorAll('[data-run]').forEach(b=>b.onclick=()=>TODAY[+b.dataset.run].run());
+  const days=new Set(S.days);
+  document.getElementById('streakNum').textContent=S.days.length;
+  let html='';for(let i=13;i>=0;i--){const dt=new Date();dt.setDate(dt.getDate()-i);const k=todayStr(dt);html+=`<i class="${days.has(k)?'on':''}" title="${k}"></i>`;}
+  document.getElementById('dots').innerHTML=html;
+  const btn=document.getElementById('dayDone');btn.disabled=days.has(d);btn.textContent=days.has(d)?'היום כבר נספר':'סיימתי את האימון של היום';
+}
+document.getElementById('dayDone').onclick=()=>{const d=todayStr();if(!S.days.includes(d))S.days.push(d);save();renderToday();toast('נשמר. נתראה מחר.');};
+
+/* ---------- weekly check ---------- */
+const NOTING='(?!thing|nothing|something|anything|everything|string|during|morning|evening|bring|ring|king|spring|ceiling|ping)';
+const CHECKS=[
+ {k:'so',label:'so',re:/\bso\b/gi,target:1,base:3.9},
+ {k:'basically',label:'basically',re:/\bbasically\b/gi,target:0,base:0.94},
+ {k:'whatever',label:'whatever',re:/\bwhatever\b/gi,target:0,base:0.71},
+ {k:'like',label:'like',re:/\blike\b/gi,target:0.2,base:1.0},
+ {k:'umuh',label:'um / uh',re:/\b(um+|uh+|erm)\b/gi,target:1.5,base:3.3},
+ {k:'be',label:'שמטת be (that + ing, we gonna)',re:new RegExp('\\b(that|who) (?!is |are |was |were )'+NOTING+'[a-z]+ing\\b|\\b(we|they|he|she|you|i) gonna\\b','gi'),target:0,base:0.7},
+ {k:'he',label:'he / him / his (לבדוק אם על AI)',re:/\b(he|him|his)\b/gi,target:0,base:0.6}
+];
+function status(v,target){if(v<=target+0.05)return['ok','ביעד'];if(v<=Math.max(target*2,target+0.6))return['mid','קרוב'];return['far','רחוק'];}
+function runCheck(){
+  const text=document.getElementById('ckText').value.trim();
+  const min=parseFloat(document.getElementById('ckMin').value)||0;
+  const out=document.getElementById('ckOut');
+  if(!text||min<=0){out.hidden=false;out.innerHTML='<p class="small" style="color:var(--bad)">הדבק תמלול, וכתוב את האורך בדקות (למשל 5).</p>';return;}
+  const words=text.split(/\s+/).filter(Boolean).length;
+  const res=CHECKS.map(c=>{const n=(text.match(c.re)||[]).length;const pm=n/min;return {...c,n,pm};});
+  let marked=esc(text);
+  const all=new RegExp(CHECKS.filter(c=>c.k!=='he').map(c=>c.re.source).join('|'),'gi');
+  marked=marked.replace(all,m=>`<mark>${m}</mark>`);
+  out.hidden=false;
+  out.innerHTML=`<div class="panel">
+    <div class="spread"><h3>תוצאה</h3><span class="small muted">${words} מילים, ${Math.round(words/min)} מילים בדקה</span></div>
+    <div class="tablebox"><table><thead><tr><th>מה</th><th>כמה</th><th>בדקה</th><th>בהרצאה</th><th>יעד</th><th></th></tr></thead><tbody>
+    ${res.map(r=>{const [cls,lab]=status(r.pm,r.target);return `<tr><td>${esc(r.label)}</td><td class="num">${r.n}</td><td class="num">${r.pm.toFixed(1)}</td><td class="num">${r.base.toFixed(1)}</td><td class="num">${r.target}</td><td><span class="pill ${cls}">${lab}</span></td></tr>`;}).join('')}
+    </tbody></table></div>
+    <p class="small muted">"בהרצאה" = מספרים לדקה מההרצאה של 2026-10-20, לפי transcript_raw.txt. הספירה של "שמטת be" היא אוטומטית, ויכולה לטעות לשני הכיוונים. בדוק את המשפטים המסומנים.</p>
+    <div class="row"><button class="primary" id="ckSave">שמור בהיסטוריה</button></div>
+  </div>
+  <details><summary>הטקסט עם סימונים</summary><div class="inner"><div class="marked">${marked}</div></div></details>`;
+  document.getElementById('ckSave').onclick=()=>{S.hist.unshift({d:todayStr(),min,wpm:Math.round(words/min),v:Object.fromEntries(res.map(r=>[r.k,+r.pm.toFixed(2)]))});S.hist=S.hist.slice(0,20);save();renderHist();toast('נשמר בהיסטוריה');};
+}
+document.getElementById('ckRun').onclick=runCheck;
+document.getElementById('ckSample').onclick=()=>{
+  document.getElementById('ckText').value="so today the pain is the your organization is the um currently we have a token starvation we we can call it that way, and that each and every employee has a limit budget for the cloud. And in case this is done, so he needs to ask a special approval to increase this. So this is interrupting the daily work and preventing innovations and enhancement of current processes. And basically it's not the best practice working as an SRE or DevOps engineer in this method. So we thought what can be done to solve this issue? So basically we want to save some costs because we're asking for increments every while in there. So I want more innovations to be happening in the organization and fixing stuff that not working so well, more accuracy.";
+  document.getElementById('ckMin').value='1.2';
+  toast('נטען קטע 01:41 עד 02:52 מההרצאה');
+};
+function renderHist(){
+  const box=document.getElementById('ckHist');
+  if(!S.hist.length){box.innerHTML='<p class="small muted">עדיין אין בדיקות. הבדיקה הראשונה שלך תופיע כאן, מול המספרים מההרצאה.</p>';return;}
+  box.innerHTML=`<table><thead><tr><th>תאריך</th><th>מילים/דקה</th><th>so</th><th>basically</th><th>whatever</th><th>um/uh</th><th>be</th></tr></thead><tbody>
+  <tr><td class="muted">ההרצאה</td><td class="num">122</td><td class="num">3.9</td><td class="num">0.94</td><td class="num">0.71</td><td class="num">3.3</td><td class="num">0.7</td></tr>
+  ${S.hist.map(h=>`<tr><td class="ts">${h.d}</td><td class="num">${h.wpm}</td><td class="num">${h.v.so}</td><td class="num">${h.v.basically}</td><td class="num">${h.v.whatever}</td><td class="num">${h.v.umuh}</td><td class="num">${h.v.be}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* ---------- before ---------- */
+function renderBefore(){
+  const box=document.getElementById('beforeList');let last='';
+  box.innerHTML=BEFORE.map((b,i)=>{const head=b[0]!==last?`<h3 style="margin-top:${i?'10px':'0'}">${b[0]}</h3>`:'';last=b[0];return head+`<div class="check"><input type="checkbox" id="bf-${i}" ${S.before[i]?'checked':''}><label for="bf-${i}">${esc(b[1])}</label></div>`;}).join('');
+  box.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{S.before[inp.id.slice(3)]=inp.checked;save();});
+}
+document.getElementById('beforeReset').onclick=()=>{S.before={};save();renderBefore();toast('נוקה');};
+
+show(location.hash.slice(1)||'how');
+</script>
+
+</body>
+</html>
