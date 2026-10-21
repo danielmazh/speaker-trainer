@@ -23,7 +23,7 @@ import { profileOf } from './ui/shell.js';
 const ROUTES = {
   onboarding: { mod: onboarding, nav: false },
   home: { mod: home, nav: true },
-  mission: { mod: mission, nav: true },
+  mission: { mod: mission, nav: false },
   play: { mod: play, nav: false },
   coach: { mod: coach, nav: true },
   path: { mod: pathScreen, nav: true },

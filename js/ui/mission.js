@@ -37,7 +37,7 @@ export function render(root, ctx) {
     }
   }
 
-  root.innerHTML = `<section class="screen mission" data-testid="mission">
+  root.innerHTML = `<section class="screen no-nav mission" data-testid="mission">
     <header class="band">
       <div class="band-title">
         <a class="icon-btn" href="#home" aria-label="חזרה">${icon('arrowR')}</a>

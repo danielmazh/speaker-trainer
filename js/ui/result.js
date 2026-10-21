@@ -81,7 +81,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
 
       ${diffs.length ? `<div class="card stack-sm">
         <h2 class="card-title">המשפט המתוקן</h2>
-        ${diffs.map(({ r }) => diffHtml(r._take.analysis.diff, 36).replace(/<div class="diff-key[\s\S]*?<\/div>/, '')).join('<hr class="soft">')}
+        ${diffs.map(({ r }) => diffHtml(displayDiff(r._take.analysis.diff), 36).replace(/<div class="diff-key[\s\S]*?<\/div>/, '')).join('<hr class="soft">')}
         <div class="diff-key tiny"><span class="d-ok">נאמר</span><span class="d-miss">חסר</span><span class="d-extra">נוסף</span></div>
       </div>` : ''}
 
@@ -191,4 +191,20 @@ function missionModal(ctx) {
     m.el.querySelector('[data-ok]').addEventListener('click', m.close);
     m.el.querySelector('[data-ok]').focus();
   });
+}
+
+// Show the original words (casing and punctuation) when analyze.js gave them in `orig`.
+// A continuation piece of an expanded word ("gonna" -> going to) has orig '': hide it
+// when it has the same status as the piece before, else show its normalized word.
+// Older saved takes have no `orig`, so they fall back to the normalized `w`.
+export function displayDiff(diff) {
+  const out = [];
+  let prev = null;
+  for (const d of diff || []) {
+    if (typeof d.orig !== 'string') out.push(d);
+    else if (d.orig) out.push({ ...d, w: d.orig });
+    else if (!prev || prev.status !== d.status) out.push(d);
+    prev = d;
+  }
+  return out;
 }

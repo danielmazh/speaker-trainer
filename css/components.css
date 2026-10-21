@@ -230,10 +230,12 @@
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   pointer-events: none; padding: 0 16px;
 }
+/* Wide row toast near the top safe area: 28px icon dot, then title and text.
+   It sits over the header band, so it never covers the main CTA at the bottom. */
 .toast {
   pointer-events: auto;
-  display: flex; align-items: center; gap: 10px;
-  max-width: 400px;
+  display: flex; flex-direction: row; align-items: center; gap: 12px;
+  width: 100%; max-width: 480px; box-sizing: border-box;
   background: var(--surface); color: var(--ink);
   border-radius: 16px; padding: 12px 16px;
   box-shadow: 0 8px 24px rgba(27,21,48,.12);
@@ -248,6 +250,7 @@
   background: var(--primary-50); color: var(--primary);
 }
 .toast .ticon svg { width: 16px; height: 16px; }
+.toast > div { flex: 1 1 auto; min-width: 0; text-align: start; line-height: 1.35; }
 .toast .tsub { font-weight: 400; color: var(--muted-ink); font-size: .8125rem; }
 .toast.success { border-color: var(--good-50); color: var(--good-ink); }
 .toast.success .ticon { background: var(--good-50); color: var(--good-ink); }
@@ -255,9 +258,14 @@
 .toast.warn .ticon { background: var(--warn-50); color: var(--warn-ink); }
 .toast.error { border-color: var(--bad-50); color: var(--bad); }
 .toast.error .ticon { background: var(--bad-50); color: var(--bad); }
-.toast.badge { border-color: var(--warn-50); }
-.toast.badge .ticon { width: 40px; height: 40px; flex-basis: 40px; background: var(--warn-50); color: var(--warn-ink); }
-.toast.badge .ticon svg { width: 22px; height: 22px; }
+/* screens.css .badge (badge grid tile: column, centered, 2px padding) also matches this
+   element, so the row layout is restated here with higher specificity. */
+.toast.badge {
+  flex-direction: row; align-items: center; gap: 12px; text-align: start;
+  border-radius: 16px; padding: 12px 16px;
+  border-color: var(--warn-50); color: var(--ink);
+}
+.toast.badge .ticon { background: var(--warn-50); color: var(--warn-ink); }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-20px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-12px); } }
 

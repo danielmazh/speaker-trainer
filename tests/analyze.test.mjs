@@ -161,3 +161,13 @@ test('no em dash or en dash in source', async () => {
     assert.ok(!bad.test(src), f);
   }
 });
+
+test('target diff keeps original casing and punctuation in orig, w stays normalized', () => {
+  const r = analyze('the model running on GPU', 3, { target: 'The model is running on the GPU.' });
+  assert.deepEqual(r.diff.map((d) => d.w), ['the', 'model', 'is', 'running', 'on', 'the', 'gpu']);
+  assert.deepEqual(r.diff.map((d) => d.orig), ['The', 'model', 'is', 'running', 'on', 'the', 'GPU.']);
+  const r2 = analyze("We're gonna ship it", 3, { target: "We're going to ship it, OK?" });
+  const okay = r2.diff.find((d) => d.w === 'okay');
+  assert.equal(okay.orig, 'OK?');
+  assert.deepEqual(r2.diff.filter((d) => d.w === 'are').map((d) => d.orig), ['']);
+});

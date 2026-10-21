@@ -259,6 +259,23 @@ function normWords(text, { dropHesitations = false } = {}) {
   return out;
 }
 
+// Like normWords, but also returns the original text of each word (casing and trailing
+// punctuation kept) for display. When one token expands to several words ("gonna"),
+// the first word carries the whole original and the rest carry ''.
+function normWordsOrig(text, { dropHesitations = false } = {}) {
+  const src = String(text ?? '');
+  const toks = tokenize(src);
+  const words = [], orig = [];
+  toks.forEach((t, k) => {
+    if (dropHesitations && DROP_FROM_SPOKEN.test(t.norm)) return;
+    const next = k + 1 < toks.length ? toks[k + 1].start : src.length;
+    let raw = src.slice(t.start, next).replace(/\s.*$/s, '');
+    if (k === 0) raw = src.slice(0, t.start).trim() + raw;
+    expandWord(t.norm).forEach((w, j) => { words.push(w); orig.push(j ? '' : raw); });
+  });
+  return { words, orig };
+}
+
 function containsSeq(hay, needle) {
   if (!needle.length) return false;
   outer: for (let i = 0; i + needle.length <= hay.length; i++) {
@@ -279,7 +296,8 @@ function countSeq(hay, needle) {
 }
 
 // LCS alignment of target words (a) and spoken words (b) -> diff in reading order.
-function alignDiff(a, b) {
+// ao / bo (optional): original display text per word, copied to `orig` on each entry.
+function alignDiff(a, b, ao = null, bo = null) {
   const n = a.length, m = b.length;
   const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
   for (let i = n - 1; i >= 0; i--) {
@@ -290,13 +308,17 @@ function alignDiff(a, b) {
   const diff = [];
   let i = 0, j = 0;
   while (i < n && j < m) {
-    if (a[i] === b[j]) { diff.push({ w: a[i], status: 'ok' }); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { diff.push({ w: a[i], status: 'miss' }); i++; }
-    else { diff.push({ w: b[j], status: 'extra' }); j++; }
+    if (a[i] === b[j]) { diff.push(ent(a[i], 'ok', ao && ao[i])); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { diff.push(ent(a[i], 'miss', ao && ao[i])); i++; }
+    else { diff.push(ent(b[j], 'extra', bo && bo[j])); j++; }
   }
-  while (i < n) diff.push({ w: a[i++], status: 'miss' });
-  while (j < m) diff.push({ w: b[j++], status: 'extra' });
+  while (i < n) { diff.push(ent(a[i], 'miss', ao && ao[i])); i++; }
+  while (j < m) { diff.push(ent(b[j], 'extra', bo && bo[j])); j++; }
   return { diff, ok: dp[0][0] };
+}
+
+function ent(w, status, orig) {
+  return orig == null ? { w, status } : { w, status, orig };
 }
 
 // ---------------------------------------------------------------------------
@@ -342,7 +364,8 @@ export function analyze(transcript, durationSec, { target, must, banned } = {}) 
   const beDrops = drops.map((d) => ({ text: d.text, index: d.index, kind: d.kind, fix: d.fix }));
   const heForIt = he.length;
 
-  const spoken = normWords(text, { dropHesitations: true });
+  const spokenO = normWordsOrig(text, { dropHesitations: true });
+  const spoken = spokenO.words;
 
   // must phrases
   const mustHit = [], mustMiss = [];
@@ -360,8 +383,9 @@ export function analyze(transcript, durationSec, { target, must, banned } = {}) 
   // target
   let targetScore = null, diff = [];
   if (typeof target === 'string' && target.trim()) {
-    const tw = normWords(target);
-    const al = alignDiff(tw, spoken);
+    const tO = normWordsOrig(target);
+    const tw = tO.words;
+    const al = alignDiff(tw, spoken, tO.orig, spokenO.orig);
     diff = al.diff;
     const recall = tw.length ? al.ok / tw.length : 0;
     const spokenContent = spoken.filter((w) => !ALL_FILLER_WORDS.has(w)).length;
