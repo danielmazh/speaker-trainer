@@ -1,7 +1,7 @@
 // Service worker: cache-first for same-origin app files, so the game works offline.
 // Bump VERSION on every release to refresh the cache.
 // Privacy: nothing about audio ever passes through here. Recordings are blob URLs in page memory.
-const VERSION = 'v4-2026-10-21';
+const VERSION = 'v5-2026-10-21';
 const CACHE = `speaker-trainer-${VERSION}`;
 const FONT_CACHE = 'speaker-trainer-fonts';
 

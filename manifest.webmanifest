@@ -1,7 +1,7 @@
 {
   "name": "Speaker Trainer",
   "short_name": "Speaker",
-  "description": "משחק קצר כל יום שמאמן אנגלית מדוברת להרצאות טכניות.",
+  "description": "משחק קצר כל יום שמאמן אנגלית מדוברת לאנשי הייטק: הרצאות, פגישות ועדכונים.",
   "lang": "he",
   "dir": "rtl",
   "start_url": "./#home",

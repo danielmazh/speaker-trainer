@@ -37,7 +37,8 @@
 }
 .quote-bad.italic { font-style: italic; color: var(--ink-2); }
 .good-text { color: var(--good-ink); font-weight: 600; font-size: 1.05rem; margin: 0; }
-.ts-chip { background: var(--primary-50); color: var(--primary); border-radius: 99px; padding: 2px 10px; }
+/* 2026-10-21 disabled: timestamp chips removed from the players (app is generic, no talk timestamps).
+.ts-chip { background: var(--primary-50); color: var(--primary); border-radius: 99px; padding: 2px 10px; } */
 .reveal { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-radius: var(--r-inner); padding: 12px 14px; }
 .reveal .model { margin: 0; font-size: .95rem; }
 .reveal p svg, .fb-tip svg { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; color: var(--warn); }

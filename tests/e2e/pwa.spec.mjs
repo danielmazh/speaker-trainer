@@ -6,7 +6,7 @@ test.describe('offline', () => {
   test('after the service worker installs, the app works offline', async ({ page, context }) => {
     // Request interception makes Chromium bypass the service worker, so drop the font stub here.
     await page.unrouteAll();
-    await setStore(page, { v: 1, onboarded: true, name: 'Daniel' });
+    await setStore(page, { v: 1, onboarded: true, name: 'Alex' });
     await page.goto('./#home');
     await page.waitForFunction(async () => {
       const r = await navigator.serviceWorker.getRegistration();

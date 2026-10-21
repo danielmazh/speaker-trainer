@@ -12,7 +12,7 @@ const SLIDES = [
 ];
 
 export function render(root, ctx) {
-  const name = ctx.state.name || 'Daniel';
+  const name = ctx.state.name || '';
   root.innerHTML = `<section class="screen no-nav onboarding">
     <div class="ob-top"><button class="link-btn" data-skip>דלג</button></div>
     <div class="ob-track" tabindex="0" aria-label="היכרות, 3 שקופיות" aria-roledescription="carousel">

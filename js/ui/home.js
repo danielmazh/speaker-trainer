@@ -19,7 +19,7 @@ export function render(root, ctx) {
   const next = ctx.nextTask();
   const minutes = d.tasks.reduce((a, t) => a + num(t.minutes, 2), 0);
   const xpLeft = d.tasks.filter((t) => !d.done.includes(t.id)).reduce((a, t) => a + num(t.xp), 0) + (d.bonus ? 0 : 50);
-  const name = (st.name || 'Daniel').trim() || 'Daniel';
+  const name = String(st.name || '').trim();
   const streak = num(st.streak.count);
   const streakAlive = st.streak.last === ctx.E.todayStr();
   const cats = ctx.C.CATEGORIES || [];
@@ -43,9 +43,9 @@ export function render(root, ctx) {
     <header class="band">
       <div class="spread">
         <div class="row nowrap">
-          <a class="avatar" href="#profile" aria-label="פרופיל והגדרות">${esc(name[0].toUpperCase())}</a>
+          <a class="avatar" href="#profile" aria-label="פרופיל והגדרות">${name ? esc(name[0].toUpperCase()) : icon('user')}</a>
           <div class="grow">
-            <h1 class="greet">היי <bdi>${esc(name)}</bdi></h1>
+            <h1 class="greet" data-testid="greet">${name ? `היי, <bdi>${esc(name)}</bdi>` : 'היי!'}</h1>
             <p class="sub">${esc(greeting())}</p>
           </div>
         </div>

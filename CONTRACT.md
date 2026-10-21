@@ -63,7 +63,7 @@ export const LEVEL_TITLES_HE = [...]  // index = level-1
 export function todayStr(date = new Date()) // 'YYYY-MM-DD' local
 export function seededRandom(seedString) // () => float 0..1
 export function createStore(storage = globalThis.localStorage) // { get(), set(patchOrFn), reset() }, try/catch safe, key 'speakerTrainer.v1'
-// state: { v:1, name:'Daniel', onboarded:false, xp:0, streak:{count,last}, days:[dateStr],
+// state: { v:1, name:'', onboarded:false, xp:0, streak:{count,last}, days:[dateStr],
 //   items:{ [id]:{ ease, interval, due, reps, lapses, last } }, history:[{ date, taskKind, itemId, score, metrics }],
 //   badges:[id], settings:{ onDevice:'auto'|'on'|'off', haptics:true, sound:true, theme:'system' },
 //   daily:{ date, tasks:[...], done:[taskId] } }

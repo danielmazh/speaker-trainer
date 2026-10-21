@@ -928,3 +928,12 @@ test('F1: daily task with unknown kind or non-string itemIds is reset; valid dai
   bad3.daily.tasks[2].minutes = '3';
   assert.deepEqual(migrate(bad3).daily.tasks, []);
 });
+
+test('default state has no personal name; migration keeps a stored name', () => {
+  const d = defaultState();
+  assert.equal(d.name, '');
+  assert.equal(d.profile.name, '');
+  const st = createStore(mem(JSON.stringify({ v: 1, onboarded: true, name: 'Noa' })));
+  assert.equal(st.get().name, 'Noa');
+  assert.equal(st.get().profile.name, 'Noa');
+});

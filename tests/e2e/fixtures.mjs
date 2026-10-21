@@ -191,14 +191,14 @@ export async function fresh(page, path = '?nosw#home') {
 }
 
 // Skip the onboarding UI: store a minimal onboarded state, the engine fills the rest.
-export async function seed(page, name = 'Daniel') {
+export async function seed(page, name = 'Alex') {
   await setStore(page, { v: 1, onboarded: true, name });
   await page.goto('?nosw#home');
   await expect(page).toHaveURL(/#home$/);
 }
 
 // Walk the onboarding UI. Tolerates extra optional steps: fills the name, then presses forward.
-export async function onboard(page, name = 'Daniel') {
+export async function onboard(page, name = 'Alex') {
   await fresh(page);
   await expect(page).toHaveURL(/#onboarding$/);
   const forward = page.locator('[data-testid="onboarding-next"], [data-next]').or(page.getByRole('button', { name: /^(הבא|מתחילים|המשך|סיום|סיימתי)/ })).first();

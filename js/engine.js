@@ -115,7 +115,7 @@ export function seededRandom(seedString) {
 export function defaultState() {
   return {
     v: SCHEMA,
-    name: 'Daniel',
+    name: '',
     onboarded: false,
     xp: 0,
     streak: { count: 0, last: null, best: 0 },
@@ -129,7 +129,7 @@ export function defaultState() {
     counters: { fillerFree: 0, perfect: 0, boss: 0, graded: 0, mic: 0, nightOwl: 0, earlyBird: 0, words: 0, minutes: 0, cats: {} },
     profile: {
       id: null,
-      name: 'Daniel',
+      name: '',
       role: '',
       nativeLang: 'he',
       goals: [],

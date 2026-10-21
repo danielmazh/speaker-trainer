@@ -5,9 +5,9 @@ import { esc, fmtTime } from './dom.js';
 import { icon } from './icons.js';
 
 const ERR_HE = {
-  'not-allowed': 'אין גישה למיקרופון. אפשר לאשר בהגדרות האתר בדפדפן. בינתיים: הקלד מה אמרת, או דרג את עצמך.',
-  'audio-capture': 'לא מצאתי מיקרופון שעובד. אפשר להקליד מה אמרת או לדרג את עצמך.',
-  unsupported: 'הדפדפן הזה לא ממיר דיבור לטקסט. אני מקליט, אתה מקשיב ומדרג את עצמך. או מקליד מה אמרת.',
+  'not-allowed': 'אין גישה למיקרופון. אפשר לאשר בהגדרות האתר בדפדפן. בינתיים אפשר להקליד את התשובה או לדרג את עצמך.',
+  'audio-capture': 'לא מצאתי מיקרופון שעובד. אפשר להקליד את התשובה או לדרג את עצמך.',
+  unsupported: 'הדפדפן הזה לא ממיר דיבור לטקסט. אני מקליט, אתה מקשיב ומדרג את עצמך. או מקליד את התשובה.',
   'ondevice-unavailable': 'זיהוי על המכשיר לא זמין, ובחרת לא להשתמש בשירות של הדפדפן. אני רק מקליט. אפשר לשנות בפרופיל.',
   network: 'שירות הדיבור של הדפדפן לא זמין עכשיו (אולי אין רשת). אני רק מקליט. אפשר לדרג את עצמך או להקליד.',
   'no-speech': 'לא שמעתי מילים. נסה שוב, קרוב יותר למיקרופון.',
@@ -100,7 +100,7 @@ export function micPanel(host, ctx, opts = {}) {
     ${preNote ? `<div class="note warn">${icon('micOff')}<span>${esc(preNote)}</span></div>` : ''}
     <div class="mic-err note warn" hidden>${icon('circleAlert')}<span></span></div>
     ${live && canRec ? `<div class="card transcript-card">
-      <div class="card-head"><span class="tiny muted bold">מה שאמרת</span><span class="live" hidden><i></i>LIVE</span></div>
+      <div class="card-head"><span class="tiny muted bold">התמלול שלך</span><span class="live" hidden><i></i>LIVE</span></div>
       <p class="transcript en" dir="ltr" lang="en" aria-live="polite" data-testid="transcript"><span class="ph">Your words show up here...</span></p>
     </div>` : ''}
     ${opts.between || ''}
@@ -119,7 +119,7 @@ export function micPanel(host, ctx, opts = {}) {
       <div class="mic-hint">${noMicAtAll ? 'אין מיקרופון בדפדפן הזה' : 'הקש ודבר'}<bdi class="mic-time"></bdi></div>
     </div>
     <div class="mic-alt">
-      <button class="link-btn" data-type data-testid="mic-type">${icon('keyboard')} הקלד מה אמרת</button>
+      <button class="link-btn" data-type data-testid="mic-type">${icon('keyboard')} הקלד את התשובה</button>
       ${opts.noSelf ? '' : `<button class="link-btn" data-self data-testid="mic-self">${icon('starLine')} דרג את עצמך</button>`}
     </div>
     <div class="mic-after" hidden></div>
@@ -248,7 +248,7 @@ export function micPanel(host, ctx, opts = {}) {
       ${audioUrl ? `<button class="btn ghost sm" data-listen>${icon('headphones')} הקשב להקלטה שלך</button>` : ''}
       <p class="small">${audioUrl ? 'הקשב, ואז דרג: כמה זה היה קרוב?' : 'כמה זה היה קרוב, לדעתך?'}</p>
       ${starsHtml()}
-      <button class="link-btn" data-type2>${icon('keyboard')} או הקלד מה אמרת</button>
+      <button class="link-btn" data-type2>${icon('keyboard')} או הקלד את התשובה</button>
     </div>`;
     let audio = null;
     after.querySelector('[data-listen]')?.addEventListener('click', (e) => {
@@ -267,7 +267,7 @@ export function micPanel(host, ctx, opts = {}) {
     if (state === 'listening') { stop(); return; }
     after.hidden = false;
     after.innerHTML = `<div class="card stack-sm">
-      <label class="field"><span class="lbl">הקלד באנגלית מה אמרת (או מה היית אומר)</span>
+      <label class="field"><span class="lbl">הקלד את התשובה באנגלית</span>
       <textarea data-testid="typed" class="textarea en" dir="ltr" lang="en" autocomplete="off" autocapitalize="sentences" spellcheck="false" rows="3"></textarea></label>
       <button class="btn sm" data-check data-testid="typed-check">${icon('check')} בדוק</button>
     </div>`;

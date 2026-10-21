@@ -1,6 +1,6 @@
 # Speaker Trainer - design spec
 
-Source of truth: `/Users/daniel.mazhbits/Documents/speaker-trainer-game.pen` (pen.dev). PNG exports at 2x in `docs/design/`:
+Source of truth: the design file `speaker-trainer-game.pen` (pen.dev, kept outside the repo). PNG exports at 2x in `docs/design/`:
 
 | File | Screen |
 |---|---|
@@ -178,7 +178,7 @@ All screens: `min-height:100dvh; background:var(--bg)`; header band first; body 
 - Footer row, padding `36px 28px 40px`, space-between: dots on the inline start (8x8, 8x8 `--primary-100`, active 24x8 `--primary`, radius 4, gap 6); Start button on the inline end (padding `16px 32px`, label "מתחילים" 18/600 + `arrow-left`).
 
 ### 02 Home
-- Band: greeting row ("היי Daniel", sub "מוכן לאימון של היום?"), streak pill "7" + flame, Level card ("רמה 4 - מציג בטוח", "320 / 500 XP", hint "עוד 180 XP לרמה 5").
+- Band: greeting row ("היי, <name>", or "היי!" when no name is set, sub "מוכן לאימון של היום?"), streak pill "7" + flame, Level card ("רמה 4 - מציג בטוח", "320 / 500 XP", hint "עוד 180 XP לרמה 5").
 - Body padding `20px 20px 120px`, gap 18:
   1. Mission card (hero): top row = text block on inline start (tag "המשימה של היום", title "Today's mission" 20/800 en, meta row `list-checks` "5 שלבים" + `timer` "12 דק'" 13 `--muted`), round Go button 56 `--primary` with play on inline end. 5 step segments (height 8, radius 4, gap 6; done `--primary`, current `--primary-100`, todo `--line`). Footer row: "2 מתוך 5 הושלמו" 12 `--muted` and "+60 XP" 12/700 `--gold`.
   2. Category chips: דקדוק (active), מילות מילוי, ניסוח, דיבור, תסריטים, שאלות, הגייה, הצגה.
@@ -197,7 +197,7 @@ All screens: `min-height:100dvh; background:var(--bg)`; header band first; body 
 ### 04 Speak task (hero)
 - Band (task variant): segments with step 4 current, timer pill "0:42" (`timer` icon), kicker "דיבור חופשי - 60 שניות - שלב 4 מתוך 5", title "ספר מה הצוות שלך השיק החודש", English prompt 15/1.45 `rgba(255,255,255,.85)` LTR, must-say chip row (aligned to inline start, gap 6).
 - Body padding `18px 20px 28px`, gap 14:
-  1. Transcript card: head row with "מה שאמרת" 13/600 `--muted` and "LIVE" badge (8px `--bad` dot + 11/800 en letter-spacing 1 `--bad`, dot blinks). Text block LTR 17/500 en, line gap 10, with filler and must-hit spans; caret 2x20 `--primary` blinking at the end. Max height 4 lines, auto scroll to bottom.
+  1. Transcript card: head row with "התמלול שלך" 13/600 `--muted` and "LIVE" badge (8px `--bad` dot + 11/800 en letter-spacing 1 `--bad`, dot blinks). Text block LTR 17/500 en, line gap 10, with filler and must-hit spans; caret 2x20 `--primary` blinking at the end. Max height 4 lines, auto scroll to bottom.
   2. Counters row (wpm, fillers/min, must-say).
   3. Mic area (flex 1, centered): listening mic button 176, waveform, hint.
 
@@ -211,7 +211,7 @@ All screens: `min-height:100dvh; background:var(--bg)`; header band first; body 
 
 ### 06a Fix task
 - Band (task variant, step 2), XP pill "+10", kicker "תיקון - שלב 2 מתוך 5", title "אמור את המשפט הנכון בקול".
-- Body gap 14: Wrong card (tag "לא טבעי" bad, LTR quote 18/500 `--muted` with 3px `--bad` left border and 12px left padding, hint box `--primary-50` radius 14 padding `10px 12px` with `lightbulb` and Hebrew note 13 `--primary-600`); You-said card (head "מה שאמרת" + match tag "100%" good, LTR sentence 17 with matched new words in good spans); mic area with idle mic 120 and hint; primary CTA "המשך" (enabled after a match of 80% or more).
+- Body gap 14: Wrong card (tag "טעות נפוצה" bad, LTR quote 18/500 `--muted` with 3px `--bad` left border and 12px left padding, hint box `--primary-50` radius 14 padding `10px 12px` with `lightbulb` and Hebrew note 13 `--primary-600`); You-said card (head "התמלול שלך" + match tag "100%" good, LTR sentence 17 with matched new words in good spans); mic area with idle mic 120 and hint; primary CTA "המשך" (enabled after a match of 80% or more).
 
 ### 06b Choice task
 - Band (task variant, step 3), kicker "בחירה - שלב 3 מתוך 5", title "איזה משפט נשמע טבעי?".
@@ -228,7 +228,7 @@ All screens: `min-height:100dvh; background:var(--bg)`; header band first; body 
 - Bottom nav with Coach active.
 
 ### 08 Stats / Profile
-- Band: profile row = level ring 64 around a 50 avatar, name "Daniel" 22/800 en, level "רמה 4 - מציג בטוח" 13, settings button 40. Stat tiles row (3, gap 8, padding `10px 8px`, radius 16, `--on-band-12`): "74" ציון ממוצע (`target`), "12" שיא רצף (`flame`), "1,320" XP (`star`). Value 20/800 en.
+- Band: profile row = level ring 64 around a 50 avatar, user name 22/800 en (or "הפרופיל שלי" when no name is set), level "רמה 4 - מציג בטוח" 13, settings button 40. Stat tiles row (3, gap 8, padding `10px 8px`, radius 16, `--on-band-12`): "74" ציון ממוצע (`target`), "12" שיא רצף (`flame`), "1,320" XP (`star`). Value 20/800 en.
 - Body gap 12:
   1. Streak calendar card: head "אוקטובר" + streak pill "8 ימים" (`--flame-50`/`--flame`). Weekday row א..ש (11 `--muted`, first day at inline start). Day cells 30x30 radius 10, `space-between`: done `--primary` + white number 11/600 en; missed `--bg` + `--muted`; today `--flame` with `flame` icon and 2px `#FFD3B0` ring.
   2. Trend card: "מילוי לדקה - 10 אימונים" + delta tag "-42%" good with `trending-down`. 10 bars, gap 8, height 70 area, bar height proportional (value x 12), radius `6 6 3 3`, `--primary-100`, latest bar `--primary`. Oldest at inline start.

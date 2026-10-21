@@ -133,11 +133,16 @@ test('wpm and pace', () => {
   assert.equal(analyze('a b c', 0).wpm, 0);
 });
 
-test('tips are 1 to 3 Hebrew lines with the user own words', () => {
+test('tips are 1 to 3 neutral Hebrew lines that quote the transcript', () => {
   const r = analyze('so basically so we gonna add users so', 6);
   assert.ok(r.tips_he.length >= 1 && r.tips_he.length <= 3);
   assert.ok(r.tips_he[0].includes('we gonna'));
   assert.ok(r.tips_he.some((t) => t.includes('"so"')));
+  assert.ok(r.tips_he.every((t) => !t.includes('אמרת')));
+  assert.equal(r.tips_he[0], 'חסר is או are: "we gonna" -> "we are gonna".');
+  assert.deepEqual(analyze('we ship it today', 5, { must: ['next step'] }).tips_he, ['חסר בתשובה: "next step".']);
+  const many = analyze('Um, we ship it. Um, it works. Um, today.', 6).tips_he;
+  assert.ok(many.some((t) => /^מילת מילוי "um" חזרה \d+ פעמים\. במקומה: עצירה קצרה ונשימה\.$/.test(t)), many.join(' | '));
   assert.equal(analyze('The model is ready for you.', 3).tips_he.length, 1);
 });
 

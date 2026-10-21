@@ -26,7 +26,7 @@ export function mount(el, item, { ctx, finish }) {
 
   el.innerHTML = `<div class="stack">
     <div class="card">
-      <div class="spread"><span class="tag">${icon('scripts')} ${esc(item.title_he)}</span>${item.src ? `<span class="ts-chip"><bdi class="ts" dir="ltr">[${esc(item.src)}]</bdi></span>` : ''}</div>
+      <div class="spread"><span class="tag">${icon('scripts')} ${esc(item.title_he)}</span></div>
       ${item.why_he ? `<p class="small muted" style="margin-top:8px">${icon('bulb')} ${esc(item.why_he)}</p>` : ''}
       <div class="levels" role="group" aria-label="כמה להסתיר">
         ${LEVELS.map((l, k) => `<button class="lvl-pip" data-l="${k}" aria-pressed="${k === level}" aria-label="רמה ${k + 1}: ${l}">${k + 1}</button>`).join('')}

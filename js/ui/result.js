@@ -86,7 +86,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
       </div>` : ''}
 
       ${!diffs.length && results.some((r) => r._take && r._take.transcript) ? `<div class="card stack-sm">
-        <h2 class="card-title">מה שאמרת</h2>
+        <h2 class="card-title">התמלול שלך</h2>
         ${results.filter((r) => r._take && r._take.transcript).map((r) => `<p class="en said-text" dir="ltr">${segHtml(ctx.A, r._take.transcript)}</p>`).join('')}
       </div>` : ''}
 

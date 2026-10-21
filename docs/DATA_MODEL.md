@@ -35,7 +35,7 @@ Top-level shape:
 ```js
 {
   v: 2,                 // schema version (same as meta.schema)
-  name: 'Daniel',       // legacy, mirrors profile.name
+  name: '',             // legacy, mirrors profile.name (empty until the user sets one)
   onboarded: false,
   xp: 0,
   missions: 0,

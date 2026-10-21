@@ -10,6 +10,7 @@ test.describe('first run', () => {
     const st = await state(page);
     expect(st.onboarded).toBe(true);
     expect(JSON.stringify(st)).toContain('Noa');
+    await expect(page.getByTestId('greet')).toHaveText('היי, Noa');
     await expect(page.getByRole('navigation')).toBeVisible();
     await page.reload();
     await expect(page).toHaveURL(/#home$/);
@@ -18,12 +19,18 @@ test.describe('first run', () => {
   test('skip finishes onboarding', async ({ page }) => {
     await fresh(page);
     await expect(page).toHaveURL(/#onboarding$/);
+    await expect(page.locator('#ob-name')).toHaveValue('');
     for (let i = 0; i < 6 && !/#home$/.test(page.url()); i++) {
       await page.getByRole('button', { name: /דלג/ }).first().click();
       await page.waitForTimeout(150);
     }
     await expect(page).toHaveURL(/#home$/);
-    expect((await state(page)).onboarded).toBe(true);
+    const st = await state(page);
+    expect(st.onboarded).toBe(true);
+    expect(st.name).toBe('');
+    expect(st.profile.name).toBe('');
+    await expect(page.getByTestId('greet')).toHaveText('היי!');
+    await expect(page.locator('body')).not.toContainText('Daniel');
   });
 });
 

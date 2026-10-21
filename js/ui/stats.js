@@ -61,7 +61,7 @@ export function render(root, ctx) {
   const lv = ctx.level();
   const today = ctx.E.todayStr();
   const prof = profileOf(st);
-  const name = (prof.name || st.name || 'Daniel').trim() || 'Daniel';
+  const name = String(prof.name || st.name || '').trim();
   const badges = ctx.C.BADGES || [];
   const have = new Set(st.badges || []);
   const acc = {};
@@ -77,8 +77,8 @@ export function render(root, ctx) {
     <header class="band">
       <div class="spread">
         <div class="row nowrap">
-          <div class="avatar-ring">${ringSvg(lv.pct, { size: 64, stroke: 5, cls: 'on-band', label: `<span class="avatar sm">${esc(name[0].toUpperCase())}</span>` })}</div>
-          <div class="grow"><h1 class="en">${esc(name)}</h1><p class="sub">רמה ${lv.level} - ${esc(lv.title_he)}</p></div>
+          <div class="avatar-ring">${ringSvg(lv.pct, { size: 64, stroke: 5, cls: 'on-band', label: `<span class="avatar sm">${name ? esc(name[0].toUpperCase()) : icon('user')}</span>` })}</div>
+          <div class="grow">${name ? `<h1 class="en">${esc(name)}</h1>` : '<h1>הפרופיל שלי</h1>'}<p class="sub">רמה ${lv.level} - ${esc(lv.title_he)}</p></div>
         </div>
         <a class="icon-btn" href="#profile" aria-label="פרופיל והגדרות">${icon('settings')}</a>
       </div>

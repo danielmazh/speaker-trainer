@@ -425,19 +425,19 @@ function buildTips({ words, fillers, drops, heForIt, mustMiss, targetScore, diff
 
   if (drops.length) {
     const d = drops.find((x) => x.kind !== 's') || drops[0];
-    if (d.kind === 's') tips.push(`אחרי he, she או it מוסיפים s לפועל. אמרת "${d.text}", נכון: "${d.fix}".`);
-    else tips.push(`חסר is או are. אמרת "${d.text}", נכון: "${d.fix}".`);
+    if (d.kind === 's') tips.push(`אחרי he, she או it מוסיפים s לפועל: "${d.text}" -> "${d.fix}".`);
+    else tips.push(`חסר is או are: "${d.text}" -> "${d.fix}".`);
   }
 
   const top = Object.entries(fillers).sort((a, b) => b[1] - a[1])[0];
   if (top && top[1] >= 2) {
-    tips.push(`אמרת "${top[0]}" ${top[1]} פעמים. במקום זה - עצור רגע ונשום.`);
+    tips.push(`מילת מילוי "${top[0]}" חזרה ${top[1]} פעמים. במקומה: עצירה קצרה ונשימה.`);
   } else if (top && top[0] !== 'again' && tips.length < 2) {
     tips.push(`שים לב ל-"${top[0]}". הפסקה קצרה עדיפה על מילת מילוי.`);
   }
 
   if (heForIt) tips.push('על מודל, סוכן או מערכת אומרים it, לא he או him.');
-  if (mustMiss.length) tips.push(`לא אמרת: ${mustMiss.slice(0, 2).map((p) => `"${p}"`).join(', ')}.`);
+  if (mustMiss.length) tips.push(`חסר בתשובה: ${mustMiss.slice(0, 2).map((p) => `"${p}"`).join(', ')}.`);
   if (targetScore !== null && targetScore < 0.8) {
     const missed = diff.filter((d) => d.status === 'miss').slice(0, 3).map((d) => d.w);
     if (missed.length) tips.push(`חסרו מילים מהמשפט: ${missed.join(', ')}.`);

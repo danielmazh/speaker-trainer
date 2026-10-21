@@ -1,4 +1,4 @@
-// Fix: a wrong sentence from the talk. Say the corrected one aloud.
+// Fix: a common wrong sentence. Say the corrected one aloud.
 // Fallback: reveal the answer and rate yourself.
 import { esc } from './dom.js';
 import { icon } from './icons.js';
@@ -16,8 +16,7 @@ export function mount(el, item, api) {
   el.innerHTML = `<div class="stack">
     <div class="card stack-sm">
       <div class="card-head">
-        <span class="tag bad">${icon('x')} לא טבעי</span>
-        ${item.src ? `<span class="ts-chip"><bdi class="ts" dir="ltr">[${esc(item.src)}]</bdi></span>` : ''}
+        <span class="tag bad">${icon('x')} טעות נפוצה</span>
       </div>
       <blockquote class="en quote-bad" dir="ltr" lang="en">${esc(item.wrong)}</blockquote>
       ${item.why_he ? `<p class="note">${icon('bulb')}<span>${esc(item.why_he)}</span></p>` : ''}

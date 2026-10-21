@@ -87,7 +87,7 @@ export function mount(el, item, api) {
       const reveal = `<div class="reveal">
         <div class="spread"><div class="tiny muted">ככה זה יכול להישמע</div>${listenBtn('הקשב')}</div>
         <p class="en model" dir="ltr">${esc(item.model_en)}</p>
-        ${item.bad ? `<div class="tiny muted">ככה לא:</div><p class="en quote-bad small" dir="ltr">${esc(item.bad)}</p>` : ''}
+        ${item.bad ? `<div class="tiny muted">דוגמה חלשה</div><p class="en quote-bad small" dir="ltr">${esc(item.bad)}</p>` : ''}
       </div>`;
       finish({ score: takeScore(take), take, revealHtml: reveal, afterFeedback: (fb) => bindListen(fb, item.model_en) });
     },

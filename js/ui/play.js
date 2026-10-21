@@ -169,7 +169,7 @@ export function render(root, ctx) {
         <span class="tag ${good ? 'good' : ok ? 'warn' : 'bad'}">${icon(good ? 'check' : 'target')} <bdi>${score}%</bdi></span>
       </div>
       ${r.rule ? `<p class="en fb-rule">${esc(r.rule)}</p>` : ''}
-      ${showDiff ? `<div class="tiny muted">מה שאמרת מול המשפט</div>${diffHtml(a.diff, 36)}` : said}
+      ${showDiff ? `<div class="tiny muted">התמלול שלך מול המשפט</div>${diffHtml(a.diff, 36)}` : said}
       ${a && a.beDrops && a.beDrops.length ? `<div class="small">תיקון: <span class="en fix-pair"><s>${esc(a.beDrops[0].text)}</s> ${icon('arrowR')} <b>${esc(a.beDrops[0].fix)}</b></span></div>` : ''}
       ${tip && !good ? `<p class="small fb-tip">${icon('bulb')} ${esc(tip)}</p>` : ''}
       ${r.revealHtml || ''}

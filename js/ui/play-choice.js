@@ -17,7 +17,7 @@ export function mount(el, item, { ctx, finish }) {
       ${stress
         ? `<div class="tiny muted bold">איפה הדגש?</div>
       ${item.wrong ? `<p class="en quote-neutral" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</p>` : ''}`
-        : `<div class="tiny muted bold">נאמר בהרצאה${item.src ? ` <bdi class="ts" dir="ltr">[${esc(item.src)}]</bdi>` : ''}:</div>
+        : `<div class="tiny muted bold">טעות נפוצה:</div>
       ${item.wrong ? `<blockquote class="en quote-bad italic" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</blockquote>` : ''}`}
       ${item.why_he ? `<p class="small muted">${esc(item.why_he)}</p>` : ''}
     </div>

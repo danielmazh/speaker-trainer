@@ -1,6 +1,6 @@
 # Speaker Trainer
 
-A mobile game that trains spoken English for technical talks. Every day it builds a short mission: pronunciation warmup, grammar fixes said aloud, natural phrasing, a timed speaking challenge with live filler detection, and a boss question.
+A free mobile game that trains professional spoken English for Hebrew-speaking tech professionals: talks, meetings, status updates, incident calls, interviews and small talk. Every day it builds a short mission: pronunciation warmup, common mistakes said aloud, natural phrasing, a timed speaking challenge with live filler detection, and a boss question. Skill paths add tracks and units on top of the daily mission.
 
 - Instructions in Hebrew, practice in English.
 - Works on Android Chrome and desktop. Installable (Add to Home screen). Works offline after the first visit.
@@ -23,7 +23,8 @@ Then open http://localhost:8765. The mic needs `localhost` or HTTPS.
 ## Tests
 
 ```bash
-node --test
+npm test                                   # unit tests
+npx playwright test --reporter=line        # e2e, serves the app on port 8790
 ```
 
 ## Structure
