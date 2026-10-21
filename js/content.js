@@ -54,7 +54,7 @@ const BE = `שמטת is/are. בעברית אין "להיות" בהווה.`;
 const AGR = `התאמה בין נושא לפועל: יחיד או רבים.`;
 const ART = `a/the: ה' הידיעה העברית לא עוברת לאנגלית.`;
 const QWO = `סדר מילים בשאלה: הפועל לפני הנושא.`;
-const ONE = `טעות חד פעמית שנשמעת לא מקצועית.`;
+const ONE = `טעות חד-פעמית שנשמעת לא מקצועית.`;
 const PRO = `he על מודל או משתמש. בעברית לכל דבר יש מין.`;
 const CAL = `תרגום ישיר מעברית שנשמע זר.`;
 const WEAK = `ניסוח שמחליש אותך ואת העבודה שלך.`;
@@ -67,12 +67,12 @@ export const ITEMS = [
   // be-drop: from the talk
   G('g-001', 1, '04:49', `Well, when we gonna add some users,`, `When we add more users,`, `אין "we gonna". או "we're going to", או פשוט הווה.`, BE),
   G('g-002', 1, '04:56', `so he gonna fully consume the GPU as per his requests.`, `They're going to use the full GPU.`, `חסר is/are לפני gonna. ובמקום he: they.`, BE),
-  G('g-003', 1, '05:03', `we can see that both of them sharing the same GPU,`, `You can see they are sharing the same GPU.`, `ing צריך is/are לפניו.`, BE),
+  G('g-003', 1, '05:03', `we can see that both of them sharing the same GPU,`, `You can see that they are both sharing the same GPU.`, `ing צריך is/are לפניו.`, BE),
   G('g-004', 1, '04:41', `if he is the only user that using the GPU machine,`, `If they're the only user who is using the GPU,`, `that/who + ing = that is / who is.`, BE),
   G('g-005', 1, '02:39', `fixing stuff that not working so well`, `fixing things that are not working well`, `that + not + ing = that are not.`, BE),
-  G('g-006', 1, '14:43', `the names of the engineers that working on`, `the names of the engineers who are using it`, `אנשים: who are.`, BE),
+  G('g-006', 1, '14:43', `the names of the engineers that working on`, `the names of the engineers who are working on it`, `אנשים: who are.`, BE),
   G('g-007', 1, '16:02', `the automation that using the gpu`, `the automations that are using the GPU`, `that + ing = that are.`, BE),
-  G('g-008', 2, '16:24', `some gonna use uh two 200k`, `and some will use 200K.`, `"will" קצר וברור.`, BE),
+  G('g-008', 2, '16:24', `some gonna use uh two 200k`, `and some will use 200K tokens.`, `"will" קצר וברור.`, BE),
   G('g-009', 1, '20:26', `how we gonna perform actual actions`, `how we are going to take real actions`, `we + are + going to.`, BE),
   G('g-010', 1, '06:28', `here we have a brain that connected`, `Here we have a brain that is connected.`, `that + is.`, BE),
   G('g-011', 1, '24:56', `here we also managing user`, `Here we also manage users.`, `הווה פשוט: we manage.`, BE),
@@ -100,18 +100,18 @@ export const ITEMS = [
   G('g-031', 2, '17:55', `an actual automation that i built that are consuming our local model`, `an automation I built that uses our local model`, `automation = יחיד: uses.`, AGR),
   G('g-032', 2, '03:24', `the pros of this solution is that is in-house`, `The main advantage is that it's in-house.`, `pros = רבים. ו-"that it's", לא "that is".`, AGR),
   G('g-033', 1, '20:42', `urgent bugs that needs to be taken care of`, `urgent bugs that need to be fixed now`, `bugs = רבים: need.`, AGR),
-  G('g-034', 2, '23:27', `why there is facts that are going through verification`, `There are facts, and they're verified.`, `facts = רבים: there are.`, AGR),
+  G('g-034', 2, '23:27', `why there is facts that are going through verification`, `That's why there are facts that go through verification.`, `facts = רבים: there are.`, AGR),
   G('g-035', 2, '24:05', `this pr is already has been merged`, `This PR has already been merged.`, `רק has, בלי is.`, AGR),
   G('g-036', 2, '25:11', `for example she send this it's refused`, `She sent this, and it was refused.`, `עבר: sent, was.`, AGR),
   G('g-037', 1, '04:37', `Each user getting is their own limitations,`, `Each user gets their own limits.`, `each user = יחיד: gets.`, AGR),
-  G('g-038', 1, '04:26', `the GPU host that are working through this chain`, `the GPU host that is working in this chain`, `host = יחיד: that is.`, AGR),
+  G('g-038', 1, '04:26', `the GPU host that are working through this chain`, `the GPU host that is part of this chain`, `host = יחיד: that is.`, AGR),
   G('g-039', 1, null, `Each team have its own key.`, `Each team has its own key.`, `each = יחיד: has.`, AGR),
   G('g-040', 1, null, `The agent check Git first.`, `The agent checks Git first.`, `he/she/it + s.`, AGR),
   G('g-041', 1, null, `There is three steps.`, `There are three steps.`, `רבים: there are.`, AGR),
   G('g-042', 1, null, `Every request are logged.`, `Every request is logged.`, `every = יחיד: is.`, AGR),
-  G('g-043', 2, null, `The data from the logs show that the GPU is busy.`, `The logs show that the GPU is busy.`, `נושא פשוט, פועל ברור. בלי משפט מסובך.`, AGR),
+  G('g-043', 2, null, `The number of errors are growing.`, `The number of errors is growing.`, `הנושא הוא number, יחיד: is.`, AGR),
   // articles
-  G('g-044', 1, '01:41', `so today the pain is the your organization is the um`, `Today, the pain in our organization is this.`, `בלי "the" לפני your.`, ART),
+  G('g-044', 1, '01:41', `so today the pain is the your organization is the um`, `Here's the pain in our organization today.`, `בלי "the" לפני your.`, ART),
   G('g-045', 1, '02:52', `we want the people to enjoy the work`, `We want people to enjoy their work.`, `אנשים באופן כללי: בלי the.`, ART),
   G('g-046', 1, '04:14', `shown eventually in the Grafana.`, `shown in Grafana.`, `שם של מוצר: בלי the.`, ART),
   G('g-047', 1, '06:28', `it's a employee called Alex`, `an employee called Alex`, `לפני תנועה: an.`, ART),
@@ -202,9 +202,9 @@ export const ITEMS = [
   F('f-003', 1, '13:06', { title_he: `לסיים רשימה בלי whatever`, prompt_en: `Name three tools you use every day, and say why in one sentence each. End the list with a full stop.`, seconds: 30, must: [], banned: ['whatever', 'or something', 'stuff'], model_en: `I use three tools every day. Git, to track every change. Grafana, to see what's happening. And Claude Code, to move faster on small tasks. That's my day.`, bad: `all we need is bigger gpu machine or whatever`, why_he: `whatever נשמע כמו "לא אכפת לי".` }),
   F('f-004', 2, null, { title_he: `בלי like`, prompt_en: `Describe a typical on-call week. 45 seconds. No "like", no "you know".`, seconds: 45, must: ['alerts'], banned: ['like', 'you know', 'um', 'uh'], model_en: `On-call week starts on Monday. I watch the alerts and the support queue. Most alerts are small. Once or twice a week, something real breaks. Then I fix it, and I write a short summary for the team.`, why_he: `like כמו "כאילו". מוריד ביטחון.` }),
   F('f-005', 2, '16:09', { title_he: `מספר בלי let's say`, prompt_en: `Give a short cost example with placeholders: "[X] dollars a month", "[N] users". No "let's say" before a number.`, seconds: 30, must: ['a month'], banned: ['let\'s say', 'probably', 'I think', 'basically'], model_en: `The host costs [X] dollars a month. Fixed. With [N] users, a paid API would cost about [Y] dollars a month. So we save the difference.`, bad: `but basically this is the break even okay this is the most logical i think average`, why_he: `let's say ו-I think לפני מספר נשמעים כמו ניחוש.` }),
-  F('f-006', 2, null, { title_he: `בלי again`, prompt_en: `Explain why monitoring matters. 30 seconds. Say "again" only if you really said it before.`, seconds: 30, must: ['before users'], banned: ['again', 'so', 'basically'], model_en: `Monitoring tells you about a problem before users do. Without it, you learn from a complaint. With it, you see the problem first. And you fix it faster.`, why_he: `again בלי שאמרת את זה קודם. 14 פעמים.` }),
+  F('f-006', 2, null, { title_he: `בלי again`, prompt_en: `Explain why monitoring matters. 30 seconds. Say "again" only if you really said it before.`, seconds: 30, must: ['before users'], banned: ['again', 'so', 'basically'], model_en: `Monitoring tells you about a problem before users do. Without it, you learn from a complaint. With it, you see the problem first. And you fix it faster.`, why_he: `again כשלא אמרת את זה קודם. 14 פעמים בהרצאה.` }),
   F('f-007', 2, null, { title_he: `טענה חזקה, בלי מחלישים`, prompt_en: `Make one strong claim about a project you built. Three short sentences. No "probably", no "I think".`, seconds: 20, must: [], banned: ['probably', 'I think', 'basically', 'kind of', 'maybe'], model_en: `It works. It runs every hour, on real tickets. And it saves the on-call engineer real time.`, why_he: `probably ו-I think מחלישים את הטענות שלך.` }),
-  F('f-008', 2, '12:07', { title_he: `הדגמה רצה, ואתה מדבר`, prompt_en: `A command is running on screen. Talk for 20 seconds about what it does. No "um", no "okay so".`, seconds: 20, must: ['while it runs'], banned: ['um', 'uh', 'so', 'okay'], model_en: `While it runs, here's what's happening. It reads the project. It finds the failing test. Then it suggests a fix. Watch the bottom line.`, bad: `so this is probably gonna take maybe a minute or two i hope less no it's gonna take less`, why_he: `חושב בקול בזמן המתנה.` }),
+  F('f-008', 2, '12:07', { title_he: `הדגמה רצה, ואתה מדבר`, prompt_en: `A command is running on screen. Talk for 20 seconds about what it does. No "um", no "okay so".`, seconds: 20, must: ['while it runs'], banned: ['um', 'uh', 'so', 'okay'], model_en: `While it runs, here's what's happening. It reads the project. It finds the failing test. Then it suggests a fix. Watch the bottom line.`, bad: `so this is probably gonna take maybe a minute or two i hope less no it's gonna take less`, why_he: `חשיבה בקול בזמן ההמתנה.` }),
   F('f-009', 1, null, { title_he: `לענות בלי well ו-so`, prompt_en: `Answer: "Is it ready?" Start with yes or no. 15 seconds.`, seconds: 15, must: [], banned: ['so', 'well', 'um', 'basically'], model_en: `Not yet. The gateway is live. The dashboard is planned for next month.`, why_he: `so ו-well בתחילת תשובה דוחים את התשובה.` }),
   F('f-010', 3, '01:41', { title_he: `דקה שלמה, אפס מילוי`, prompt_en: `Explain token starvation in 60 seconds. Zero fillers. Pause instead.`, seconds: 60, must: ['token starvation', 'approval'], banned: ALL, model_en: `Today we have a problem. Let's call it token starvation. Each of us gets a fixed monthly budget of tokens. When it runs out, you stop. Or you ask for approval, and you wait. Then people start to save tokens instead of solving problems well. That's what we want to fix.`, bad: `so today the pain is the your organization is the um currently we have a token starvation`, why_he: `צפיפות של מילים ריקות, לא מהירות.` }),
   F('f-011', 2, null, { title_he: `עצור, נשום, משפט חדש`, prompt_en: `Explain your team's main job in 45 seconds. After every sentence, pause for one second. Count it in your head.`, seconds: 45, must: [], banned: ['so', 'and then', 'um', 'uh', 'basically'], model_en: `My team keeps our systems running. We build the pipelines. We watch the alerts. When something breaks, we fix it. And we try to make sure it doesn't break the same way twice.`, why_he: `משפטים שנמשכים בלי נקודה.` }),
@@ -213,16 +213,16 @@ export const ITEMS = [
   // SPEAKING - type 'speak'
   // =====================================================================
   S('s-001', 1, '01:41', { title_he: `הבעיה`, prompt_en: `Explain the problem. 45 seconds.`, seconds: 45, must: ['token starvation', 'monthly budget', 'approval'], banned: ['so', 'basically', 'whatever', 'um'], model_en: `Today we have a problem. Let's call it token starvation. Each of us gets a fixed monthly budget of Claude tokens. When it runs out, you ask for approval, and you wait. The first question becomes "how do I save tokens?", not "how do I solve this well?". That's not how SRE and DevOps work should look.`, bad: `so today the pain is the your organization is the um currently we have a token starvation`, why_he: `פתיחה בלי שם ברור לבעיה.` }),
-  S('s-002', 2, '03:48', { title_he: `ארכיטקטורה: בקשה אחת`, prompt_en: `Walk through one request, end to end. 60 seconds.`, seconds: 60, must: ['VPN', 'nginx', 'LiteLLM', 'vLLM', 'GPU'], banned: ['so', 'basically', 'like', 'whatever'], model_en: `Here's one request, end to end. You're on the VPN. The request goes to nginx, over TLS. Then to LiteLLM, our gateway. It checks your key and your limit: three requests at a time. Then vLLM runs the model, gpt-oss-20b, on two A10 GPUs. The answer streams back to you. And every request is saved in PostgreSQL.`, bad: `So only users that are connected to the VPN through the reverse proxy to the LytleLM, to the GPU consuming the tokens.`, why_he: `ארכיטקטורה שטחית, בלי מסלול של בקשה.` }),
+  S('s-002', 2, '03:48', { title_he: `ארכיטקטורה: בקשה אחת`, prompt_en: `Walk through one request, end to end. 60 seconds.`, seconds: 60, must: ['VPN', 'nginx', 'LiteLLM', 'vLLM', 'GPU'], banned: ['so', 'basically', 'like', 'whatever'], model_en: `Here's one request, end to end. You're on the VPN. The request goes to nginx, over TLS. Then to LiteLLM, our gateway. It checks your key and your limit: three requests at a time. Then vLLM runs the model, gpt-oss-20b, on our GPU host: two A10 cards. The answer streams back to you. And every request is saved in PostgreSQL.`, bad: `So only users that are connected to the VPN through the reverse proxy to the LytleLM, to the GPU consuming the tokens.`, why_he: `ארכיטקטורה שטחית, בלי מסלול של בקשה.` }),
   S('s-003', 1, '12:52', { title_he: `מודל קטן, ועדיין שימושי`, prompt_en: `Explain why a small model is still useful. 45 seconds.`, seconds: 45, must: ['twenty billion parameters', 'simple bugs', 'per token'], banned: ['so', 'basically', 'whatever', 'like'], model_en: `To be clear, this is a small model. Twenty billion parameters. It won't write big features. But for summaries, logs and simple bugs, it works. And it costs us nothing per token.`, bad: `again this is very uh small and weak we call it a model so we're not expecting of it to be like very aggressive`, why_he: `מגבלה נכונה, אבל מנוסחת חלש.` }),
   S('s-004', 2, '16:09', { title_he: `עלות ונקודת איזון`, prompt_en: `Explain the cost and the break-even. Use placeholders. 60 seconds.`, seconds: 60, must: ['fixed', 'a month', 'paid API', 'break-even'], banned: ['basically', 'I think', 'let\'s say', 'probably'], model_en: `The host costs [X] dollars a month. Fixed, used or not. Our base case: [N] users, [N] million tokens each per day, plus [N] automations. On a paid API, that's about [Y] dollars a month. So we save about [Z] dollars a month. And break-even is only [N] users.`, bad: `but basically this is the break even okay this is the most logical i think average something that i can see happening`, why_he: `הססני בדיוק ברגע של המספרים.` }),
-  S('s-005', 2, '22:05', { title_he: `agent אוטומציה וטיקט חדש`, prompt_en: `Explain what the automation agent does with a new support ticket. 60 seconds.`, seconds: 60, must: ['picks it up', 'facts', 'a guess', 'read-only', 'a human decides'], banned: ['so', 'again', 'whatever', 'he'], model_en: `A new support ticket lands in Teams. The agent picks it up. It reads the ticket, checks Git, and finds similar tickets. Then it posts a first triage: facts, a guess, and a suggested fix. It also shows its own confidence. It's read-only. A human decides.`, bad: `again this is only read only um first triage i don't know response`, why_he: `חיפוש מילה בקול, ו-he על ה-agent.` }),
+  S('s-005', 2, '22:05', { title_he: `ה-agent מקבל טיקט חדש`, prompt_en: `Explain what the automation agent does with a new support ticket. 60 seconds.`, seconds: 60, must: ['picks it up', 'facts', 'a guess', 'read-only', 'a human decides'], banned: ['so', 'again', 'whatever', 'he'], model_en: `A new support ticket lands in Teams. The agent picks it up. It reads the ticket, checks Git, and finds similar tickets. Then it posts a first triage: facts, a guess, and a suggested fix. It also shows its own confidence. It's read-only. A human decides.`, bad: `again this is only read only um first triage i don't know response`, why_he: `חיפוש מילה בקול, ו-he על ה-agent.` }),
   S('s-006', 2, '26:48', { title_he: `אבטחה בארבע נקודות`, prompt_en: `Explain security in four points. 45 seconds.`, seconds: 45, must: ['no VPN, no access', 'own key', 'logged', 'read-only', 'approval'], banned: ['so', 'again', 'probably', 'basically'], model_en: `Security, in four points. One: no VPN, no access. Two: every user has their own key, with limits. Three: every request is logged. Four: agents are read-only, and every SSH command needs an admin's approval.`, bad: `uh so in matter of security so again anything that is not in the vpn cannot access probably we already said that`, why_he: `אבטחה קיבלה משפט אחד במקום דקה.` }),
   S('s-007', 1, '27:05', { title_he: `אימוץ`, prompt_en: `Explain why people will actually use it. 45 seconds.`, seconds: 45, must: ['same tool', 'Claude Code', 'different key', 'nothing new to learn'], banned: ['so', 'like', 'let\'s say', 'gonna'], model_en: `Nobody wants a new tool. But this is the same tool they use today: Claude Code. Same commands, same screen. Just a different key. There's nothing new to learn.`, bad: `how the the user that not used to work with let's say cursor or something else gonna implement uh gonna like adopt the the solution`, why_he: `הטיעון הכי חכם, נאמר בסוף ומבולגן.` }),
   S('s-008', 2, '17:55', { title_he: `מה חי, מה מתוכנן, מה רעיון`, prompt_en: `Say clearly what is live, what is planned, and what is only an idea. 45 seconds.`, seconds: 45, must: ['live', 'planned', 'an idea', 'haven\'t tested it yet'], banned: ['basically', 'probably', 'whatever'], model_en: `Let me be clear about status. The gateway and the portal are live. The automation agent is live, on a cloud API today. The local model profile is tested and ready. The Grafana monitoring is planned. Hybrid mode is an idea. We haven't tested it yet.`, bad: `so here we have an actual automation that i built that are consuming our local model`, why_he: `נאמר "פועל" כשהשקף אמר planned או idea.` }),
   S('s-009', 2, '12:07', { title_he: `קריינות להדגמה`, prompt_en: `Narrate a live demo: before, while it runs, and after. 60 seconds.`, seconds: 60, must: ['watch', 'while it runs', 'what did we just see'], banned: ['um', 'uh', 'probably', 'he'], model_en: `Let me show you. I'll ask it to find the failing test and fix it. Watch the bottom line: it says LOCAL. While it runs: this is a small open model, on our own GPUs. So what did we just see? It read two files, found the bug, fixed one line, and the tests pass.`, bad: `so this is probably gonna take maybe a minute or two i hope less no it's gonna take less`, why_he: `הדגמה בלי "לאן להסתכל" ובלי סיכום.` }),
   S('s-010', 2, null, { title_he: `גרסת מעלית, 30 שניות`, prompt_en: `Elevator pitch for a manager. Problem, solution, one number, one ask. 30 seconds.`, seconds: 30, must: ['fixed price', 'my ask'], banned: ALL, model_en: `Today every engineer gets a fixed monthly token budget, and then they stop. We built our own model, in our cloud, for a fixed price. At our usage, that saves [X] dollars every month, and nobody waits for approval. My ask: approve a pilot for one quarter.`, why_he: `אין גרסה קצרה מוכנה כשמנהל אומר "יש לי 5 דקות".` }),
-  S('s-011', 3, null, { title_he: `הנהלה, שתי דקות`, prompt_en: `Two-minute update for executives. Bottom line first, then risk, then the ask.`, seconds: 120, must: ['bottom line', 'risk', 'my ask'], banned: ['basically', 'whatever', 'I think', 'probably'], model_en: `Bottom line first. We can cut our AI cost per token and stop the approval queue, for a fixed monthly price. Here's the situation. Every engineer has a monthly budget. When it ends, work slows down. We built our own model host. It costs [X] dollars a month, used or not. At our usage, we save about [Y] dollars a month. Break-even is [N] users. Now the risks. Today one person maintains it. Everything is in Git, with a runbook, and I want a second owner. If the host goes down, people go back to the paid API, like today. Nothing breaks. My ask: approve a pilot for one quarter. I'll report usage and savings every month.`, why_he: `מבנה חסר מול הנהלה: מספר ובקשה בסוף.` }),
+  S('s-011', 3, null, { title_he: `הנהלה, שתי דקות`, prompt_en: `Two-minute update for executives. Bottom line first, then risk, then the ask.`, seconds: 120, must: ['bottom line', 'risk', 'my ask'], banned: ['basically', 'whatever', 'I think', 'probably'], model_en: `Bottom line first. We can cut our AI cost per token and stop the approval queue, for a fixed monthly price. Here's the situation. Every engineer has a monthly budget. When it ends, work slows down. We built our own model host. It costs [X] dollars a month, used or not. At our usage, we save about [Y] dollars a month. Break-even is [N] users. Now, the main risk. Today one person maintains it. Everything is in Git, with a runbook, and I want a second owner. If the host goes down, people go back to the paid API, like today. Nothing breaks. My ask: approve a pilot for one quarter. I'll report usage and savings every month.`, why_he: `מבנה חסר מול הנהלה: מספר ובקשה בסוף.` }),
   S('s-012', 3, '17:24', { title_he: `תשובה לספקן`, prompt_en: `A colleague says: "This will never be as good as the paid model." Answer for 45 seconds. Agree with the concern, not the conclusion.`, seconds: 45, must: ['fair', 'hard design work', 'good enough'], banned: ['basically', 'whatever', 'actually', 'you know'], model_en: `That's fair. It's not as smart as the big models. For hard design work, keep using them. But most of our daily work is not hard design. It's logs, summaries and small fixes. For that, it's good enough, and it costs nothing per token.`, why_he: `ויכוח במקום הסכמה עם הדאגה.` }),
   S('s-013', 2, '22:05', { title_he: `"אני לא יודע", יפה`, prompt_en: `Someone asks a question you can't answer. Say "I don't know" well, and promise a follow-up. 20 seconds.`, seconds: 20, must: ['I don\'t know', 'I\'ll check'], banned: ['um', 'uh', 'whatever', 'probably'], model_en: `Good question. I don't know yet. I'll check with the team and send you the answer today.`, why_he: `חיפוש מילה בקול במקום "לא יודע" ברור.` }),
   S('s-014', 2, null, { title_he: `העברת רשות הדיבור`, prompt_en: `Hand over to a colleague who will run the next part. Give credit by name. 20 seconds.`, seconds: 20, must: ['Alex', 'over to'], banned: ['so', 'basically', 'okay'], model_en: `That's the architecture. Alex built the brain behind it, and Alex will show you how it works. Alex, over to you.`, why_he: `קרדיט טוב, אבל מעבר לא ברור.` }),
@@ -241,7 +241,7 @@ export const ITEMS = [
   R('r-005', 2, '23:14', `כשההדגמה איטית`, `It takes a minute, because it's reading Git. Let's not wait. Here's one it already finished. Look at the structure: facts, a guess, and a fix. And it shows its own confidence. Here it's Medium.`, `המתנה שקטה נשמעת כמו תקלה ב-Teams.`),
   R('r-006', 2, null, `גרסת מעלית, 30 שניות (להנהלה)`, `Today every engineer gets a fixed monthly budget of Claude tokens, and then they stop. We built our own model, in our cloud, for a fixed price. At our usage, that saves money every month, and nobody waits for approval. It already triages support tickets every hour. My ask: approve a pilot for all DevOps for one quarter.`, `אין גרסה קצרה עם מספר ובקשה.`),
   R('r-007', 1, null, `שובר קרח לפתיחה`, `Before we start, a small confession. I promised myself not to say "basically" today. If you hear it, write it in the chat. Whoever counts the most gets free tokens. Unlimited. Because that's the whole point of this talk.`, `לחץ בדקה הראשונה.`),
-  R('r-008', 1, '13:42', `מענה לשאלה מהקהל`, `Good question. A colleague asked if this works with Claude Code. The short answer is yes. Let me show you how.`, `עניתי בלי לחזור על השאלה. ההקלטה לא שמעה אותה.`),
+  R('r-008', 1, '13:42', `מענה לשאלה מהקהל`, `Good question. A colleague asked if this works with Claude Code. The short answer is yes. Let me show you how.`, `ענית בלי לחזור על השאלה, וההקלטה לא שמעה אותה.`),
   R('r-009', 2, '22:05', `"אני לא יודע" בלי לאבד ביטחון`, `That's a good question, and I don't want to guess. I don't know yet. I'll check it today and send the answer to everyone in the chat.`, `חיפוש מילה בקול במקום תשובה כנה.`),
   R('r-010', 2, null, `הדגמה נכשלה`, `Live demos. My favorite kind of incident. It's fine, I recorded this one this morning. Let me show you the recording. Same steps, same result.`, `אין תוכנית ב' מוכנה בשפה.`),
   R('r-011', 2, null, `העברה לעמית`, `That's the problem and the solution. The next part is Alex's work, and Alex knows it better than anyone. Alex, over to you.`, `מעבר לא ברור בין דוברים.`),
@@ -251,14 +251,14 @@ export const ITEMS = [
   // QA - type 'qa'
   // =====================================================================
   Q('q-001', 2, null, `What do you need from us?`, `A decision. Approve the pilot for all DevOps for one quarter, at a fixed monthly price. I'll report usage and savings every month.`, `הנהלה. התאם את הבקשה למה שאתה באמת רוצה.`, `אין בקשה ברורה בסוף.`),
-  Q('q-002', 2, '15:01', `Is our data safe? You said you log everything.`, `Fair concern. The data never leaves our cloud. Access is VPN only, every user has their own key, and the log is there for audit, not for reading people's prompts. That's also why the portal tells users: don't send personal data.`, `אבטחה. קודם מסכים עם הדאגה, אחר כך עובדות. בדוק מי באמת רואה את הלוגים.`, `מסר כפול על לוגים ופרטיות.`),
-  Q('q-003', 2, '12:52', `Is the model actually good enough?`, `For hard design work, no. Keep using the big paid models. For summaries, logs, triage and simple fixes, yes. All our test coding tasks passed.`, `מהנדסים. כנות היא הנשק שלך כאן. ודא את תוצאות הבדיקות שלך.`, `לא אמרת מתי להשתמש במודל ומתי לא.`),
+  Q('q-002', 2, '15:01', `Is our data safe? You said you log everything.`, `Fair concern. The data never leaves our cloud. Access is VPN only, every user has their own key, and the logs are there for audits, not for reading people's prompts. That's also why the portal tells users: don't send personal data.`, `אבטחה. קודם הסכם עם הדאגה, אחר כך עובדות. בדוק מי באמת רואה את הלוגים.`, `מסר כפול על לוגים ופרטיות.`),
+  Q('q-003', 2, '12:52', `Is the model actually good enough?`, `For hard design work, no. Keep using the big paid models. For summaries, logs, triage and simple fixes, yes. It passed all of our coding tests.`, `מהנדסים. כנות היא הנשק שלך כאן. ודא את תוצאות הבדיקות שלך.`, `לא אמרת מתי להשתמש במודל ומתי לא.`),
   Q('q-004', 2, null, `What happens if the GPU host goes down?`, `Then people use the paid API, like they do today. Nothing that works today breaks. For production, we'd add a second host.`, `בדוק שזה נכון למערכת שלך לפני שאתה אומר את זה.`, `אין תשובה מוכנה על כשל.`),
   Q('q-005', 3, null, `Who maintains this when you're on vacation?`, `Good question. Today it's mostly me. That's a risk, and it's why everything is in Git, with a runbook. Part of the ask is a second owner.`, `בדוק את המצב האמיתי. תשובה כנה על סיכון בונה אמון.`, `סיכון שלא נאמר לפני שנשאל.`),
-  Q('q-006', 3, null, `Why not just use a managed cloud AI service?`, `Those are still pay per token. They solve where the model runs, not the cost. Our host is a fixed price, and the more we use it, the cheaper each token gets.`, `השוואה למתחרים. תשובה במספרים, בלי לזלזל באף אחד.`, `השוואה בלי טיעון עלות ברור.`),
-  Q('q-007', 2, null, `How much of your time did this take?`, `Most of it was built over a few weeks, next to my regular work. The point is: it's already built. Running it is cheap.`, `התאם למציאות. אל תקטין ואל תגדיל.`, `הקטנת העבודה שלך.`),
+  Q('q-006', 3, null, `Why not just use a managed cloud AI service?`, `Those still charge per token. They solve where the model runs, not the cost. Our host is a fixed price, and the more we use it, the cheaper each token gets.`, `השוואה למתחרים. תשובה במספרים, בלי לזלזל באף אחד.`, `השוואה בלי טיעון עלות ברור.`),
+  Q('q-007', 2, null, `How much of your time did this take?`, `Most of it was built over a few weeks, alongside my regular work. The point is: it's already built. Running it is cheap.`, `התאם למציאות. אל תקטין ואל תגדיל.`, `הקטנת העבודה שלך.`),
   Q('q-008', 1, '24:50', `Can the agents change things in production?`, `No. Today they're read-only. The next step is SSH, still read-only, and every command needs an admin's approval. Human in the loop, always.`, `Security ו-SRE. "No" בהתחלה. ודא שזה המצב אצלך.`, `תשובה ארוכה לשאלה של כן או לא.`),
-  Q('q-009', 2, '11:39', `Is it slow?`, `Slower than the paid models, yes. Typical first response is [X] seconds, and 95 out of 100 answers start in under [Y] seconds. For bulk work, that's fine.`, `צריך את המספרים האמיתיים שלך מהמדידה.`, `מספרים היו על השקף ולא נאמרו.`),
+  Q('q-009', 2, '11:39', `Is it slow?`, `Slower than the paid models, yes. The first response typically comes in [X] seconds, and 95 out of 100 answers start in under [Y] seconds. For bulk work, that's fine.`, `צריך את המספרים האמיתיים שלך מהמדידה.`, `מספרים היו על השקף ולא נאמרו.`),
   Q('q-010', 3, '17:24', `So are we really saving money?`, `At our usage, yes: about [X] dollars a month. Break-even is [N] users. Below that, we pay for the option, not the savings.`, `צריך את המספרים האמיתיים שלך. תן מספר ותנאי, לא "it's not actually true".`, `תשובה הססנית על כסף.`),
   Q('q-011', 2, null, `Why not just buy more tokens?`, `We could. But that cost grows with every token. Our host is a fixed price. The more we use it, the cheaper each token gets. And nobody has to ask for approval.`, `תשובה קודם: "We could." ואז למה לא.`, `ויכוח במקום תשובה קצרה.`),
   Q('q-012', 2, '04:34', `What if many people use it at once?`, `vLLM batches requests from all users on both GPUs. Each key gets three parallel requests. If you send more, you get HTTP 429, and you retry after a few seconds.`, `בדוק את המגבלות האמיתיות אצלך.`, `תיאור שגוי: "GPU לכל משתמש".`),
@@ -273,18 +273,18 @@ export const ITEMS = [
   // PRONUNCIATION - type 'shadow'
   // =====================================================================
   H('sh-001', 1, null, 'Claude', `קְלוֹד, כמו clawed. לא קְלָאוּד (cloud).`, `Claude Code runs in our cloud. Claude, not cloud.`, `התמלול כתב "cloud" בערך 12 פעמים.`),
-  H('sh-002', 1, null, 'Anthropic', `אַנְ-THRO-פִּיק. בלי s בסוף.`, `Anthropic's model is smarter. Our model is cheaper.`, `התמלול שמע "Anthropix" ו-"antropics".`),
+  H('sh-002', 1, null, 'Anthropic', `הדגש על THROP: an-THROP-ic. בלי s בסוף.`, `Anthropic's model is smarter. Our model is cheaper.`, `התמלול שמע "Anthropix" ו-"antropics".`),
   H('sh-003', 1, '18:46', 'Teams', `טִימְז. t רגילה, לא th.`, `Microsoft Teams. Every team uses Teams.`, `התמלול כתב "themes".`),
-  H('sh-004', 1, '16:53', 'cost', `קוֹסְט קצר. לא coast.`, `The cost is fixed. The cost per token goes down.`, `התמלול כתב "coast".`),
-  H('sh-005', 1, '14:35', 'tokens', `TOH-kens. הדגש בהתחלה.`, `Two million tokens per user per day.`, `התמלול כתב "talking per day".`),
+  H('sh-004', 1, '16:53', 'cost', `o פתוחה וקצרה, כמו קָאסְט. לא coast.`, `The cost is fixed. The cost per token goes down.`, `התמלול כתב "coast".`),
+  H('sh-005', 1, '14:35', 'tokens', `TOH-kens. הדגש בהתחלה.`, `How many tokens per user per day?`, `התמלול כתב "talking per day".`),
   H('sh-006', 2, '03:56', 'LiteLLM', `לַייט, אֶל, אֶל, אֶם.`, `LiteLLM checks your key and your limit.`, `התמלול כתב "LytleLM".`),
   H('sh-007', 2, null, 'vLLM', `וִי, אֶל, אֶל, אֶם. v עם שיניים על השפה.`, `vLLM runs the model on the GPU.`, `לא נאמר בכלל בהרצאה.`),
   H('sh-008', 2, '05:15', 'VCN', `וִי, סִי, אֶן. ה-N ברורה בסוף.`, `Everything is in a private VCN.`, `התמלול שמע "VCA".`),
-  H('sh-009', 2, null, 'the / three / think', `לשון בין השיניים. לא ד, לא ס, לא ט.`, `I think there are three things in the third slide.`, `th נשמע כמו d או s במבטא עברי.`),
-  H('sh-010', 2, null, 'we / very / version', `w: שפתיים עגולות, בלי שיניים. v: שיניים על השפה התחתונה.`, `We have a very new version of the server.`, `w ו-v מתחלפים במבטא עברי.`),
-  H('sh-011', 2, null, 'logs / tests / tasks', `העיצור האחרון ברור: z, ts, sks. לא לבלוע.`, `The tests passed, the tasks are done, and the logs are clean.`, `בליעת עיצורים בסוף מילה.`),
-  H('sh-012', 2, null, 'develop / development', `di-VEL-op. di-VEL-op-ment. הדגש לא זז.`, `We develop it in Git. Development happens every day.`, `דגש במקום הלא נכון.`),
-  H('sh-013', 2, null, 'architecture', `AR-ki-tek-cher. ch כמו k בהתחלה.`, `Here's the architecture, in one picture.`, `דגש והגייה של ch.`),
+  H('sh-009', 2, null, 'the / three / think', `לשון בין השיניים. לא ד, לא ס, לא ט.`, `I think there are three things on the third slide.`, `th נשמע כמו d או s במבטא עברי.`),
+  H('sh-010', 2, null, 'we / very / version', `w: שפתיים עגולות, בלי שיניים. v: שיניים על השפה התחתונה.`, `We have a very stable version of the server.`, `w ו-v מתחלפים במבטא עברי.`),
+  H('sh-011', 2, null, 'logs / tests / tasks', `העיצורים בסוף ברורים: gz, sts, sks. לא לבלוע.`, `The tests passed, the tasks are done, and the logs are clean.`, `בליעת עיצורים בסוף מילה.`),
+  H('sh-012', 2, null, 'develop / development', `di-VEL-op. di-VEL-op-ment. הדגש לא זז.`, `We develop it every day. Development never stops.`, `דגש במקום הלא נכון.`),
+  H('sh-013', 2, null, 'architecture', `AR-ki-tek-cher. ה-ch נשמע כמו k.`, `Here's the architecture, in one picture.`, `דגש והגייה של ch.`),
   H('sh-014', 2, null, 'infrastructure', `IN-fra-struk-cher. הדגש בהתחלה.`, `Our infrastructure runs in one private network.`, `מילה ארוכה שנבלעת.`),
   H('sh-015', 1, null, 'pipeline', `PIPE-line. ai ארוכה, כמו פַּייפּ.`, `The pipeline runs every night.`, `תנועה קצרה מדי.`),
   H('sh-016', 1, null, 'deploy', `di-PLOY. הדגש בסוף.`, `We deploy every Tuesday.`, `דגש בהתחלה במקום בסוף.`),
@@ -341,7 +341,7 @@ export const COACH = [
   { id: 'c-truth', title_he: `תווית אמת: live, planned, idea`, body_he: `מהנדסים סולחים על "planned". הם לא סולחים על "live" שהוא בעצם planned.`,
     bullets_he: [`לכל פיצ'ר מילה אחת: live, planned או idea.`, `קרא את השורה מהשקף.`, `מגבלה: משפט נפרד וברור.`],
     examples_en: [`To be clear, this is not live yet. It's planned.`, `This is an idea. We haven't tested it yet.`] },
-  { id: 'c-rules', title_he: `10 כללים קצרים`, body_he: `השקפים שלך כתובים טוב יותר מהדיבור. תן להם לעבוד.`,
+  { id: 'c-rules', title_he: `6 כללים קצרים`, body_he: `השקפים שלך כתובים טוב יותר מהדיבור. תן להם לעבוד.`,
     bullets_he: [`רעיון אחד לשקף. קרא את הכותרת בקול.`, `כלל השלוש.`, `בלי probably, I think, basically במשפטים חשובים.`, `סיים בזמן, עדיף דקה לפני.`, `שתי גרסאות מוכנות: 30 שניות ו-5 דקות.`, `חזרה מול אדם שישאל שאלות קשות.`],
     examples_en: [`I'll cover three things.`, `One last thing.`] }
 ];
@@ -364,13 +364,13 @@ export const ICEBREAKERS = [
   { line_en: `I'll give you the bottom line first, in case someone pulls you into another meeting.`, when_he: `פתיחה מול הנהלה. מצחיק ומכבד את הזמן שלהם.` },
   { line_en: `No tokens were harmed in the making of this demo.`, when_he: `אחרי שההדגמה עבדה.` },
   { line_en: `Questions? Easy ones first, please. Hard ones I'll answer by email. Next year.`, when_he: `מעבר לשאלות. אמור עם חיוך, ואז באמת ענה.` },
-  { line_en: `Fun fact: the hardest part of this project was not the GPU. It was the name.`, when_he: `כשמציגים את שם הפרויקט.` },
+  { line_en: `Fun fact: the hardest part of this project wasn't the GPU. It was the name.`, when_he: `כשמציגים את שם הפרויקט.` },
   { line_en: `I tested this demo ten times this morning. So statistically, this is the one that fails.`, when_he: `רגע לפני הדגמה חיה.` },
   { line_en: `If you see me looking at my notes, that's not stress. That's documentation.`, when_he: `כשאתה מציץ בכרטיס המספרים.` },
   { line_en: `I'm an engineer, so I'll keep the jokes short and the logs long.`, when_he: `פתיחה, לקהל טכני.` },
   { line_en: `Live demos. My favorite kind of incident.`, when_he: `כשההדגמה נכשלת. אחר כך עוברים להקלטה.` },
   { line_en: `I promised a short talk. But I'm an engineer, and you know how good we are at time estimates.`, when_he: `פתיחה, או כשמתקרבים לסוף הזמן.` },
-  { line_en: `If my camera freezes, I'm not thinking. It's the network.`, when_he: `פתיחה ב-Teams.` },
+  { line_en: `If my video freezes, don't worry. I'm not thinking that hard. It's the network.`, when_he: `פתיחה ב-Teams.` },
   { line_en: `I'll try to finish one minute early. If I don't, blame the model. It writes my estimates now.`, when_he: `פתיחה, אחרי המפה של ההרצאה.` }
 ];
 
@@ -387,7 +387,7 @@ export const BADGES = [
   { id: 'b-level-10', title_he: `שלב 10`, desc_he: `הגעת לשלב 10.`, icon: 'medal', rule: 'level:10' },
   { id: 'b-fillerfree-1', title_he: `שתיקה של זהב`, desc_he: `משימת דיבור בלי אף מילת מילוי.`, icon: 'mute', rule: 'fillerfree:1' },
   { id: 'b-fillerfree-10', title_he: `אפס so`, desc_he: `10 משימות דיבור בלי מילות מילוי.`, icon: 'mute', rule: 'fillerfree:10' },
-  { id: 'b-perfect-5', title_he: `חמש מושלמות`, desc_he: `5 תרגילים עם ציון 100.`, icon: 'target', rule: 'perfect:5' },
+  { id: 'b-perfect-5', title_he: `חמש בול`, desc_he: `5 תרגילים עם ציון 100.`, icon: 'target', rule: 'perfect:5' },
   { id: 'b-grammar-20', title_he: `צייד ה-is`, desc_he: `20 תרגילי דקדוק.`, icon: 'spell-check', rule: 'cat:grammar:20' },
   { id: 'b-pronoun-15', title_he: `it, לא he`, desc_he: `15 תרגילי it ו-they.`, icon: 'user', rule: 'cat:pronoun:15' },
   { id: 'b-phrasing-20', title_he: `נשמע מקומי`, desc_he: `20 תרגילי ניסוח טבעי.`, icon: 'swap', rule: 'cat:phrasing:20' },
@@ -402,16 +402,16 @@ export const BADGES = [
 ];
 
 export const LEVEL_TITLES_HE = [
-  `מגמגם מתחיל`,
+  `מחמם מנועים`,
   `מחפש מילים`,
   `צייד ה-is`,
-  `שובר שתיקות`,
+  `מאלף מילות מילוי`,
   `מדבר בלי so`,
-  `מסביר ברור`,
-  `מדגים בביטחון`,
-  `עונה לשאלות`,
-  `מנצח מעברים`,
-  `קול של הצוות`,
-  `מרצה מבוקש`,
-  `כוכב הבמה הראשית`
+  `מסביר כמו README טוב`,
+  `מדגים בלי להתפלל`,
+  `לא נבהל משאלות`,
+  `אלוף המעברים`,
+  `הקול של הצוות`,
+  `מרצה עם uptime מלא`,
+  `כוכב ה-keynote`
 ];
