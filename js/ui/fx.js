@@ -56,6 +56,7 @@ export function toast(text, { kind = 'info', iconName = '', title = '', ms = 260
 }
 
 // Generic modal. Returns { el, close }. Esc and scrim tap close it unless sticky.
+// innerHtml is trusted HTML: callers must esc() every value that comes from state or content.
 export function modal(innerHtml, { sheet = false, sticky = false, label = '', onClose } = {}) {
   const root = document.getElementById('overlay-root');
   const prev = document.activeElement;

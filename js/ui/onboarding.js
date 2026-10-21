@@ -1,7 +1,8 @@
-// Onboarding: 3 swipeable slides, first run only.
-import { esc } from './dom.js';
+// Onboarding: 3 swipeable slides with the name, then 5 quick optional questions. First run only.
+import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { artSpeaker, artMap, artShield } from './art.js';
+import { ROLES, GOALS, DAILY_MIN, profileOf } from './shell.js';
 
 const SLIDES = [
   { art: () => artSpeaker(300), title: 'Speaker Trainer', en: true, text: 'רק 12 דקות ביום. מדברים אנגלית טכנית בביטחון, בלי מילות מילוי.',
@@ -54,12 +55,93 @@ export function render(root, ctx) {
     if (e.key === 'ArrowRight') { e.preventDefault(); go(cur - 1); }
   });
 
+  const toQuestions = () => {
+    const v = (root.querySelector('#ob-name')?.value || '').trim().slice(0, 24);
+    if (v) ctx.saveProfile({ name: v });
+    ctx.haptic(10);
+    questions(root, ctx);
+  };
+  nextBtn.addEventListener('click', () => (cur < SLIDES.length - 1 ? go(cur + 1) : toQuestions()));
+  root.querySelector('[data-skip]').addEventListener('click', toQuestions);
+}
+
+// ---------- quick questions (all optional) ----------
+
+function questions(root, ctx) {
+  const p = profileOf(ctx.state);
+  const ans = { role: p.role, goals: [...p.goals], nextTalkDate: p.nextTalkDate, dailyGoalMin: p.dailyGoalMin, audiences: [...p.audiences] };
+  const AUD = (ctx.C.AUDIENCES || []).map((a) => [a.id, a.name_he]);
+  const today = ctx.E.todayStr();
+  const STEPS = [
+    { key: 'role', ic: 'user', q: 'מה התפקיד שלך?', hint: 'כדי לבחור דוגמאות שמתאימות לך.', kind: 'one', opts: ROLES },
+    { key: 'goals', ic: 'target', q: 'בשביל מה אתה מתאמן?', hint: 'אפשר לבחור כמה.', kind: 'many', opts: GOALS },
+    { key: 'nextTalkDate', ic: 'calendar', q: 'מתי ההרצאה הבאה שלך?', hint: 'נספור איתך אחורה.', kind: 'date' },
+    { key: 'dailyGoalMin', ic: 'timer', q: 'כמה דקות ביום?', hint: 'יעד קטן שעומדים בו עדיף על יעד גדול.', kind: 'min' },
+    { key: 'audiences', ic: 'users', q: 'מול מי אתה מדבר?', hint: 'אפשר לבחור כמה.', kind: 'many', opts: AUD },
+  ].filter((x) => x.kind !== 'many' || x.opts.length);
+  let k = 0;
+
   const finish = () => {
-    const v = (root.querySelector('#ob-name')?.value || '').trim();
-    ctx.set({ onboarded: true, ...(v ? { name: v.slice(0, 24) } : {}) });
+    ctx.saveProfile({ role: ans.role || '', goals: ans.goals, nextTalkDate: ans.nextTalkDate || null, dailyGoalMin: ans.dailyGoalMin || 10, audiences: ans.audiences });
+    ctx.set({ onboarded: true });
     ctx.haptic(20);
     ctx.go('home');
   };
-  nextBtn.addEventListener('click', () => (cur < SLIDES.length - 1 ? go(cur + 1) : finish()));
-  root.querySelector('[data-skip]').addEventListener('click', finish);
+
+  const draw = () => {
+    const s = STEPS[k];
+    const last = k === STEPS.length - 1;
+    let body = '';
+    if (s.kind === 'one' || s.kind === 'many') {
+      const sel = s.kind === 'one' ? [ans[s.key]] : ans[s.key];
+      body = `<div class="q-opts" role="group" aria-label="${esc(s.q)}">${s.opts.map(([id, he]) => `<button class="chip q-chip" data-opt="${esc(id)}" aria-pressed="${sel.includes(id)}">${sel.includes(id) ? icon('check') : ''}<bdi>${esc(he)}</bdi></button>`).join('')}</div>`;
+    } else if (s.kind === 'date') {
+      body = `<label class="field"><span class="lbl">תאריך</span><input class="input" type="date" id="q-date" min="${today}" value="${esc(ans.nextTalkDate || '')}"></label>
+        <button class="chip q-chip" data-nodate aria-pressed="${!ans.nextTalkDate}">${!ans.nextTalkDate ? icon('check') : ''}אין לי הרצאה קרובה</button>`;
+    } else {
+      body = `<div class="seg q-seg" role="group" aria-label="דקות ביום">${DAILY_MIN.map((m) => `<button data-min="${m}" aria-pressed="${ans.dailyGoalMin === m}"><bdi class="en-num">${m}</bdi> דק'</button>`).join('')}</div>`;
+    }
+    root.innerHTML = `<section class="screen no-nav onboarding questions" data-testid="onboarding-questions">
+      <div class="ob-top q-top">
+        <span class="tiny muted">שאלה <bdi>${k + 1}</bdi> מתוך <bdi>${STEPS.length}</bdi></span>
+        <button class="link-btn" data-skip>דלג</button>
+      </div>
+      <div class="q-prog" aria-hidden="true">${STEPS.map((_, i) => `<i class="${i < k ? 'done' : i === k ? 'now' : ''}"></i>`).join('')}</div>
+      <div class="q-body">
+        <span class="ico q-ico">${icon(s.ic)}</span>
+        <h1>${esc(s.q)}</h1>
+        <p class="muted">${esc(s.hint)}</p>
+        ${body}
+      </div>
+      <div class="ob-foot wrap">
+        ${k > 0 ? `<button class="link-btn" data-back>${icon('arrowR')} חזרה</button>` : '<span></span>'}
+        <button class="btn big" data-next>${last ? 'סיימתי' : 'הבא'} ${icon('arrowL')}</button>
+      </div>
+    </section>`;
+    const h = root.querySelector('h1');
+    h.setAttribute('tabindex', '-1');
+    try { h.focus({ preventScroll: true }); } catch { /* ignore */ }
+  };
+
+  on(root, '[data-opt]', 'click', (e, b) => {
+    const s = STEPS[k];
+    const v = b.dataset.opt;
+    if (s.kind === 'one') ans[s.key] = ans[s.key] === v ? '' : v;
+    else ans[s.key] = ans[s.key].includes(v) ? ans[s.key].filter((x) => x !== v) : [...ans[s.key], v];
+    ctx.haptic(8);
+    draw();
+  });
+  on(root, '[data-min]', 'click', (e, b) => { ans.dailyGoalMin = Number(b.dataset.min); draw(); });
+  on(root, '[data-nodate]', 'click', () => { ans.nextTalkDate = null; draw(); });
+  root.addEventListener('change', (e) => {
+    if (e.target.id === 'q-date') { ans.nextTalkDate = e.target.value || null; draw(); }
+  });
+  on(root, '[data-back]', 'click', () => { k = Math.max(0, k - 1); draw(); });
+  on(root, '[data-next]', 'click', () => {
+    const d = root.querySelector('#q-date');
+    if (d && d.value) ans.nextTalkDate = d.value;
+    if (k < STEPS.length - 1) { k++; draw(); } else finish();
+  });
+  on(root, '[data-skip]', 'click', finish);
+  draw();
 }

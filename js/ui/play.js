@@ -48,28 +48,31 @@ export function render(root, ctx) {
   const kind = KIND[task.kind] || KIND.practice;
   const daily = ctx.state.daily.tasks;
   const stepNo = daily.findIndex((t) => t.id === task.id) + 1;
+  const stepsMode = !task.practice && stepNo > 0 && daily.length > 1;
+  // Where the close button leads: a track unit goes back to its track, free practice home, the mission to the map.
+  const backTo = task.unit || task.back === 'track' ? 'track' : task.practice ? 'home' : 'mission';
   const results = [];
   let idx = 0;
   let busy = false;
 
-  root.innerHTML = `<section class="screen no-nav play">
+  root.innerHTML = `<section class="screen no-nav play" data-testid="play">
     <header class="band task-band">
       <div class="task-bar">
-        <button class="icon-btn" data-close aria-label="יציאה מהשלב">${icon('x')}</button>
-        <div class="segs" role="progressbar" aria-valuemin="0" aria-valuemax="${items.length}" aria-valuenow="0" aria-label="התקדמות בשלב">
-          ${items.map(() => '<i></i>').join('')}
+        <button class="icon-btn" data-close data-testid="play-close" aria-label="יציאה מהשלב">${icon('x')}</button>
+        <div class="segs${stepsMode ? ' steps' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${items.length}" aria-valuenow="0" aria-label="התקדמות בשלב">
+          ${(stepsMode ? daily : items).map(() => '<i></i>').join('')}
         </div>
         <span class="band-pill" data-pill></span>
       </div>
       <div>
-        <div class="kicker" data-kicker></div>
+        <div class="kicker" data-kicker data-testid="play-kicker"></div>
         <h1 class="task-title" data-title></h1>
       </div>
       <div data-extra class="band-extra"></div>
     </header>
     <div class="body">
-      <div id="stage" class="stage"></div>
-      <div id="feedback" class="feedback" aria-live="polite"></div>
+      <div id="stage" class="stage" data-testid="stage"></div>
+      <div id="feedback" class="feedback" aria-live="polite" data-testid="feedback"></div>
     </div>
   </section>`;
 
@@ -77,10 +80,26 @@ export function render(root, ctx) {
   const fb = root.querySelector('#feedback');
   const segs = root.querySelectorAll('.segs i');
   const pill = root.querySelector('[data-pill]');
-  const xpPill = `<bdi>+${task.practice ? 5 : task.xp || 0}</bdi><span class="gold-ic">${icon('starLine')}</span>`;
+  // Band segments: in the daily mission one per step (done gold, current white with item progress),
+  // in free practice one per item.
+  function paintSegs(doneItems) {
+    if (!stepsMode) {
+      segs.forEach((s, k) => { s.className = k < doneItems ? 'done' : k === doneItems ? 'now' : ''; });
+      return;
+    }
+    const doneIds = ctx.state.daily.done || [];
+    segs.forEach((s, k) => {
+      const t = daily[k];
+      s.className = k === stepNo - 1 ? 'now' : doneIds.includes(t && t.id) ? 'done' : '';
+    });
+    const cur = segs[stepNo - 1];
+    if (cur) cur.style.setProperty('--p', `${Math.max(15, Math.round((doneItems / items.length) * 100))}%`);
+  }
+  const xpPill = `<bdi>+${task.practice ? 5 : Math.max(0, Math.round(Number(task.xp) || 0))}</bdi><span class="gold-ic">${icon('starLine')}</span>`;
 
   const api = {
     ctx, finish,
+    // `extra` is trusted markup only: callers build it with esc() for every content or state value.
     band({ title, extra = '' } = {}) {
       if (title) root.querySelector('[data-title]').textContent = title;
       root.querySelector('[data-extra]').innerHTML = extra;
@@ -98,10 +117,11 @@ export function render(root, ctx) {
     const it = items[idx];
     busy = false;
     fb.innerHTML = '';
-    segs.forEach((s, k) => { s.className = k < idx ? 'done' : k === idx ? 'now' : ''; });
+    paintSegs(idx);
     root.querySelector('.segs').setAttribute('aria-valuenow', String(idx));
     const where = task.practice ? 'תרגול' : `שלב ${stepNo} מתוך ${daily.length}`;
-    root.querySelector('[data-kicker]').textContent = `${kind.he} - ${where}${items.length > 1 ? ` - ${idx + 1}/${items.length}` : ''}`;
+    const secs = it.type === 'speak' && Number(it.seconds) > 0 ? ` - ${Math.round(Number(it.seconds))} שניות` : '';
+    root.querySelector('[data-kicker]').textContent = `${kind.he}${secs} - ${where}${items.length > 1 ? ` - ${idx + 1}/${items.length}` : ''}`;
     root.querySelector('[data-title]').textContent = TITLE[it.type] || task.title_he;
     root.querySelector('[data-extra]').innerHTML = '';
     pill.innerHTML = xpPill;
@@ -111,6 +131,8 @@ export function render(root, ctx) {
     stage.classList.add('in');
     const P = PLAYERS[it.type];
     if (!P) { finish({ score: 0 }); return; }
+    stage.dataset.item = it.id;
+    stage.dataset.type = it.type;
     P.mount(stage, it, api);
     window.scrollTo({ top: 0 });
   }
@@ -123,10 +145,10 @@ export function render(root, ctx) {
     const take = r.take || null;
     results.push({
       itemId: it.id, score,
-      metrics: take ? takeMetrics(take) : { mode: r.mode || 'tap', fromMic: false },
+      metrics: take ? takeMetrics(take) : { mode: r.mode || 'tap', fromMic: false, words: 0, wpm: 0 },
       _take: take, _type: it.type,
     });
-    segs[idx].className = 'done';
+    paintSegs(idx + 1);
     const good = score >= 80, ok = score >= 50;
     if (!r.silent) { ctx.sound(good ? 'good' : ok ? 'tap' : 'bad'); ctx.haptic(good ? 20 : [30, 40, 30]); }
     const a = take && take.analysis;
@@ -152,8 +174,8 @@ export function render(root, ctx) {
       ${tip && !good ? `<p class="small fb-tip">${icon('bulb')} ${esc(tip)}</p>` : ''}
       ${r.revealHtml || ''}
       <div class="btn-row">
-        ${canRetry ? `<button class="btn line fixed" data-retry>${icon('rotate')} שוב</button>` : ''}
-        <button class="btn big ${tone === 'good' ? 'good' : tone === 'bad' && !canRetry ? 'bad' : ''}" data-next>${last ? 'לתוצאות' : 'המשך'} ${icon('arrowL')}</button>
+        ${canRetry ? `<button class="btn line fixed" data-retry data-testid="retry">${icon('rotate')} שוב</button>` : ''}
+        <button class="btn big ${tone === 'good' ? 'good' : tone === 'bad' && !canRetry ? 'bad' : ''}" data-next data-testid="feedback-next">${last ? 'לתוצאות' : 'המשך'} ${icon('arrowL')}</button>
       </div>
     </div>`;
     const nb = fb.querySelector('[data-next]');
@@ -174,9 +196,9 @@ export function render(root, ctx) {
   }
 
   on(root, '[data-close]', 'click', async () => {
-    if (idx === 0 && !results.length) { ctx.go(task.practice ? 'home' : 'mission'); return; }
+    if (idx === 0 && !results.length) { ctx.go(backTo); return; }
     const ok = await ctx.confirm({ title: 'לצאת מהשלב?', text: 'מה שעשית בשלב הזה לא יישמר. ההקלטות נמחקות.', ok: 'לצאת', cancel: 'להישאר' });
-    if (ok) ctx.go(task.practice ? 'home' : 'mission');
+    if (ok) ctx.go(backTo);
   });
 
   show();

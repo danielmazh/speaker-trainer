@@ -12,12 +12,12 @@ export function render(root, ctx) {
   if (!audId && AUDIENCES[0]) audId = AUDIENCES[0].id;
   if (iceIdx < 0 && ICEBREAKERS.length) iceIdx = Math.floor(Math.random() * ICEBREAKERS.length);
 
-  root.innerHTML = `<section class="screen coach">
+  root.innerHTML = `<section class="screen coach" data-testid="coach">
     <header class="band">
       <div><h1>המאמן</h1><p class="sub">הכנה מהירה לפני הרצאה</p></div>
       <div class="stack-xs">
         <span class="aud-label">מי בקהל?</span>
-        <div class="seg on-band aud-seg" role="group" aria-label="בחר קהל">
+        <div class="seg on-band aud-seg" data-testid="audiences" role="group" aria-label="בחר קהל">
           ${AUDIENCES.map((a) => `<button data-aud="${esc(a.id)}" aria-pressed="${a.id === audId}">${esc(a.name_he)}</button>`).join('')}
         </div>
       </div>
@@ -29,13 +29,13 @@ export function render(root, ctx) {
           <span class="tag warn">${icon('smile')} פתיח</span>
           <div class="row nowrap">
             <button class="icon-btn light" data-say aria-label="הקשב בקול של הדפדפן">${icon('volume')}</button>
-            <button class="icon-btn light" data-ice aria-label="עוד אחד">${icon('shuffle')}</button>
+            <button class="icon-btn light" data-ice data-testid="new-icebreaker" aria-label="עוד אחד">${icon('shuffle')}</button>
           </div>
         </div>
-        <div data-iceout aria-live="polite"></div>
+        <div data-iceout data-testid="icebreaker" aria-live="polite"></div>
       </div>
 
-      <div class="card stack-sm" data-audout></div>
+      <div class="card stack-sm" data-audout data-testid="audience-plan"></div>
 
       <div class="section-head"><h2>טיפים להצגה</h2></div>
       <div class="card acc-card">

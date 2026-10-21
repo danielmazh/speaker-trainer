@@ -12,12 +12,14 @@ const TOP = 48;
 export function render(root, ctx) {
   const d = ctx.state.daily;
   const next = ctx.nextTask();
-  const tasks = d.tasks;
+  // Stored state is untrusted: only numbers and escaped text reach innerHTML.
+  const num = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 0);
+  const tasks = Array.isArray(d.tasks) ? d.tasks : [];
   const total = tasks.length;
-  const done = d.done.length;
+  const done = tasks.filter((t) => d.done.includes(t.id)).length;
   const allDone = total > 0 && done >= total;
-  const xpLeft = tasks.filter((t) => !d.done.includes(t.id)).reduce((a, t) => a + (t.xp || 0), 0) + (d.bonus ? 0 : 50);
-  const mins = tasks.reduce((a, t) => a + (t.minutes || 0), 0);
+  const xpLeft = tasks.filter((t) => !d.done.includes(t.id)).reduce((a, t) => a + num(t.xp), 0) + (d.bonus ? 0 : 50);
+  const mins = tasks.reduce((a, t) => a + num(t.minutes), 0);
   const day = DAYS_HE[new Date().getDay()];
   const nextIdx = next ? tasks.indexOf(next) : -1;
 
@@ -35,7 +37,7 @@ export function render(root, ctx) {
     }
   }
 
-  root.innerHTML = `<section class="screen mission">
+  root.innerHTML = `<section class="screen mission" data-testid="mission">
     <header class="band">
       <div class="band-title">
         <a class="icon-btn" href="#home" aria-label="חזרה">${icon('arrowR')}</a>
@@ -56,9 +58,9 @@ export function render(root, ctx) {
           const kind = KIND[t.kind] || KIND.practice;
           const x = xAt(k);
           const right = x > 50;
-          const xpLine = s === 'done' ? `<span class="xp-line good-ink">הושלם <bdi>+${t.xp} XP</bdi></span>` : `<span class="xp-line xp-gold"><bdi>+${t.xp || 0} XP</bdi></span>`;
+          const xpLine = s === 'done' ? `<span class="xp-line good-ink">הושלם <bdi>+${num(t.xp)} XP</bdi></span>` : `<span class="xp-line xp-gold"><bdi>+${num(t.xp)} XP</bdi></span>`;
           return `<li class="zz-node ${s}" style="top:${TOP + k * STEP - 32}px">
-            <button class="zz-dot" data-task="${esc(t.id)}" style="left:calc(${x}% - 32px)"
+            <button class="zz-dot" data-testid="mission-node" data-status="${s}" data-task="${esc(t.id)}" style="left:calc(${x}% - 32px)"
               aria-label="${esc(`שלב ${k + 1}: ${kind.he}, ${s === 'done' ? 'הושלם' : s === 'now' ? 'עכשיו' : 'נעול'}`)}">
               ${s === 'done' ? icon('check') : s === 'now' ? icon(kind.ic) : icon('lock2')}
             </button>
@@ -72,9 +74,9 @@ export function render(root, ctx) {
       </ol>
 
       ${allDone
-        ? `<div class="card finish-card"><span class="ico gold">${icon('trophy')}</span><div class="grow"><div class="bold">המשימה הושלמה!</div><div class="small muted">קיבלת בונוס של 50 XP. נתראה מחר.</div></div></div>
+        ? `<div class="card finish-card" data-testid="mission-finished"><span class="ico gold">${icon('trophy')}</span><div class="grow"><div class="bold">המשימה הושלמה!</div><div class="small muted">קיבלת בונוס של 50 XP. נתראה מחר.</div></div></div>
            <a class="btn block big" href="#home">${icon('home')} הביתה</a>`
-        : `<button class="btn block big" data-next>${done ? `המשך לשלב ${nextIdx + 1}` : 'מתחילים משלב 1'} ${icon('arrowL')}</button>`}
+        : `<button class="btn block big" data-next data-testid="mission-start">${done ? `המשך לשלב ${nextIdx + 1}` : 'מתחילים משלב 1'} ${icon('arrowL')}</button>`}
       <p class="tiny muted center">שלב שכבר עשית אפשר לשחק שוב, בחצי XP.</p>
     </div>
   </section>`;

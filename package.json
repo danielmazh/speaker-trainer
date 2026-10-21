@@ -1,0 +1,13 @@
+{
+  "name": "speaker-trainer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "e2e": "playwright test",
+    "serve": "python3 -m http.server 8790"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

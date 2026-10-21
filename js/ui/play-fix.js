@@ -17,7 +17,7 @@ export function mount(el, item, api) {
     <div class="card stack-sm">
       <div class="card-head">
         <span class="tag bad">${icon('x')} לא טבעי</span>
-        ${item.src ? `<span class="ts-chip"><span class="ts">[${esc(item.src)}]</span></span>` : ''}
+        ${item.src ? `<span class="ts-chip"><bdi class="ts" dir="ltr">[${esc(item.src)}]</bdi></span>` : ''}
       </div>
       <blockquote class="en quote-bad" dir="ltr" lang="en">${esc(item.wrong)}</blockquote>
       ${item.why_he ? `<p class="note">${icon('bulb')}<span>${esc(item.why_he)}</span></p>` : ''}

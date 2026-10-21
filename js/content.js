@@ -27,7 +27,17 @@ export const CATEGORIES = [
   { id: 'scripts', label_he: `טקסטים בעל פה`, label_en: 'Scripts', icon: 'scroll', color: '#F5A524', desc_he: `פתיחה, סיום, הדגמה ומעברים. מילה במילה.` },
   { id: 'qa', label_he: `שאלות קשות`, label_en: 'Tough Q&A', icon: 'help', color: '#1B1530', desc_he: `תשובה קודם, הסבר אחר כך.` },
   { id: 'pronunciation', label_he: `הגייה`, label_en: 'Pronunciation', icon: 'volume', color: '#FFB020', desc_he: `מילים שהתמלול שמע לא נכון. חזור אחרי.` },
-  { id: 'presenting', label_he: `איך להציג`, label_en: 'Presenting', icon: 'presentation', color: '#8A84A3', desc_he: `טכניקה: פתיחה, סיום, שאלות, קהל והדגמות.` }
+  { id: 'presenting', label_he: `איך להציג`, label_en: 'Presenting', icon: 'presentation', color: '#8A84A3', desc_he: `טכניקה: פתיחה, סיום, שאלות, קהל והדגמות.` },
+  // Phase 3: professional English
+  { id: 'status', label_he: `עדכוני סטטוס`, label_en: 'Status updates', icon: 'clock', color: '#6C3BF5', desc_he: `סטנדאפ, עדכון שבועי וסטטוס להנהלה.` },
+  { id: 'incident', label_he: `תקלות ופוסטמורטם`, label_en: 'Incidents', icon: 'bolt', color: '#F04438', desc_he: `גשר תקלה, הודעות ללקוחות, פוסטמורטם בלי אשמה.` },
+  { id: 'systems', label_he: `להציג מערכת`, label_en: 'Presenting systems', icon: 'wrench', color: '#0EA5E9', desc_he: `ארכיטקטורה, מסלול של בקשה, פשרות וכשלים.` },
+  { id: 'meetings', label_he: `פגישות`, label_en: 'Meetings', icon: 'users', color: '#22C55E', desc_he: `להסכים, לא להסכים, להתפרץ ולבקש החלטה.` },
+  { id: 'numbers', label_he: `מספרים ונתונים`, label_en: 'Numbers', icon: 'chart', color: '#FFB020', desc_he: `אחוזים, תאריכים, מגמות ו-p95 בקול.` },
+  { id: 'vocab', label_he: `אוצר מילים טכני`, label_en: 'Tech vocabulary', icon: 'book', color: '#5A2BE0', desc_he: `roll out, spin up, phase out ועוד.` },
+  { id: 'stress', label_he: `דגש ואינטונציה`, label_en: 'Stress and intonation', icon: 'wave', color: '#FF7A1A', desc_he: `RE-cord מול re-CORD. שאלה עולה, תשובה יורדת.` },
+  { id: 'interview', label_he: `ראיון והשפעה`, label_en: 'Interview', icon: 'star', color: '#1B1530', desc_he: `התפקיד שלך, השפעה במספרים, סיפורי STAR.` },
+  { id: 'smalltalk', label_he: `שיחת חולין`, label_en: 'Small talk', icon: 'smile', color: '#F5A524', desc_he: `פתיחה לפני פגישה, סוף שבוע וסיום נעים.` }
 ];
 
 export const FILLERS = ['so', 'basically', 'whatever', 'like', 'um', 'uh', 'let\'s say', 'again', 'actually', 'you know'];
@@ -59,6 +69,367 @@ const PRO = `he על מודל או משתמש. בעברית לכל דבר יש �
 const CAL = `תרגום ישיר מעברית שנשמע זר.`;
 const WEAK = `ניסוח שמחליש אותך ואת העבודה שלך.`;
 const ALL = FILLERS;
+
+// =====================================================================
+// PHASE 3 - professional English (status, incident, systems, meetings,
+// numbers, vocab, stress, interview, smalltalk). Same 6 item types.
+// src is always null: these are not from the recorded talk.
+// =====================================================================
+const mkFix = (cat) => (id, level, wrong, right, note_he, why_he) =>
+  ({ id, cat, type: 'fix', level, why_he, src: null, wrong, right, note_he });
+const mkChoice = (cat) => (id, level, wrong, options, correct, note_he, why_he) =>
+  ({ id, cat, type: 'choice', level, why_he, src: null, wrong, options, correct, note_he });
+const mkRecall = (cat) => (id, level, title_he, text_en, why_he) =>
+  ({ id, cat, type: 'recall', level, why_he, src: null, title_he, text_en });
+const mkQa = (cat) => (id, level, question_en, model_en, note_he, why_he) =>
+  ({ id, cat, type: 'qa', level, why_he, src: null, question_en, model_en, note_he });
+const mkShadow = (cat) => (id, level, word, hint_he, sentence_en, why_he) =>
+  ({ id, cat, type: 'shadow', level, why_he, src: null, word, hint_he, sentence_en });
+const kit = (cat) => ({ fix: mkFix(cat), choice: mkChoice(cat), speak: (id, level, o) => speak(cat)(id, level, null, o), recall: mkRecall(cat), qa: mkQa(cat), shadow: mkShadow(cat) });
+
+const ST = kit('status');
+const IN = kit('incident');
+const SY = kit('systems');
+const MT = kit('meetings');
+const NU = kit('numbers');
+const VO = kit('vocab');
+const WS = kit('stress');
+const IV = kit('interview');
+const SM = kit('smalltalk');
+
+const NOFILL = ['so', 'basically', 'um', 'uh'];
+
+const PRO_ITEMS = [
+  // =====================================================================
+  // STATUS - status updates, standups, exec status
+  // =====================================================================
+  ST.fix('st-001', 1, `I am blocking from the security team.`, `I'm blocked by the security team.`, `blocked by = מישהו חוסם אותך. blocking = אתה חוסם.`, `מילת סטטוס בסיסית.`),
+  ST.fix('st-002', 1, `The task is in the middle.`, `The task is in progress.`, `in progress = בעבודה.`, `מילת סטטוס בסיסית.`),
+  ST.fix('st-003', 2, `We are in late with the migration.`, `We're behind schedule on the migration.`, `behind schedule = מאחרים בלוח הזמנים.`, `לדווח על איחור בלי תרגום מעברית.`),
+  ST.fix('st-004', 1, `I will finish it until Thursday.`, `I'll finish it by Thursday.`, `by = לא יאוחר מ. until = כל הזמן עד.`, `תאריך יעד נשמע ברור.`),
+  ST.fix('st-005', 1, `I didn't succeed to finish the upgrade.`, `I didn't manage to finish the upgrade.`, `manage to = להצליח לעשות משהו.`, `תרגום ישיר של "הצלחתי ל".`),
+  ST.fix('st-006', 1, `There is no news about the ticket.`, `There's no update on the ticket yet.`, `update on = עדכון לגבי.`, `סטטוס של משימה פתוחה.`),
+  ST.fix('st-007', 1, `We are on the track.`, `We're on track.`, `on track בלי the.`, `ביטוי קבוע בעדכונים.`),
+  ST.fix('st-008', 1, `The ETA is in Thursday.`, `The ETA is Thursday.`, `ETA + יום, בלי in.`, `שפה של זמן הגעה.`),
+  ST.fix('st-009', 2, `I need from you an approval.`, `I need your approval.`, `לא "צריך ממך". your approval.`, `בקשה ברורה מהמנהל.`),
+  ST.fix('st-010', 2, `I have no idea.`, `I don't know yet. I'll find out and get back to you by 3 PM.`, `"yet" ועוד צעד הבא עם שעה.`, `"לא יודע" בלי לאבד אמון.`),
+  ST.fix('st-011', 2, `The release is postponed in one week.`, `The release is pushed back by one week.`, `pushed back by = נדחה ב.`, `לדווח על דחייה.`),
+  ST.fix('st-012', 1, `Me and Alex finished the review.`, `Alex and I finished the review.`, `בתור נושא: Alex and I.`, `נשמע מקצועי בסטנדאפ.`),
+  ST.choice('st-013', 1, `We are stuck because of them.`, [`We're blocked on their API change.`, `We are standing because of them.`, `We are stucked by them.`], 0, `blocked on + מה בדיוק חוסם.`, `חסימה עם סיבה ברורה.`),
+  ST.choice('st-014', 2, `The project is on red color.`, [`The project is red: we'll miss the date without help.`, `The project is on red color today.`, `The project makes red.`], 0, `red + מה זה אומר + מה צריך.`, `סטטוס ירוק, צהוב, אדום.`),
+  ST.choice('st-015', 2, `It will take more or less a week, I hope.`, [`It should take about a week.`, `It will take a week more or less maybe.`, `It is taking around a week I am hoping.`], 0, `should = הערכה בביטחון סביר.`, `הערכת זמן בלי לגמגם.`),
+  ST.choice('st-016', 1, `I'll update you when I'll know.`, [`I'll update you when I know.`, `I'll update you when I will know.`, `I update you when I'll know.`], 0, `אחרי when באים בהווה, גם על העתיד.`, `טעות נפוצה אצל דוברי עברית.`),
+  ST.choice('st-017', 1, `The deploy is finished it?`, [`Is the deploy done?`, `The deploy is done it?`, `Done is the deploy?`], 0, `שאלה: is לפני הנושא.`, `לשאול על סטטוס.`),
+  ST.choice('st-018', 2, `There is a danger the vendor is late.`, [`There's a risk the vendor will be late.`, `There is dangerous the vendor late.`, `The vendor has a danger of late.`], 0, `risk ולא danger בעבודה.`, `לדבר על סיכונים.`),
+  ST.choice('st-019', 1, `Small update: is all fine, nothing, okay.`, [`Quick update: we're on track, no blockers.`, `Small update: is all fine and good and okay.`, `Little news: no problem, nothing, fine.`], 0, `quick update + on track + no blockers.`, `עדכון קצר שאומר משהו.`),
+  ST.choice('st-020', 2, `My asking is that you will approve.`, [`My ask is simple: approve the extra node by Friday.`, `I am asking that you will approve it maybe.`, `My asking is you approve.`], 0, `my ask = הבקשה שלי. עם מה ועד מתי.`, `לסיים סטטוס בבקשה.`),
+  ST.choice('st-021', 2, `It's slipping a little bit, more or less, maybe a week.`, [`It's slipping by about a week.`, `It's slipping a little bit more less a week.`, `It slips maybe little week.`], 0, `slipping by + כמה.`, `לדווח על החלקה בלו"ז.`),
+  ST.speak('st-022', 1, { title_he: `סטנדאפ ב-30 שניות`, prompt_en: `Give your standup in 30 seconds: yesterday, today, blockers.`, seconds: 30, must: ['yesterday', 'today', 'blockers'], banned: NOFILL, model_en: `Yesterday I finished the alert rules for the payment service. Today I'm testing them in staging. No blockers.`, bad: `so yesterday I did some stuff with the alerts and um today also continue`, why_he: `סטנדאפ קצר וממוקד.` }),
+  ST.speak('st-023', 2, { title_he: `עדכון שבועי למנהל`, prompt_en: `Give your manager a weekly update in 45 seconds: overall status, done this week, next week, one risk.`, seconds: 45, must: ['on track', 'this week', 'next week'], banned: ['so', 'basically', 'whatever', 'um'], model_en: `Here's my weekly update. The database upgrade is on track. This week we moved two of the three clusters. Next week we move the last one, and then we clean up. One risk: the old backups are slow. I'm watching it.`, bad: `so basically everything is more or less okay, we did a lot of things`, why_he: `מבנה קבוע לעדכון שבועי.` }),
+  ST.speak('st-024', 3, { title_he: `סטטוס להנהלה`, prompt_en: `Give an exec status in 45 seconds: color (green, amber or red), why, the main risk, and your ask.`, seconds: 45, must: ['amber', 'risk', 'ask'], banned: ['basically', 'I think', 'um', 'so'], model_en: `The migration is amber. We're two weeks behind because of a vendor delay. The main risk is the end of the old contract on [date]. My ask: approve [X] extra hours of contractor time, and we're back to green by the end of the month.`, bad: `um it's a bit complicated, I think we are kind of late`, why_he: `הנהלה רוצה צבע, סיכון ובקשה.` }),
+  ST.speak('st-025', 2, { title_he: `"אני לא יודע עדיין"`, prompt_en: `Your manager asks: "When will it be fixed?" You don't know yet. Say it honestly, with a next step and a time.`, seconds: 20, must: ["don't know yet", 'by'], banned: ['maybe', 'probably', 'um', 'so'], model_en: `I don't know yet. We found the cause, but not the fix. I'll have an estimate by 3 PM, and I'll send it to you directly.`, bad: `um maybe tomorrow, probably, I'm not sure`, why_he: `כנות עם צעד הבא.` }),
+  ST.speak('st-026', 2, { title_he: `אני חסום`, prompt_en: `Tell the team you're blocked. Say what blocks you, who can unblock you, and what you'll do meanwhile.`, seconds: 30, must: ['blocked on', 'meanwhile'], banned: NOFILL, model_en: `I'm blocked on the firewall change. The network team owns it, and Alex is following up with them today. Meanwhile, I'm writing the tests. We can ship as soon as it's open.`, bad: `so I can't do nothing because of the network guys`, why_he: `חסימה בלי להאשים.` }),
+  ST.speak('st-027', 3, { title_he: `הפרויקט מחליק`, prompt_en: `Tell your manager the project is slipping. Say by how much, why, and what you need.`, seconds: 30, must: ['slipping', 'because', 'need'], banned: ['sorry', 'um', 'basically', 'so'], model_en: `The project is slipping by one week, because the load tests found a memory leak. We're fixing it now. I need one more day of QA time next week to stay on the new date.`, bad: `sorry, um, we have a small problem, basically it will be late`, why_he: `חדשות רעות, ישר ועם בקשה.` }),
+  ST.recall('st-028', 1, `סטנדאפ מושלם`, `Yesterday I finished the alert rules. Today I'm testing them in staging. One blocker: I need access to the staging cluster. Alex, can you help me after the standup?`, `תבנית סטנדאפ שאפשר לחזור עליה כל יום.`),
+  ST.recall('st-029', 2, `עדכון שבועי`, `Quick weekly update. Overall, we're on track. Done this week: the new backup job is live. Next week: we move the last two services. One risk: the vendor might be late with the certificate. I'll know by Wednesday, and I'll tell you right away.`, `מבנה: מצב, מה נעשה, מה הלאה, סיכון.`),
+  ST.recall('st-030', 3, `סטטוס להנהלה ב-3 משפטים`, `Status is amber. We're one week behind because of a vendor delay, and the date is still safe if we get help. My ask: one more engineer for two weeks.`, `שלושה משפטים: צבע, סיבה, בקשה.`),
+  ST.qa('st-031', 3, `Are we going to make the deadline?`, `Not with the current scope. If we move the reporting feature to the next release, yes. I need a decision on that by Friday.`, `תשובה קודם, אחר כך תנאי ובקשה.`, `שאלה ישירה של מנהל.`),
+  ST.qa('st-032', 3, `Why didn't you tell us earlier?`, `Fair point. I saw the risk last week, and I hoped we could absorb it. Next time, I'll raise it as soon as I see it, even if it's not confirmed yet.`, `מקבלים אחריות בלי להתגונן.`, `ביקורת על עדכון מאוחר.`),
+  ST.qa('st-033', 2, `What's the ETA?`, `Thursday end of day, with medium confidence. The unknown is the vendor patch. I'll confirm or update the date tomorrow morning.`, `תאריך, רמת ביטחון, ומתי תעדכן.`, `הערכת זמן מקצועית.`),
+
+  // =====================================================================
+  // INCIDENT - incident comms, bridge, postmortems
+  // =====================================================================
+  IN.fix('in-001', 1, `The site is falling.`, `The site is down.`, `down = לא עובד. falling זה ליפול פיזית.`, `המילה הראשונה בכל תקלה.`),
+  IN.fix('in-002', 1, `We have a downtime of the login.`, `Login is down.`, `קצר: login is down.`, `הודעה קצרה בזמן לחץ.`),
+  IN.fix('in-003', 1, `The problem started in 10:15.`, `The problem started at 10:15.`, `at לשעה.`, `ציר זמן מדויק.`),
+  IN.fix('in-004', 1, `Some users can't to log in.`, `Some users can't log in.`, `אחרי can't בלי to.`, `תיאור השפעה.`),
+  IN.fix('in-005', 2, `We did a rollback to the version from yesterday.`, `We rolled back to yesterday's version.`, `roll back כפועל. rollback כשם עצם.`, `לתאר פעולה בתקלה.`),
+  IN.fix('in-006', 2, `Who did the mistake?`, `What failed, and why?`, `blameless: שואלים על התהליך, לא על אדם.`, `תרבות פוסטמורטם בלי אשמה.`),
+  IN.fix('in-007', 3, `The root cause was Alex.`, `The root cause was a config change without a review step.`, `root cause הוא תהליך או מערכת, לא בן אדם.`, `ניסוח בלי אשמה.`),
+  IN.fix('in-008', 1, `We will give update every half hour.`, `We'll post an update every 30 minutes.`, `post an update = לפרסם עדכון.`, `קצב עדכונים בגשר.`),
+  IN.fix('in-009', 1, `The impact is on all the customers of Europe.`, `The impact is on all customers in Europe.`, `customers in Europe. בלי the.`, `תיאור היקף.`),
+  IN.fix('in-010', 1, `We are investigating about it.`, `We're investigating it.`, `investigate בלי about.`, `משפט שחוזר בכל תקלה.`),
+  IN.fix('in-011', 2, `The fix is deployed and now it's stable, I think.`, `The fix is deployed. Error rates are back to normal. We're monitoring.`, `עובדות במקום "I think".`, `סגירה בטוחה של תקלה.`),
+  IN.fix('in-012', 1, `We apologize on the inconvenience.`, `We apologize for the inconvenience.`, `apologize for.`, `הודעה ללקוחות.`),
+  IN.choice('in-013', 3, `The reason was the deploy.`, [`The trigger was the deploy. The root cause was a missing health check.`, `The reason of the trigger was the deploy root.`, `The deploy did the cause.`], 0, `trigger = מה שהפעיל. root cause = למה זה בכלל יכול היה לקרות.`, `להפריד בין טריגר לסיבת שורש.`),
+  IN.choice('in-014', 2, `We are mitigating the fire.`, [`We've mitigated the impact. The fix is next.`, `We are extinguishing the problem now fully.`, `We mitigated on the fire.`], 0, `mitigate = להקטין נזק. fix = לתקן לגמרי.`, `שלבים בתקלה.`),
+  IN.choice('in-015', 2, `Our DB exploded because someone pushed bad config.`, [`Some customers are seeing errors. We've identified the cause and are working on a fix.`, `The database exploded, sorry, someone did bad push.`, `We have a big crash because of a guy.`], 0, `ללקוחות: השפעה, מה עושים, בלי פרטים פנימיים.`, `שפה מול לקוחות.`),
+  IN.choice('in-016', 2, `Action item: to be more careful.`, [`Action item: add a review step to config changes. Owner: platform team. Due: [date].`, `Action item: everybody be careful more.`, `Action item: not doing mistakes again.`], 0, `action item = משימה ברורה, בעלים ותאריך.`, `משימות אחרי תקלה.`),
+  IN.choice('in-017', 1, `How much it's bad?`, [`How bad is the impact?`, `How much bad is it?`, `How it is bad?`], 0, `how bad is.`, `שאלה ראשונה בגשר.`),
+  IN.choice('in-018', 1, `Everything is back to work.`, [`Everything is back to normal.`, `Everything is returning to working.`, `All is back to the work.`], 0, `back to normal.`, `סגירת תקלה.`),
+  IN.choice('in-019', 1, `We don't know nothing yet.`, [`We don't know the cause yet.`, `We not know nothing yet.`, `We are not knowing anything still.`], 0, `שלילה אחת בלבד.`, `כנות בזמן תקלה.`),
+  IN.choice('in-020', 2, `Let's do a postmortem on Alex.`, [`Let's run a blameless postmortem.`, `Let's make a post-mortal on the incident.`, `Let's do an after-death on it.`], 0, `run a postmortem. blameless = בלי אשמה.`, `קולוקציה של פוסטמורטם.`),
+  IN.speak('in-021', 2, { title_he: `עדכון בגשר`, prompt_en: `Give an incident bridge update in 30 seconds: time, impact, mitigation, next update.`, seconds: 30, must: ['impact', 'mitigation', 'next update'], banned: ['so', 'um', 'basically', 'I think'], model_en: `Update at 10:40. Impact: about [N] percent of checkout requests are failing in Europe. Mitigation: we rolled back the last deploy, and errors are dropping. Next update at 11:00.`, bad: `so um we think it's maybe the deploy, we are checking stuff`, why_he: `מבנה קבוע לעדכון תקלה.` }),
+  IN.speak('in-022', 2, { title_he: `פותחים גשר תקלה`, prompt_en: `You're the incident commander. Open the bridge: what we know, roles, and the next update time.`, seconds: 30, must: ['incident commander', 'scribe', 'next update'], banned: NOFILL, model_en: `Hi everyone, I'm the incident commander. Here's what we know: login errors started at 9:12, and they affect all regions. Alex is the scribe. Database team, please check the primary. Next update in 15 minutes.`, bad: `okay so guys, um, something is broken, let's all look`, why_he: `לנהל את הגשר מהדקה הראשונה.` }),
+  IN.speak('in-023', 2, { title_he: `הודעה ללקוחות`, prompt_en: `Write out loud a short customer-facing message. No internal details.`, seconds: 30, must: ['some customers', 'working on', 'update'], banned: ['root cause', 'database', 'um', 'so'], model_en: `Some customers can't load their dashboards right now. We know about the issue, and our team is working on a fix. We'll share an update within 30 minutes. Thank you for your patience.`, bad: `our database crashed because of a bad config`, why_he: `טון רגוע מול לקוחות.` }),
+  IN.speak('in-024', 3, { title_he: `טריגר מול סיבת שורש`, prompt_en: `Explain the trigger, the root cause and the main action item of an incident. 45 seconds.`, seconds: 45, must: ['trigger', 'root cause', 'action item'], banned: NOFILL, model_en: `The trigger was a config change that set the connection limit too low. The root cause was deeper: we had no validation on that config, and no alert on connection errors. The main action item is a validation step in the pipeline, with an owner and a date.`, bad: `the problem was the config, someone changed it`, why_he: `ניתוח מקצועי בלי אשמה.` }),
+  IN.speak('in-025', 3, { title_he: `סיכום פוסטמורטם`, prompt_en: `Present a postmortem summary in 45 seconds. No names, no blame.`, seconds: 45, must: ['what happened', 'what we learned', 'action items'], banned: ['fault', 'um', 'so', 'basically'], model_en: `Here's what happened. On Tuesday, a certificate expired, and the API was down for [X] minutes. Here's what we learned: our expiry alert went to an old channel. We have three action items: move the alert, add a weekly check, and document the renewal. Each one has an owner and a date.`, bad: `basically it was the fault of the team that forgot the certificate`, why_he: `מבנה פוסטמורטם ברור.` }),
+  IN.speak('in-026', 1, { title_he: `התקלה נפתרה`, prompt_en: `Close the incident in 20 seconds.`, seconds: 20, must: ['resolved', 'monitoring'], banned: NOFILL, model_en: `The incident is resolved. Error rates have been normal for 30 minutes. We'll keep monitoring for the next hour, and the postmortem is on Thursday.`, bad: `so it's working now I think, bye`, why_he: `סגירה עם עובדות וצעד הבא.` }),
+  IN.recall('in-027', 1, `עדכון בגשר תקלה`, `Here's the current status. Impact: users in Europe can't log in. Scope: about [N] percent of logins. Mitigation: we're failing over to the second region. Next update in 20 minutes, or sooner if anything changes.`, `השפעה, היקף, פעולה, עדכון הבא.`),
+  IN.recall('in-028', 2, `הודעה ללקוחות`, `We're aware that some customers are seeing slow responses. Our team is investigating, and we'll share an update within 30 minutes. We're sorry for the trouble.`, `תבנית קבועה מול לקוחות.`),
+  IN.recall('in-029', 2, `פתיחת פוסטמורטם`, `Thanks for joining. This is a blameless postmortem. We're here to understand the system, not to find someone to blame. First, the timeline. Then, the root cause. Last, the action items.`, `לקבוע טון בטוח בתחילת הפגישה.`),
+  IN.qa('in-030', 3, `Whose fault was it?`, `It wasn't one person's fault. A change went out without a review step, and our alerts didn't catch it. We're fixing the process, and that's what the action items cover.`, `מסיטים מאדם לתהליך.`, `שאלה שמחפשת אשם.`),
+  IN.qa('in-031', 3, `Can you guarantee this won't happen again?`, `No one can guarantee that. What I can say is that this exact failure is now blocked by a test, and we'll catch similar ones faster with the new alert.`, `לא מבטיחים מה שאי אפשר. נותנים עובדות.`, `שאלה של הנהלה אחרי תקלה.`),
+  IN.qa('in-032', 2, `Why did it take an hour to detect?`, `Because the alert was on errors, not on traffic. The traffic dropped, but nothing errored. We've added a traffic alert, and we'd now detect it in about [X] minutes.`, `סיבה, תיקון, ומספר.`, `שאלה על זמן גילוי.`),
+
+  // =====================================================================
+  // SYSTEMS - presenting a system or architecture
+  // =====================================================================
+  SY.fix('sy-001', 1, `The request is going to the gateway and after it going to the service.`, `The request goes to the gateway, and then to the service.`, `הווה פשוט לתיאור תהליך. and then.`, `לתאר זרימה של בקשה.`),
+  SY.fix('sy-002', 2, `We chose in Postgres because it's more good.`, `We chose Postgres because it's a better fit.`, `chose בלי in. better, לא more good.`, `להסביר בחירה טכנית.`),
+  SY.fix('sy-003', 1, `In this slide you can see the cache is sitting before the database.`, `On this slide, the cache sits in front of the database.`, `on a slide. in front of.`, `לדבר על שקף.`),
+  SY.fix('sy-004', 1, `It's scaling horizontal.`, `It scales horizontally.`, `scale + horizontally (תואר פועל).`, `מילת סקייל בסיסית.`),
+  SY.fix('sy-005', 2, `If the node is falling, the other takes.`, `If a node fails, another one takes over.`, `fails. takes over = לוקח פיקוד.`, `לתאר כשל.`),
+  SY.fix('sy-006', 2, `The disadvantage from this is cost.`, `The downside of this is cost.`, `downside of.`, `לדבר על פשרות.`),
+  SY.fix('sy-007', 1, `This component responsible on the auth.`, `This component is responsible for auth.`, `is responsible for.`, `תפקיד של רכיב.`),
+  SY.fix('sy-008', 1, `The queue is in the middle between them.`, `The queue sits between them.`, `sits between = נמצא בין.`, `מיקום בדיאגרמה.`),
+  SY.fix('sy-009', 2, `We did it like this because the latency.`, `We built it this way because of latency.`, `because of + שם עצם. this way.`, `להצדיק החלטה.`),
+  SY.fix('sy-010', 1, `The data is saving in object storage.`, `The data is stored in object storage.`, `סביל: is stored.`, `לתאר איפה הנתונים.`),
+  SY.fix('sy-011', 1, `It can to handle [N] requests per second.`, `It can handle [N] requests per second.`, `אחרי can בלי to.`, `קיבולת של מערכת.`),
+  SY.choice('sy-012', 1, `Let's go to the next box.`, [`Let's follow the request to the next step.`, `Let's go jump to the next square.`, `Let's move to the next box thing.`], 0, `follow the request = מסלול שהקהל מבין.`, `מעבר בין חלקים בדיאגרמה.`),
+  SY.choice('sy-013', 2, `The reason we chose Kafka on RabbitMQ...`, [`The reason we chose Kafka over RabbitMQ is replay.`, `The reason we chose Kafka on RabbitMQ is replay.`, `The reason we choose Kafka than RabbitMQ is replay.`], 0, `chose X over Y.`, `השוואה בין אפשרויות.`),
+  SY.choice('sy-014', 1, `What is the single point of falling?`, [`What's the single point of failure?`, `What's the one point of falling?`, `Where is the only falling place?`], 0, `single point of failure.`, `מונח קבוע בארכיטקטורה.`),
+  SY.choice('sy-015', 1, `It's a bottle neck in the database.`, [`The database is the bottleneck.`, `The database makes a bottle neck.`, `There is a bottle in the database neck.`], 0, `X is the bottleneck.`, `לזהות צוואר בקבוק.`),
+  SY.choice('sy-016', 2, `In the left we have users, okay so.`, [`Let's start on the left, with the users.`, `Let's begin at the left, there is the users.`, `In the left we have users, okay so.`], 0, `on the left. מתחילים עם מפה.`, `הכוונה בזמן דיאגרמה.`),
+  SY.choice('sy-017', 2, `This design is good for scale but not good for cost.`, [`This design scales well, but it costs more.`, `This design is good scale but bad costing.`, `This design scaling good, costing not.`], 0, `פועל במקום "good for".`, `לנסח פשרה בקצרה.`),
+  SY.choice('sy-018', 2, `When the cache is missing, we go to the DB.`, [`On a cache miss, we read from the database.`, `When the cache is missing itself, we go DB.`, `If the cache miss, we going to the DB.`], 0, `cache miss / cache hit.`, `מונח של קאש.`),
+  SY.choice('sy-019', 1, `Let me zoom this part.`, [`Let me zoom in on this part.`, `Let me zoom this part inside.`, `Let me do zoom to this part.`], 0, `zoom in on.`, `לכוון את הקהל.`),
+  SY.speak('sy-020', 2, { title_he: `מסלול של בקשה`, prompt_en: `Follow one request through a system you know, from the user to the database. 45 seconds.`, seconds: 45, must: ['first', 'then', 'finally'], banned: ['so', 'basically', 'um', 'like'], model_en: `Let's follow one request. First, it hits the load balancer. Then the API gateway checks the token and sends it to the order service. The service writes to the database and puts an event on the queue. Finally, a worker picks up the event and sends the email.`, bad: `so here is the gateway and here basically the service and the DB`, why_he: `סדר ברור: first, then, finally.` }),
+  SY.speak('sy-021', 3, { title_he: `למה X ולא Y`, prompt_en: `Explain one technical choice: what you chose, over what, and the trade-off. 30 seconds.`, seconds: 30, must: ['over', 'trade-off'], banned: NOFILL, model_en: `The reason we chose a managed database over our own cluster is time. The trade-off is cost: it's about [X] percent more expensive. For a team of our size, that's worth it.`, bad: `we took the managed one because it's better`, why_he: `להצדיק החלטה עם פשרה.` }),
+  SY.speak('sy-022', 3, { title_he: `מצבי כשל`, prompt_en: `Explain what happens when parts of your system fail. 45 seconds.`, seconds: 45, must: ['fails', 'fail over'], banned: NOFILL, model_en: `Let's talk about failure. If one node fails, the load balancer stops sending traffic to it, and the others take over. If the whole zone fails, we fail over to the second region. That takes about [X] minutes, and we test it every quarter.`, bad: `um if something falls, the other one takes it`, why_he: `לדבר על כשלים בביטחון.` }),
+  SY.speak('sy-023', 2, { title_he: `סקייל`, prompt_en: `Explain how your system scales and where the bottleneck is. 30 seconds.`, seconds: 30, must: ['horizontally', 'bottleneck'], banned: NOFILL, model_en: `The API scales horizontally. We add pods when CPU goes above [X] percent. The bottleneck today is the database, not the API. That's the next thing we'll fix.`, bad: `it's scaling horizontal and the DB is a bottle neck`, why_he: `סקייל וצוואר בקבוק במשפטים קצרים.` }),
+  SY.speak('sy-024', 2, { title_he: `שקף עם דיאגרמה`, prompt_en: `You're showing an architecture diagram. Guide the audience: left, middle, right. 45 seconds.`, seconds: 45, must: ['on the left', 'in the middle', 'on the right'], banned: NOFILL, model_en: `Let me walk you through this diagram. On the left, you see the users and the CDN. In the middle is our API layer, which runs on Kubernetes. On the right are the data stores: a database and a cache. Let's start with the users.`, bad: `so here, and here, and this box is, um, this one`, why_he: `signposting: הקהל יודע לאן להסתכל.` }),
+  SY.speak('sy-025', 3, { title_he: `מערכת בדקה`, prompt_en: `Present a whole system in 60 seconds: its parts, why it's split this way, and the trade-off.`, seconds: 60, must: ['three parts', 'the reason', 'trade-off'], banned: ['so', 'basically', 'um', 'uh', 'whatever'], model_en: `The system has three parts: an ingestion service, a processing pipeline, and a reporting API. The reason we split them is scale: ingestion has spikes, and reporting doesn't. The trade-off is more moving parts, and we handle that with good monitoring and one dashboard per part.`, bad: `basically we have a lot of services and they talk to each other`, why_he: `תמונה גדולה לפני פרטים.` }),
+  SY.recall('sy-026', 1, `פתיחה להצגת ארכיטקטורה`, `Let me give you the big picture first, then we'll zoom in. The system has three layers: the edge, the services, and the data. I'll follow one request from left to right. Stop me any time if something isn't clear.`, `תמונה גדולה, מפה, והזמנה לשאלות.`),
+  SY.recall('sy-027', 2, `הסבר של בחירה טכנית`, `We looked at two options. We chose a message queue over direct calls for one reason: if a service is down, no data is lost. The cost is a bit more latency, about [X] milliseconds. For this use case, that's fine.`, `אפשרויות, בחירה, סיבה, מחיר.`),
+  SY.recall('sy-028', 2, `סיום הצגת מערכת`, `To sum up: three layers, one request path, and two known risks. The database is our bottleneck, and the plan to fix it is on the next slide. Any questions so far?`, `סיכום קצר לפני שאלות.`),
+  SY.qa('sy-029', 2, `Why didn't you use microservices?`, `We didn't need them yet. One team owns this, and a single service is simpler to run. If the team grows or one part needs to scale on its own, we'll split it.`, `תשובה קודם, ואז מתי זה ישתנה.`, `שאלה על החלטה ארכיטקטונית.`),
+  SY.qa('sy-030', 3, `What happens if the queue goes down?`, `Producers retry with backoff for up to [X] minutes. If it's longer, events go to a local buffer, and nothing is lost. We tested this last quarter.`, `התאם למערכת שלך. אמור רק מה שנבדק.`, `שאלה על כשל.`),
+  SY.qa('sy-031', 3, `How does this scale to ten times the traffic?`, `The API scales out, no problem. The database is the limit. At ten times, we'd need read replicas, and we've already planned that.`, `מודים בגבול ומראים תוכנית.`, `שאלת סקייל.`),
+  SY.qa('sy-032', 3, `Isn't this over-engineered?`, `It's a fair question. Each part solves a problem we had in production. If one stops earning its place, we'll remove it.`, `מסכימים שזו שאלה טובה, ונותנים סיבה.`, `שאלה ספקנית.`),
+
+  // =====================================================================
+  // MEETINGS - agree, disagree, interrupt, clarify, push back
+  // =====================================================================
+  MT.fix('mt-001', 1, `I'm agree with you.`, `I agree with you.`, `agree הוא פועל. בלי am.`, `הטעות הכי נפוצה בפגישות.`),
+  MT.fix('mt-002', 1, `Sorry that I interrupt.`, `Sorry to interrupt.`, `sorry to + פועל.`, `להתפרץ בנימוס.`),
+  MT.fix('mt-003', 1, `Can you repeat? I didn't understood.`, `Sorry, could you say that again? I didn't catch it.`, `didn't + צורת בסיס. didn't catch it נשמע רך.`, `לבקש חזרה בנימוס.`),
+  MT.fix('mt-004', 1, `Let's make a meeting tomorrow.`, `Let's set up a meeting tomorrow.`, `set up / schedule a meeting. לא make.`, `תרגום ישיר מעברית.`),
+  MT.fix('mt-005', 2, `You are wrong.`, `I see it a bit differently.`, `אי הסכמה רכה שומרת על השיחה.`, `לא להסכים בלי לפגוע.`),
+  MT.fix('mt-006', 1, `I want to say something about it.`, `Can I add something here?`, `שאלה קצרה במקום הודעה.`, `להיכנס לשיחה.`),
+  MT.fix('mt-007', 1, `What you think about it?`, `What do you think about it?`, `שאלה: do לפני הנושא.`, `לשאול דעה.`),
+  MT.fix('mt-008', 1, `Let's summary.`, `Let's sum up.`, `summary שם עצם. sum up פועל.`, `סיכום פגישה.`),
+  MT.fix('mt-009', 2, `We are out of time, so finish.`, `We're almost out of time, so let's wrap up.`, `wrap up = לסגור בנימוס.`, `לסיים פגישה בזמן.`),
+  MT.fix('mt-010', 1, `I'm not agree with this decision.`, `I don't agree with this decision.`, `don't agree.`, `שלילה של agree.`),
+  MT.fix('mt-011', 2, `Who will own on this?`, `Who will own this?`, `own בלי on.`, `לקבוע בעלים.`),
+  MT.fix('mt-012', 2, `Let's speak about it after.`, `Let's take it offline.`, `take it offline = נמשיך מחוץ לפגישה.`, `לשמור על הפגישה ממוקדת.`),
+  MT.choice('mt-013', 1, `Wait wait wait, no.`, [`Sorry, can I jump in for a second?`, `Stop, stop, I talk now.`, `Wait you, listen me.`], 0, `jump in = להיכנס לשיחה.`, `להתפרץ בנימוס.`),
+  MT.choice('mt-014', 1, `So what we decide?`, [`So, what's the decision?`, `So what we are deciding it?`, `So decision what is?`], 0, `what's the decision.`, `לבקש החלטה.`),
+  MT.choice('mt-015', 2, `I didn't understand nothing.`, [`Could you clarify what you mean by "done"?`, `I not understood anything of it.`, `What you meant nothing?`], 0, `clarify + מה בדיוק לא ברור.`, `שאלת הבהרה ממוקדת.`),
+  MT.choice('mt-016', 1, `Okay, you speak now Alex.`, [`Alex, over to you.`, `Alex, now is your turn to speak you.`, `Okay Alex, you go talk.`], 0, `over to you = העברת רשות הדיבור.`, `להעביר את הדיבור.`),
+  MT.choice('mt-017', 2, `That's a stupid idea.`, [`I see the point, but I'm worried about the cost.`, `That's an idea very stupid.`, `This idea is not smart at all, no.`], 0, `מכירים בנקודה, ואז מעלים דאגה.`, `ביקורת מקצועית.`),
+  MT.choice('mt-018', 1, `We are going out from the topic.`, [`Let's get back on track.`, `We are going out from the topic now.`, `Come back to topic, please, all.`], 0, `get back on track.`, `להחזיר את הפגישה למסלול.`),
+  MT.choice('mt-019', 2, `I have a small push back.`, [`I'd like to push back a little on the timeline.`, `I'm giving a small push to back the timeline.`, `I push back you on the timeline.`], 0, `push back on + נושא.`, `להתנגד בנימוס.`),
+  MT.choice('mt-020', 2, `If I understand right, you say me to delay?`, [`Just to make sure I understand: you want to delay it by a week?`, `If I understand you right, you say me to delay?`, `I understand you to delay it, yes?`], 0, `just to make sure I understand.`, `לוודא הבנה.`),
+  MT.speak('mt-021', 2, { title_he: `לא להסכים בנימוס`, prompt_en: `A colleague wants to release on Friday. Disagree politely and suggest something else. 30 seconds.`, seconds: 30, must: ['I see your point', 'but', 'what if'], banned: ['you are wrong', 'um', 'so', 'stupid'], model_en: `I see your point about speed. But I'm worried about the risk of a Friday release. What if we release on Monday morning, when the whole team is online?`, bad: `no no, you are wrong, Friday is bad`, why_he: `הכרה, דאגה, והצעה.` }),
+  MT.speak('mt-022', 3, { title_he: `דחיפה חזרה על היקף`, prompt_en: `Your manager adds a feature to the sprint. Push back and offer an option. 30 seconds.`, seconds: 30, must: ['push back', 'if we', 'instead'], banned: NOFILL, model_en: `I'd like to push back on the scope. If we add the reporting feature now, we miss the date. Instead, let's ship the core part first and add reporting in the next sprint.`, bad: `um it's impossible, we can't do it`, why_he: `לא בלי חלופה.` }),
+  MT.speak('mt-023', 2, { title_he: `לבקש החלטה`, prompt_en: `The meeting goes in circles. Ask for a decision between two options. 30 seconds.`, seconds: 30, must: ['decision', 'options', 'recommend'], banned: NOFILL, model_en: `We need a decision today. There are two options: delay by a week, or ship without the export feature. I recommend option two. Can we agree on that by the end of this meeting?`, bad: `so what we do? I don't know, what you think?`, why_he: `להוביל להחלטה.` }),
+  MT.speak('mt-024', 2, { title_he: `סיכום פגישה`, prompt_en: `Sum up the meeting in 45 seconds: decision, action items, owners.`, seconds: 45, must: ['to sum up', 'action items', 'owner'], banned: NOFILL, model_en: `To sum up: we agreed to ship on Monday. We have two action items. Alex will update the runbook, and I'll talk to the support team. Each one has an owner and a date. I'll send notes in an hour.`, bad: `okay so we said a lot of things, let's see`, why_he: `כולם יוצאים עם אותה הבנה.` }),
+  MT.speak('mt-025', 1, { title_he: `פותחים פגישה בזמן`, prompt_en: `Open a 30-minute meeting: time, goal, agenda. 30 seconds.`, seconds: 30, must: ['minutes', 'goal', 'agenda'], banned: NOFILL, model_en: `Hi everyone, let's start. We have 30 minutes. The goal is one decision: which database to use. The agenda has three parts: the two options, the costs, and the decision. Let's keep each part to ten minutes.`, bad: `um okay so let's wait a bit more, maybe someone is coming`, why_he: `פגישה עם מטרה מההתחלה.` }),
+  MT.speak('mt-026', 1, { title_he: `להתפרץ ולהבהיר`, prompt_en: `Interrupt politely and ask one clarifying question. 20 seconds.`, seconds: 20, must: ['sorry to interrupt', 'clarify'], banned: NOFILL, model_en: `Sorry to interrupt. Can you clarify one thing? When you say "ready", do you mean tested in staging or live in production?`, bad: `wait, I didn't understand nothing`, why_he: `הבהרה מוקדמת חוסכת טעויות.` }),
+  MT.recall('mt-027', 1, `פתיחת פגישה`, `Thanks for joining. We have 30 minutes and one goal: decide on the release date. I'll take notes and send them after. Let's start with the current status.`, `פתיחה עם זמן ומטרה.`),
+  MT.recall('mt-028', 2, `סגירת פגישה`, `We're almost out of time, so let's wrap up. Decision: we release on Monday. Action items: Alex updates the runbook, and I brief support. I'll send the notes today. Thanks, everyone.`, `החלטה, משימות, תודה.`),
+  MT.recall('mt-029', 2, `אי הסכמה מנומסת`, `I see it a bit differently. I agree that speed matters. My concern is the risk. Can we look at the data before we decide?`, `הסכמה חלקית, דאגה, ובקשה לנתונים.`),
+  MT.qa('mt-030', 3, `Why are you blocking this?`, `I'm not trying to block it. I have one concern: we have no rollback plan. If we add one, I'm fully on board.`, `מראים מה צריך כדי להגיד כן.`, `האשמה בחסימה.`),
+  MT.qa('mt-031', 2, `Can we just decide later?`, `We can, but it has a cost. Every week we wait, the team works on both options. I'd like a decision by Friday.`, `מסבירים מחיר של דחייה.`, `דחיית החלטה.`),
+  MT.qa('mt-032', 2, `Do you agree or not?`, `Mostly, yes. I agree with the plan. I don't agree with the date. I'd add one more week for testing.`, `תשובה קודם, אחר כך פירוק.`, `שאלת כן או לא.`),
+
+  // =====================================================================
+  // NUMBERS - saying numbers, data, trends, percentages, dates
+  // =====================================================================
+  NU.fix('nu-001', 2, `The latency is 200 milliseconds in p ninety-five.`, `The p95 latency is 200 milliseconds.`, `p95 נקרא "P ninety-five" ובא לפני latency.`, `לדבר על אחוזונים.`),
+  NU.fix('nu-002', 1, `Errors went up in 20 percents.`, `Errors went up by 20 percent.`, `by + אחוז. percent בלי s.`, `שינוי באחוזים.`),
+  NU.fix('nu-003', 1, `It costs three thousands dollars.`, `It costs three thousand dollars.`, `thousand, million, hundred אחרי מספר: בלי s.`, `מספרים גדולים.`),
+  NU.fix('nu-004', 1, `The meeting is in the 5 of March.`, `The meeting is on March 5th.`, `on + תאריך.`, `תאריכים.`),
+  NU.fix('nu-005', 1, `The CPU is between 60 until 80 percent.`, `CPU is between 60 and 80 percent.`, `between X and Y.`, `טווחים.`),
+  NU.fix('nu-006', 1, `Two millions requests per day.`, `Two million requests a day.`, `million בלי s. a day.`, `מספרים גדולים.`),
+  NU.fix('nu-007', 2, `The traffic jumped in two times.`, `Traffic doubled.`, `doubled, tripled.`, `לתאר מגמה במילה אחת.`),
+  NU.fix('nu-008', 1, `It's half second.`, `It's half a second.`, `half a second.`, `זמנים קצרים.`),
+  NU.fix('nu-009', 2, `Errors are less than yesterday in 30 percent.`, `Errors are 30 percent lower than yesterday.`, `X percent lower than.`, `השוואה באחוזים.`),
+  NU.fix('nu-010', 1, `The cost is about [X] dollars for month.`, `The cost is about [X] dollars a month.`, `a month = לחודש.`, `עלות חודשית.`),
+  NU.fix('nu-011', 1, `In 2025 year we moved to the cloud.`, `In 2025, we moved to the cloud.`, `שנה בלי year.`, `שנים.`),
+  NU.choice('nu-012', 2, `The graph went up very much and then stayed.`, [`The graph spiked, then plateaued.`, `The graph upped very much and then staying.`, `The graph jumped high and stood.`], 0, `spiked = קפץ חד. plateaued = התייצב.`, `מילים של מגמה.`),
+  NU.choice('nu-013', 1, `The requests fell down strong.`, [`Requests dropped sharply.`, `The requests fell strongly down.`, `Requests went falling strong.`], 0, `dropped sharply.`, `ירידה בגרף.`),
+  NU.choice('nu-014', 1, `It's more or less 1000.`, [`It's roughly a thousand.`, `It's more less one thousand.`, `It's around about more or less 1000.`], 0, `roughly / about / around.`, `הערכה מספרית.`),
+  NU.choice('nu-015', 2, `p99 makes 2 seconds, is bad?`, [`The p99 is 2 seconds, which is too slow for checkout.`, `p99 makes 2 seconds, is bad?`, `The p99 have 2 second, bad.`], 0, `מספר ואז מה זה אומר.`, `לפרש מספר.`),
+  NU.choice('nu-016', 2, `Compared last month is more 15%.`, [`It's up 15 percent month over month.`, `It's bigger in 15 percent to last month.`, `Compared last month is more 15%.`], 0, `up X percent month over month.`, `השוואה בין חודשים.`),
+  NU.choice('nu-017', 2, `The range is from 100 until 200 more or less.`, [`It ranges from about 100 to 200.`, `The range is between from 100 until 200.`, `It's ranging 100-200 more or less around.`], 0, `ranges from X to Y.`, `טווחים.`),
+  NU.choice('nu-018', 3, `We are available 99 dot 9.`, [`We have three nines of availability.`, `We are ninety nine nine percent.`, `We are available 99 dot 9.`], 0, `99.9 = three nines. 99.99 = four nines.`, `שפת SLA.`),
+  NU.choice('nu-019', 2, `The bill is 1 thousand and 2 hundreds dollar.`, [`The bill is about twelve hundred dollars.`, `The bill is one point two K of dollars.`, `The bill is 1 thousand and 2 hundreds dollar.`], 0, `1,200 = twelve hundred.`, `סכומים בקול.`),
+  NU.shadow('nu-020', 1, '0.25 / 1.5', `נקודה = point. "zero point two five", "one point five".`, `Latency went from 0.25 seconds to 1.5 seconds.`, `שברים עשרוניים.`),
+  NU.shadow('nu-021', 1, '15 / 50', `fif-TEEN: דגש בסוף. FIF-ty: דגש בהתחלה.`, `We have 15 nodes, not 50.`, `teen מול ty מתבלבלים.`),
+  NU.shadow('nu-022', 2, 'p95 / p99', `"P ninety-five", "P ninety-nine".`, `The p95 is fine. The p99 is the problem.`, `אחוזונים בקול.`),
+  NU.shadow('nu-023', 1, 'milliseconds', `MIL-li-sec-onds. אומרים את המילה המלאה, לא "ms".`, `It takes 300 milliseconds, not 3 seconds.`, `ms מול s.`),
+  NU.shadow('nu-024', 1, '2026', `"twenty twenty-six". שנה בשני חלקים.`, `In 2026, we moved everything to the cloud.`, `שנים בקול.`),
+  NU.speak('nu-025', 2, { title_he: `מגמה בגרף`, prompt_en: `Describe a graph from last week: a spike, a drop and a plateau. 30 seconds. Use placeholders for numbers.`, seconds: 30, must: ['spiked', 'dropped', 'plateaued'], banned: NOFILL, model_en: `On Monday, errors spiked to [X] percent after the deploy. They dropped quickly after the rollback. Since then, they've plateaued at about [Y] percent, which is our normal level.`, bad: `the graph went up very much and then it stayed`, why_he: `לספר סיפור עם גרף.` }),
+  NU.speak('nu-026', 3, { title_he: `p95 ו-p99`, prompt_en: `Explain your latency numbers: p95, p99, and what they mean. 30 seconds.`, seconds: 30, must: ['p95', 'p99', 'milliseconds'], banned: NOFILL, model_en: `Our p95 latency is [X] milliseconds, which is fine. The p99 is the problem: it's over [Y] seconds. That's one request in a hundred, and most of them are on the search page.`, bad: `p ninety five is two hundred ms more or less`, why_he: `מספרים עם משמעות.` }),
+  NU.speak('nu-027', 2, { title_he: `עלות עם placeholders`, prompt_en: `Present a cost: per month, per user, and compared to last year. Use [X], [Y], [Z]. 30 seconds.`, seconds: 30, must: ['a month', 'per user', 'compared to'], banned: ["let's say", 'um', 'so', 'basically'], model_en: `The new setup costs about [X] dollars a month. That's [Y] dollars per user. Compared to last year, it's [Z] percent cheaper.`, bad: `let's say it's like [X] dollars for month`, why_he: `כסף נאמר ברור ובקצרה.` }),
+  NU.speak('nu-028', 2, { title_he: `השוואה`, prompt_en: `Compare a new system to an old one. Use "twice as" and "than". 30 seconds.`, seconds: 30, must: ['twice as', 'than'], banned: NOFILL, model_en: `The new cluster is twice as fast as the old one. It's also cheaper than we expected, by about [X] percent.`, bad: `the new one is more fast two times from the old`, why_he: `מבני השוואה.` }),
+  NU.speak('nu-029', 2, { title_he: `תאריכים וטווחים`, prompt_en: `Explain a migration window: dates, pace, and end date. 30 seconds.`, seconds: 30, must: ['between', 'by the end of'], banned: NOFILL, model_en: `The migration window is between March 3rd and March 7th. We'll move about [N] services a day, and we'll be done by the end of the week.`, bad: `from the 3 until the 7 of March more or less`, why_he: `תאריכים בלי בלבול.` }),
+  NU.recall('nu-030', 1, `שקף של מספרים`, `Three numbers. Uptime is 99.9 percent. The p95 latency is [X] milliseconds. And cost per request dropped by [Y] percent since January.`, `שלושה מספרים, כל אחד במשפט.`),
+  NU.recall('nu-031', 2, `גרף בהצגה`, `Here are the last 30 days. Traffic grew steadily, then spiked on the 14th, during the sale. It dropped back the next day, and it has plateaued since.`, `לספר את הגרף מימין לשמאל, בזמן.`),
+  NU.qa('nu-032', 2, `Is that number good or bad?`, `It's good for us. Our target is [X] milliseconds, and we're under it. Last quarter, we were [Y] percent above it.`, `תשובה קודם, ואז היעד וההשוואה.`, `לפרש מספר לקהל.`),
+
+  // =====================================================================
+  // VOCAB - hi-tech verbs, phrasal verbs, collocations
+  // =====================================================================
+  VO.fix('vo-001', 1, `I'll do a deploy tonight.`, `I'll deploy tonight.`, `deploy הוא פועל. בלי do a.`, `"לעשות דיפלוי" בתרגום ישיר.`),
+  VO.fix('vo-002', 1, `We need to do a rollback.`, `We need to roll back.`, `roll back = פועל. rollback = שם עצם.`, `phrasal verb במקום do.`),
+  VO.fix('vo-003', 2, `I raised a ticket to the network team.`, `I raised a ticket with the network team.`, `raise a ticket with. גם open a ticket תקין.`, `קולוקציה של טיקטים.`),
+  VO.fix('vo-004', 1, `We will lift up a new environment.`, `We'll spin up a new environment.`, `spin up = להרים סביבה.`, `תרגום ישיר של "להרים".`),
+  VO.fix('vo-005', 1, `We need to down the old servers.`, `We need to tear down the old servers.`, `tear down = לפרק ולמחוק.`, `phrasal verb לתשתית.`),
+  VO.fix('vo-006', 2, `We will finish the old API slowly.`, `We'll phase out the old API.`, `phase out = להוציא משימוש בהדרגה.`, `מילה של תוכנית מעבר.`),
+  VO.fix('vo-007', 2, `The client is doing too many requests, so we limit him.`, `The client sends too many requests, so we throttle it.`, `throttle = להגביל קצב. client הוא it.`, `מגבלת קצב.`),
+  VO.fix('vo-008', 2, `We will enter the new engineers to the team.`, `We'll onboard the new engineers.`, `onboard = לקלוט עובד חדש.`, `תהליכי צוות.`),
+  VO.fix('vo-009', 1, `This feature is deprecate.`, `This feature is deprecated.`, `is deprecated, עם d.`, `הודעת deprecation.`),
+  VO.fix('vo-010', 1, `We released the feature to the air.`, `We shipped the feature.`, `ship a feature.`, `קולוקציה של מוצר.`),
+  VO.fix('vo-011', 1, `Let's do a postmortem meeting.`, `Let's run a postmortem.`, `run a postmortem.`, `קולוקציה של תהליך.`),
+  VO.fix('vo-012', 2, `The system did failover to the second region.`, `The system failed over to the second region.`, `fail over = פועל. failover = שם עצם.`, `שם עצם מול פועל.`),
+  VO.fix('vo-013', 1, `I'll close a meeting with them.`, `I'll set up a meeting with them.`, `"לסגור פגישה" = set up. close a deal זה במכירות.`, `תרגום ישיר שמבלבל.`),
+  VO.fix('vo-014', 3, `If it fails, the client tries again and again fast.`, `If it fails, the client backs off and retries.`, `back off = לחכות לפני ניסיון נוסף.`, `מונח של עמידות.`),
+  VO.choice('vo-015', 1, `We will spread the version slowly to everyone.`, [`We'll roll it out gradually.`, `We'll spread out the version slow.`, `We'll roll in the version to all slowly.`], 0, `roll out = לפרוס בהדרגה.`, `phrasal verb מרכזי.`),
+  VO.choice('vo-016', 1, `Can you raise me the permissions?`, [`Can you grant me access?`, `Can you raise me the permissions up?`, `Can you lift my permissions to me?`], 0, `grant access.`, `לבקש הרשאות.`),
+  VO.choice('vo-017', 2, `We need to make smaller the risk.`, [`We need to mitigate the risk.`, `We need to small the risk.`, `We need to make less the risk.`], 0, `mitigate = להפחית.`, `מילה של ניהול סיכונים.`),
+  VO.choice('vo-018', 1, `Let's do a deciding.`, [`Let's make a decision.`, `Let's do a deciding now.`, `Let's take down the decision.`], 0, `make a decision.`, `קולוקציה בסיסית.`),
+  VO.choice('vo-019', 1, `I'll check it and return to you.`, [`I'll look into it and get back to you.`, `I'll check it and return back to you.`, `I'll check and come back you.`], 0, `look into, get back to.`, `phrasal verbs יומיומיים.`),
+  VO.choice('vo-020', 2, `We need to push the deadline to forward.`, [`We need to push back the deadline.`, `We need to push forward the deadline later.`, `We need to move ahead back the deadline.`], 0, `push back = לדחות.`, `לוח זמנים.`),
+  VO.choice('vo-021', 2, `The bug was fixed in production by hot.`, [`We shipped a hotfix to production.`, `We hotted the fix to production.`, `The bug was hot-fixed by hot.`], 0, `hotfix = תיקון דחוף.`, `מונח של שחרור.`),
+  VO.choice('vo-022', 2, `I want to give a credits to Alex.`, [`I want to give credit to Alex.`, `I want to give a credits to Alex.`, `I want to credit on Alex.`], 0, `give credit to, בלי a.`, `להכיר בעבודה של אחרים.`),
+  VO.choice('vo-023', 1, `We will run on it tomorrow.`, [`We'll run it tomorrow.`, `We'll make a run on it tomorrow.`, `We'll run on it tomorrow morning on.`], 0, `run it = להריץ.`, `"נריץ את זה" בתרגום ישיר.`),
+  VO.speak('vo-024', 2, { title_he: `תוכנית פריסה`, prompt_en: `Explain a gradual rollout plan in 45 seconds.`, seconds: 45, must: ['roll out', 'roll back', 'monitor'], banned: NOFILL, model_en: `We'll roll out the new version to five percent of users first. We'll monitor errors and latency for one hour. If anything looks wrong, we roll back in one click. If not, we go to fifty percent, and then to everyone.`, bad: `we do a deploy to some users and then we see`, why_he: `phrasal verbs בתוך הסבר אמיתי.` }),
+  VO.speak('vo-025', 1, { title_he: `להרים ולפרק`, prompt_en: `Explain the life of a test environment. Use "spin up" and "tear down". 30 seconds.`, seconds: 30, must: ['spin up', 'tear down'], banned: NOFILL, model_en: `For every pull request, we spin up a test environment. It runs the full test suite. When the PR is merged, we tear down the environment automatically, and we stop paying for it.`, bad: `we lift up an environment and then we delete it`, why_he: `מחזור חיים של סביבה.` }),
+  VO.speak('vo-026', 2, { title_he: `הוצאה משימוש`, prompt_en: `Announce that an old API is going away. 30 seconds.`, seconds: 30, must: ['deprecated', 'phase out', 'migrate'], banned: NOFILL, model_en: `The old API is deprecated as of this month. We'll phase out the old version over the next quarter. Teams that still use it should migrate to version two. We'll help each team with the move.`, bad: `the old API is finishing, please move`, why_he: `הודעה רשמית וברורה.` }),
+  VO.speak('vo-027', 3, { title_he: `הגבלת קצב`, prompt_en: `Explain rate limiting in 30 seconds. Use "throttle", "back off" and "retry".`, seconds: 30, must: ['throttle', 'back off', 'retry'], banned: NOFILL, model_en: `When a client sends too many requests, we throttle it and return a 429. A good client should back off, wait a few seconds, and retry.`, bad: `if he does too much requests we block him`, why_he: `מונחי עמידות במשפט אחד.` }),
+  VO.speak('vo-028', 2, { title_he: `קליטת עובד`, prompt_en: `Explain how you onboard a new engineer. 30 seconds.`, seconds: 30, must: ['onboard', 'provision', 'access'], banned: NOFILL, model_en: `To onboard a new engineer, we provision a laptop and a cloud account on day one. They get read access first, and write access after the first week.`, bad: `we enter him to the team and give him things`, why_he: `פעלים של תהליכי צוות.` }),
+  VO.shadow('vo-029', 2, 'provision', `pro-VI-zhen. הדגש בהברה השנייה.`, `We provisioned three new nodes this morning.`, `פועל נפוץ בתשתית.`),
+  VO.shadow('vo-030', 2, 'deprecated', `DEP-re-kay-ted. הדגש בהתחלה. לא depreciated.`, `This endpoint is deprecated. Please use version two.`, `מתבלבל עם depreciate.`),
+  VO.shadow('vo-031', 2, 'mitigate / mitigation', `MIT-i-gate. mit-i-GAY-shen. הדגש זז.`, `We mitigated the impact. Mitigation came first, the fix came second.`, `דגש שזז בין פועל לשם עצם.`),
+  VO.qa('vo-032', 2, `What's the difference between a rollback and a hotfix?`, `A rollback goes back to the last version that worked. A hotfix is a new, small change that fixes the bug. We roll back first when we can, because it's faster and safer.`, `שני מונחים, ההבדל, ומה עדיף.`, `להסביר מונחים בבהירות.`),
+
+  // =====================================================================
+  // STRESS - word stress and intonation
+  // =====================================================================
+  WS.shadow('ws-001', 1, 'record', `שם עצם: RE-cord. פועל: re-CORD.`, `We keep a record of every change. Let me record this demo.`, `אותה מילה, דגש אחר.`),
+  WS.shadow('ws-002', 1, 'present', `שם עצם ותואר: PRE-sent. פועל: pre-SENT.`, `Today I'll present the results. Everyone is present.`, `מילה של כל הרצאה.`),
+  WS.shadow('ws-003', 1, 'increase', `שם עצם: IN-crease. פועל: in-CREASE.`, `We saw an increase in errors. We need to increase the limit.`, `שם עצם מול פועל.`),
+  WS.shadow('ws-004', 1, 'decrease', `שם עצם: DE-crease. פועל: de-CREASE.`, `Latency will decrease. That's a big decrease.`, `שם עצם מול פועל.`),
+  WS.shadow('ws-005', 2, 'content', `CON-tent = תוכן. con-TENT = מרוצה.`, `The content is ready, and the team is content with it.`, `דגש משנה משמעות.`),
+  WS.shadow('ws-006', 2, 'object', `OB-ject = אובייקט. ob-JECT = להתנגד.`, `Each object has an ID. Does anyone object?`, `דגש משנה משמעות.`),
+  WS.shadow('ws-007', 2, 'project', `שם עצם: PRO-ject. פועל: pro-JECT (לחזות).`, `This project will take a year. We project a ten percent saving.`, `שם עצם מול פועל.`),
+  WS.shadow('ws-008', 1, 'progress', `שם עצם: PRO-gress. פועל: pro-GRESS.`, `We made good progress. The work will progress next week.`, `מילה של כל עדכון.`),
+  WS.shadow('ws-009', 1, 'update', `שם עצם: UP-date. פועל: up-DATE.`, `Here's a quick update. I'll update the ticket.`, `מילה של כל סטנדאפ.`),
+  WS.shadow('ws-010', 2, 'contract', `CON-tract = חוזה. con-TRACT = להתכווץ.`, `The contract is signed. The budget may contract next year.`, `דגש משנה משמעות.`),
+  WS.shadow('ws-011', 2, 'export / import', `שם עצם: EX-port, IM-port. פועל: ex-PORT, im-PORT.`, `Export the data, then import it into the new system.`, `פעלים של נתונים.`),
+  WS.shadow('ws-012', 2, 'analysis / analyze', `a-NAL-y-sis. AN-a-lyze. הדגש זז.`, `Run the analysis first. Then analyze the results.`, `משפחת מילים עם דגש שזז.`),
+  WS.shadow('ws-013', 2, 'technology / technical', `tech-NOL-o-gy. TECH-ni-cal.`, `The technology is new, but the technical risk is low.`, `משפחת מילים עם דגש שזז.`),
+  WS.shadow('ws-014', 2, 'economy / economic', `e-CON-o-my. e-co-NOM-ic.`, `It's an economic decision, not a technical one.`, `משפחת מילים עם דגש שזז.`),
+  WS.shadow('ws-015', 2, 'available / availability', `a-VAIL-a-ble. a-vail-a-BIL-i-ty.`, `The service is available. Availability is 99.9 percent.`, `מילה של SLA.`),
+  WS.shadow('ws-016', 2, 'reliable / reliability', `re-LI-a-ble. re-li-a-BIL-i-ty.`, `It's reliable. Reliability is our top goal.`, `מילה של SRE.`),
+  WS.shadow('ws-017', 2, 'security / secure', `se-CUR-i-ty. se-CURE.`, `Security is not a feature. Make it secure by default.`, `מילה של כל הצגה.`),
+  WS.shadow('ws-018', 2, 'configure / configuration', `con-FIG-ure. con-fig-u-RA-tion.`, `Configure the alert. Then check the configuration.`, `דגש שזז במילה ארוכה.`),
+  WS.shadow('ws-019', 2, 'Kubernetes', `koo-ber-NET-eez. הדגש בהברה השלישית.`, `We run everything on Kubernetes.`, `שם כלי שנאמר המון.`),
+  WS.shadow('ws-020', 1, 'Linux', `LIN-ux. i קצרה, לא לַיי.`, `The servers run Linux.`, `הגייה נפוצה לא נכונה.`),
+  WS.shadow('ws-021', 1, 'cache', `קֶאש, כמו cash. לא קאצ'ה.`, `The cache is warm, and the hit rate is high.`, `מילה טכנית שנהגית לא נכון.`),
+  WS.shadow('ws-022', 1, 'queue', `קְיוּ, כמו האות Q. כל שאר האותיות שקטות.`, `The queue is empty again.`, `מילה טכנית שנהגית לא נכון.`),
+  WS.shadow('ws-023', 1, 'Is it ready?', `שאלת כן או לא: הקול עולה בסוף.`, `Is it ready? Did the tests pass?`, `אינטונציה של שאלה.`),
+  WS.shadow('ws-024', 1, `It's ready.`, `משפט חיווי: הקול יורד בסוף. נשמע בטוח.`, `It's ready. The tests passed.`, `קול יורד = ביטחון.`),
+  WS.shadow('ws-025', 2, 'When is the release?', `שאלת wh: הקול יורד בסוף, לא עולה.`, `When is the release? Who owns it?`, `אינטונציה של שאלות wh.`),
+  WS.shadow('ws-026', 2, 'logs, metrics, and traces', `ברשימה: עולה, עולה, ויורד במילה האחרונה.`, `We collect logs, metrics, and traces.`, `אינטונציה של רשימה.`),
+  WS.shadow('ws-027', 3, `isn't the API. It's the database.`, `מדגישים את המילים שמנוגדות: API, database.`, `The problem isn't the API. It's the database.`, `דגש של ניגוד.`),
+  WS.shadow('ws-028', 3, 'We did test it.', `מדגישים את did כדי לענות לספק.`, `We did test it. We tested it twice.`, `דגש של הדגשה.`),
+  WS.choice('ws-029', 1, `development`, [`de-VEL-op-ment`, `DE-vel-op-ment`, `de-vel-op-MENT`], 0, `הדגש בהברה השנייה, כמו ב-develop.`, `איפה הדגש.`),
+  WS.choice('ws-030', 1, `record (the verb: "Let me record this")`, [`re-CORD`, `RE-cord`, `re-cor-DING`], 0, `פועל: הדגש בסוף.`, `שם עצם מול פועל.`),
+  WS.choice('ws-031', 2, `analysis`, [`a-NAL-y-sis`, `AN-a-ly-sis`, `a-na-LY-sis`], 0, `הדגש בהברה השנייה.`, `איפה הדגש.`),
+  WS.choice('ws-032', 1, `Is it ready.`, [`Is it ready? (the voice goes up at the end)`, `Is it ready. (the voice goes down and flat)`, `IS IT READY (every word loud)`], 0, `שאלת כן או לא: הקול עולה.`, `אינטונציה של שאלה.`),
+  WS.speak('ws-033', 2, { title_he: `שלוש מילים, דגש נכון`, prompt_en: `Give a 20-second update. Use "progress" (noun), "increase" (verb) and "record" (verb), with the right stress.`, seconds: 20, must: ['progress', 'increase', 'record'], banned: NOFILL, model_en: `We made good progress this week. We want to increase the cache size, and I'll record a short demo for the team.`, bad: `we did a progress, we want to make increase`, why_he: `דגש נכון בתוך משפט אמיתי.` }),
+  WS.recall('ws-034', 2, `משפטים עם דגש נכון`, `Here's a quick update. We made progress on the project. We saw an increase in traffic, and we need to increase the limit. I'll record the demo today.`, `שם עצם ופועל באותו משפט.`),
+  WS.speak('ws-035', 1, { title_he: `שאלה עולה, תשובה יורדת`, prompt_en: `Ask two yes or no questions and answer them. Questions go up. Answers go down.`, seconds: 20, must: ['is it', 'yes'], banned: NOFILL, model_en: `Is it ready? Yes, it's ready. Did the tests pass? Yes, all of them passed.`, bad: `It's ready? It's ready.`, why_he: `אינטונציה של שאלה ותשובה.` }),
+  WS.recall('ws-036', 2, `רשימה וניגוד`, `We collect three things: logs, metrics, and traces. The problem isn't the API. It's the database. And yes, we did test it.`, `רשימה, ניגוד והדגשה.`),
+  WS.speak('ws-037', 3, { title_he: `לתקן הנחה שגויה`, prompt_en: `Someone thinks the network is the problem. Correct them. Stress the word that matters. 20 seconds.`, seconds: 20, must: ["isn't", 'it is'], banned: NOFILL, model_en: `The problem isn't the network. It's the database. And it isn't the whole database. It's one slow query.`, bad: `no, it's not network, it's database`, why_he: `דגש של ניגוד בתוך תשובה.` }),
+  WS.recall('ws-038', 3, `מילים ארוכות`, `Our technology is reliable. Reliability and availability are our top goals. Configure it once, and check the configuration every quarter. Security comes first.`, `מילים ארוכות עם דגש שזז.`),
+  WS.speak('ws-039', 2, { title_he: `הסטאק שלנו`, prompt_en: `Explain your stack in 20 seconds. Use Kubernetes, Linux, cache and queue.`, seconds: 20, must: ['Kubernetes', 'Linux', 'cache', 'queue'], banned: NOFILL, model_en: `We run Linux nodes on Kubernetes. Requests go through a cache first. Slow jobs go to a queue, and workers pick them up.`, bad: `we have kubernetis, lainux and a cachy`, why_he: `מילים טכניות בהגייה נכונה.` }),
+
+  // =====================================================================
+  // INTERVIEW - talking about your work and impact
+  // =====================================================================
+  IV.fix('iv-001', 1, `I am working in DevOps since five years.`, `I've been working in DevOps for five years.`, `have been + ing + for. לא since עם משך זמן.`, `משפט פתיחה בכל ראיון.`),
+  IV.fix('iv-002', 1, `I was responsible on the CI.`, `I was responsible for the CI pipelines.`, `responsible for.`, `לתאר תפקיד.`),
+  IV.fix('iv-003', 2, `We did a big improvement.`, `I cut build time by [X] percent.`, `I, פועל חזק, ומספר.`, `השפעה במספרים.`),
+  IV.fix('iv-004', 2, `My role is to do everything.`, `I own the deployment platform and on-call for [N] services.`, `own = אחראי עד הסוף.`, `תפקיד ברור.`),
+  IV.fix('iv-005', 2, `I know Kubernetes, Terraform, Helm, Jenkins, Ansible, everything.`, `I work mostly with Kubernetes and Terraform, every day.`, `שניים או שלושה כלים, עם עומק.`, `רשימה ארוכה נשמעת שטחית.`),
+  IV.fix('iv-006', 1, `I learned from it a lot.`, `I learned a lot from it.`, `a lot לפני from it.`, `סדר מילים.`),
+  IV.fix('iv-007', 1, `I am very good in automation.`, `I'm very good at automation.`, `good at.`, `מילת יחס.`),
+  IV.fix('iv-008', 2, `The project succeeded thanks to me.`, `I led the project, and it shipped on time.`, `עובדות במקום שבח עצמי.`, `קרדיט בלי יהירות.`),
+  IV.fix('iv-009', 3, `I don't have failures.`, `One failure I learned from was a migration I rushed.`, `כולם נכשלים. מראים מה למדת.`, `שאלת כישלון.`),
+  IV.fix('iv-010', 1, `I'm looking for challenge.`, `I'm looking for a new challenge.`, `a new challenge.`, `סיבה לחפש עבודה.`),
+  IV.choice('iv-011', 2, `We saved a lot of money.`, [`I cut our cloud bill by [X] percent in six months.`, `We saved very a lot of moneys.`, `Lot of money was saving by us.`], 0, `מספר, זמן, ו-I.`, `השפעה מדידה.`),
+  IV.choice('iv-012', 2, `I was part of the team that did it.`, [`I led the design, and two engineers built it with me.`, `I was a part from the team doing it.`, `The team did, I was there inside.`], 0, `מה אתה עשית בדיוק.`, `תפקיד שלך בצוות.`),
+  IV.choice('iv-013', 1, `In my last place of work...`, [`In my last role...`, `In my last working place...`, `In my previous work place of job...`], 0, `in my last role.`, `ביטוי קבוע בראיונות.`),
+  IV.choice('iv-014', 1, `I'm doing DevOps.`, [`I'm a DevOps engineer. I focus on CI/CD and reliability.`, `I'm making DevOps.`, `I do the DevOps things.`], 0, `תפקיד ואז מיקוד.`, `להציג את עצמך.`),
+  IV.choice('iv-015', 1, `I tell you story now, basically.`, [`Let me give you an example.`, `I tell you story now basically.`, `Story time, so, basically, okay.`], 0, `let me give you an example.`, `מעבר לסיפור.`),
+  IV.choice('iv-016', 2, `The result was good.`, [`As a result, deploys went from weekly to daily.`, `The result was good, very good.`, `Result: good result.`], 0, `as a result + שינוי מדיד.`, `סוף של סיפור STAR.`),
+  IV.choice('iv-017', 2, `Why I want this job? Because...`, [`I want this role because it's about reliability at scale.`, `Why I want? Because the job.`, `I am wanting this job for because...`], 0, `I want this role because.`, `מוטיבציה.`),
+  IV.speak('iv-018', 1, { title_he: `התפקיד שלי`, prompt_en: `Describe your role in 45 seconds: team, what you own, what you're responsible for.`, seconds: 45, must: ['I own', 'responsible for', 'team'], banned: ['basically', 'so', 'um', 'like'], model_en: `I'm a DevOps engineer on a platform team of [N] people. I own the CI/CD pipelines and our Kubernetes clusters. I'm also responsible for on-call and incident reviews.`, bad: `basically I do a lot of things, like everything DevOps`, why_he: `תיאור תפקיד ממוקד.` }),
+  IV.speak('iv-019', 2, { title_he: `השפעה במספרים`, prompt_en: `Describe one result you achieved, with numbers (use placeholders) and why it matters. 30 seconds.`, seconds: 30, must: ['by', 'percent', 'which means'], banned: NOFILL, model_en: `I cut our build time by [X] percent, from [Y] minutes to [Z] minutes, which means every engineer gets feedback faster, and we ship more often.`, bad: `we improved the builds a lot, it was very good`, why_he: `מספר ומשמעות.` }),
+  IV.speak('iv-020', 3, { title_he: `תשובת STAR`, prompt_en: `Tell a STAR story: situation, task, action, result. 60 seconds.`, seconds: 60, must: ['the situation was', 'my task was', 'as a result'], banned: ['so', 'basically', 'um', 'uh', 'whatever'], model_en: `The situation was that our deploys failed about once a week. My task was to make them reliable. I added health checks and automatic rollback, and I wrote a runbook. As a result, failed deploys dropped by [X] percent in two months.`, bad: `so basically there was a problem and we fixed it`, why_he: `מבנה סיפור שמראיינים מחפשים.` }),
+  IV.speak('iv-021', 3, { title_he: `ספר על כישלון`, prompt_en: `"Tell me about a failure." Answer in 45 seconds: the mistake, what you learned, what you do now.`, seconds: 45, must: ['I made a mistake', 'I learned', 'now I'], banned: NOFILL, model_en: `Early in my last role, I made a mistake. I rushed a database migration without a rollback plan, and we had [X] minutes of downtime. I learned to always test the rollback first. Now I don't start a migration without one.`, bad: `I don't really have failures`, why_he: `כנות ולמידה.` }),
+  IV.speak('iv-022', 2, { title_he: `למה אותך`, prompt_en: `"Why should we hire you?" Answer in 30 seconds with one example.`, seconds: 30, must: ['I bring', 'for example'], banned: NOFILL, model_en: `I bring two things: deep experience with Kubernetes, and calm in incidents. For example, I led the response to our biggest outage last year, and I wrote the postmortem process we still use.`, bad: `because I'm very good and I know everything`, why_he: `טענה עם הוכחה.` }),
+  IV.speak('iv-023', 3, { title_he: `קונפליקט`, prompt_en: `Tell about a disagreement with a colleague and how you solved it. 45 seconds.`, seconds: 45, must: ['we disagreed', 'I listened', 'we agreed'], banned: NOFILL, model_en: `A developer on my team saw it differently. We disagreed about release speed. He wanted daily releases, and I was worried about stability. I listened to his reasons, and we agreed on daily releases with a canary step. It worked well.`, bad: `he was wrong and in the end I was right`, why_he: `לספר על קונפליקט בבגרות.` }),
+  IV.recall('iv-024', 1, `ספר על עצמך`, `I'm a DevOps engineer with [N] years of experience. Today I own the CI/CD platform and the Kubernetes clusters for my team. I like making systems boring and reliable. I'm looking for a role with more scale and more ownership.`, `תשובה מוכנה לשאלה הראשונה.`),
+  IV.recall('iv-025', 2, `סיפור STAR קצר`, `Situation: deploys failed once a week. Task: make them reliable. Action: I added health checks, automatic rollback, and a runbook. Result: failed deploys dropped by [X] percent.`, `ארבעה חלקים, משפט לכל אחד.`),
+  IV.recall('iv-026', 1, `סיום ראיון`, `Thank you for your time. I enjoyed the conversation, and I'm excited about the role. What are the next steps?`, `סיום חם עם שאלה.`),
+  IV.qa('iv-027', 2, `What's your biggest weakness?`, `I sometimes take on too much myself. I've learned to delegate earlier, and I now ask for help on the first day of a problem, not the third.`, `חולשה אמיתית ומה אתה עושה איתה.`, `שאלה קלאסית.`),
+  IV.qa('iv-028', 2, `Why are you leaving your current job?`, `I've learned a lot there, and I'm proud of what we built. I'm looking for bigger scale and a new challenge, and this role offers both.`, `חיובי על העבר, ממוקד בעתיד.`, `שאלה רגישה.`),
+  IV.qa('iv-029', 3, `What would you do in your first 90 days?`, `First, listen and learn the systems. Then, fix one painful thing, to build trust. By day 90, I'd like to own one area end to end.`, `שלבים ברורים לפי זמן.`, `תוכנית התחלה.`),
+  IV.qa('iv-030', 1, `Do you have any questions for us?`, `Yes, two. What does success look like in this role after six months? And what's the biggest reliability challenge the team has today?`, `תמיד שאלה אחת או שתיים.`, `סוף ראיון.`),
+
+  // =====================================================================
+  // SMALLTALK - small talk with international colleagues
+  // =====================================================================
+  SM.fix('sm-001', 1, `Fine, and what with you?`, `I'm good, thanks. How about you?`, `how about you.`, `פתיחה של כל שיחה.`),
+  SM.fix('sm-002', 1, `It was nice, we were at the sea.`, `It was great. We went to the beach.`, `went to the beach. sea זה הים עצמו.`, `לספר על סוף שבוע.`),
+  SM.fix('sm-003', 1, `It's very hot today, no?`, `It's really hot today, isn't it?`, `isn't it בסוף, לא no.`, `שאלת אישור טבעית.`),
+  SM.fix('sm-004', 1, `I'm sorry on the delay.`, `Sorry I'm late.`, `sorry I'm late. קצר.`, `כניסה מאוחרת לשיחה.`),
+  SM.fix('sm-005', 1, `Where are you sitting?`, `Where are you based?`, `based = איפה אתה גר או עובד.`, `תרגום ישיר של "איפה אתה יושב".`),
+  SM.fix('sm-006', 1, `What's the weather by you?`, `What's the weather like where you are?`, `like where you are.`, `"אצלך" בתרגום ישיר.`),
+  SM.fix('sm-007', 1, `Bye bye, see you, bye.`, `Great talking to you. Have a good weekend.`, `סיום אחד, חם וקצר.`, `סיום שיחה.`),
+  SM.fix('sm-008', 1, `I was in a vacation.`, `I was on vacation.`, `on vacation.`, `מילת יחס.`),
+  SM.fix('sm-009', 2, `How much time you are in the company?`, `How long have you been with the team?`, `how long have you been.`, `שאלה על ותק.`),
+  SM.fix('sm-010', 1, `I'm happy to know you.`, `Nice to meet you.`, `nice to meet you.`, `היכרות ראשונה.`),
+  SM.choice('sm-011', 1, `Did you eat?`, [`How's your day going so far?`, `Did you eat already today the lunch?`, `What did you eat, tell me?`], 0, `פתיחה בטוחה: איך היום שלך.`, `פתיחה לפני פגישה.`),
+  SM.choice('sm-012', 2, `How old are you?`, [`How long have you been in this role?`, `How much years you have?`, `What is your age please?`], 0, `לא שואלים גיל, משכורת או פוליטיקה.`, `נושאים בטוחים.`),
+  SM.choice('sm-013', 2, `How much do you earn?`, [`What are you working on these days?`, `How much money you are making?`, `Tell me your salary.`], 0, `שואלים על העבודה, לא על הכסף.`, `נושאים בטוחים.`),
+  SM.choice('sm-014', 1, `Okay, bye.`, [`Thanks, everyone. Talk soon.`, `Okay bye bye bye.`, `Finish, bye.`], 0, `talk soon.`, `סיום שיחה בקבוצה.`),
+  SM.choice('sm-015', 1, `You hear me?`, [`Can you hear me okay?`, `You hearing me?`, `Hear me you can?`], 0, `can you hear me okay.`, `בדיקת סאונד.`),
+  SM.choice('sm-016', 1, `I'm waiting few more minutes for the others.`, [`Let's give it a couple of minutes for others to join.`, `We wait some minutes more for the others.`, `I am waiting to others few minutes.`], 0, `give it a couple of minutes.`, `מחכים שכולם יצטרפו.`),
+  SM.choice('sm-017', 1, `What you did in the weekend?`, [`Did you do anything fun this weekend?`, `What you did on weekend?`, `What was doing your weekend?`], 0, `anything fun this weekend.`, `שאלה על סוף שבוע.`),
+  SM.choice('sm-018', 1, `It's raining at us all week.`, [`It's been raining all week here.`, `It's raining at us all the week.`, `By us is rain all week.`], 0, `here במקום "אצלנו".`, `מזג אוויר.`),
+  SM.speak('sm-019', 1, { title_he: `פתיחה לפני פגישה`, prompt_en: `Alex just joined the call. Open with small talk. 20 seconds.`, seconds: 20, must: ['how', 'weekend'], banned: NOFILL, model_en: `Hi Alex, good to see you. How was your weekend? Did you do anything fun?`, bad: `hi, okay, so, let's start`, why_he: `חום לפני עבודה.` }),
+  SM.speak('sm-020', 1, { title_he: `לספר על סוף השבוע`, prompt_en: `Someone asks: "How was your weekend?" Answer in 30 seconds and ask back.`, seconds: 30, must: ['it was', 'we went', 'how about you'], banned: NOFILL, model_en: `It was really nice, thanks. We went hiking in the north with the kids. It was a bit too hot, but the views were great. How about you?`, bad: `fine. nothing special.`, why_he: `תשובה עם פרט אחד ושאלה חזרה.` }),
+  SM.speak('sm-021', 2, { title_he: `נסיעת עבודה`, prompt_en: `Tell a colleague about a recent work trip. 30 seconds.`, seconds: 30, must: ['trip', 'flight', 'in person'], banned: NOFILL, model_en: `I just got back from a work trip to [city]. The flight was long, but the team was great, and it was nice to meet people in person.`, bad: `I was in a trip, it was okay`, why_he: `סיפור קצר ונעים.` }),
+  SM.speak('sm-022', 1, { title_he: `מחכים לשאר`, prompt_en: `You host a call and people are still joining. Fill 20 seconds politely.`, seconds: 20, must: ['a couple of minutes', 'join'], banned: NOFILL, model_en: `Let's give it a couple of minutes for others to join. In the meantime, how's everyone doing? Busy week?`, bad: `um we wait, um`, why_he: `לא שתיקה מביכה.` }),
+  SM.speak('sm-023', 1, { title_he: `סיום מנומס`, prompt_en: `Close a call warmly in 20 seconds.`, seconds: 20, must: ['thanks', 'talk soon'], banned: NOFILL, model_en: `I think we're done. Thanks, everyone, this was really useful. Have a great weekend, and talk soon.`, bad: `okay bye bye`, why_he: `סיום שמשאיר טעם טוב.` }),
+  SM.speak('sm-024', 2, { title_he: `איפה אני ומזג האוויר`, prompt_en: `Say where you're based and what the weather is like, then ask back. 30 seconds.`, seconds: 30, must: ['based in', 'the weather'], banned: NOFILL, model_en: `I'm based in Israel. The weather here is great most of the year, but summer is very hot and humid. What's the weather like where you are?`, bad: `I'm sitting in Israel, it's hot by us`, why_he: `נושא בטוח עם כל אחד.` }),
+  SM.recall('sm-025', 1, `פתיחה לפני פגישה`, `Hi everyone, good morning. How's everyone doing? Let's give it a minute for others to join.`, `פתיחה קבועה לכל שיחה.`),
+  SM.recall('sm-026', 1, `סיום שיחה נעים`, `Great talking to you. Thanks for your time today. Have a good weekend, and talk soon.`, `סיום קבוע לכל שיחה.`),
+  SM.recall('sm-027', 1, `להציג את עצמך`, `Hi, I'm [your name]. I'm on the platform team, and I work mostly on CI/CD and Kubernetes. Nice to meet you.`, `היכרות בשלושה משפטים.`),
+  SM.qa('sm-028', 1, `So, where are you from?`, `I'm from Israel. Have you ever been there?`, `תשובה קצרה ושאלה חזרה.`, `שאלה נפוצה בשיחות בינלאומיות.`),
+  SM.qa('sm-029', 1, `How's the weather over there?`, `Hot, as usual. It's still summer here in October. How about you?`, `פרט אחד ושאלה חזרה.`, `שיחת חולין קלאסית.`),
+  SM.qa('sm-030', 1, `Any plans for the weekend?`, `Nothing big. A family lunch and some rest. How about you?`, `קצר, ושאלה חזרה.`, `סוף שבוע.`),
+  SM.shadow('sm-031', 1, 'How are you doing?', `מחברים: how-are-ya-DO-ing. קליל.`, `Hey, how are you doing?`, `נשמע טבעי ולא רשמי.`),
+  SM.shadow('sm-032', 1, 'Have a good one', `HAVE a GOOD one. סיום קליל.`, `Thanks, have a good one.`, `סיום טבעי של דוברי אנגלית.`)
+];
 
 export const ITEMS = [
   // =====================================================================
@@ -289,7 +660,10 @@ export const ITEMS = [
   H('sh-015', 1, null, 'pipeline', `PIPE-line. ai ארוכה, כמו פַּייפּ.`, `The pipeline runs every night.`, `תנועה קצרה מדי.`),
   H('sh-016', 1, null, 'deploy', `di-PLOY. הדגש בסוף.`, `We deploy every Tuesday.`, `דגש בהתחלה במקום בסוף.`),
   H('sh-017', 2, null, 'data', `DAY-ta. הדגש בהתחלה.`, `The data never leaves our cloud.`, `מילה שחוזרת בכל הרצאה טכנית.`),
-  H('sh-018', 3, null, 'parameters', `pa-RAM-e-ters. הדגש בהברה השנייה.`, `Twenty billion parameters, on two GPUs.`, `דגש במקום הלא נכון.`)
+  H('sh-018', 3, null, 'parameters', `pa-RAM-e-ters. הדגש בהברה השנייה.`, `Twenty billion parameters, on two GPUs.`, `דגש במקום הלא נכון.`),
+
+  // Phase 3 professional items (defined above ITEMS)
+  ...PRO_ITEMS
 ];
 
 // =====================================================================
@@ -414,4 +788,91 @@ export const LEVEL_TITLES_HE = [
   `הקול של הצוות`,
   `מרצה עם uptime מלא`,
   `כוכב ה-keynote`
+];
+
+// =====================================================================
+// TRACKS - skill paths (Duolingo-style). Units go from easy to hard.
+// bossId is always a speak, qa or recall item. Every id exists in ITEMS.
+// =====================================================================
+const unit = (id, title_he, goal_he, itemIds, bossId) => ({ id, title_he, goal_he, itemIds, bossId });
+
+export const TRACKS = [
+  { id: 't-status', title_he: `סטטוס כמו מקצוען`, title_en: 'Status like a pro', desc_he: `סטנדאפ, עדכון שבועי וסטטוס להנהלה. קצר, ברור, עם בקשה.`, icon: 'clock', color: '#6C3BF5', units: [
+    unit('status-1', `המילים של הסטטוס`, `in progress, on track, by Thursday.`, ['st-002', 'st-007', 'st-004', 'st-008', 'st-013', 'st-016'], 'st-028'),
+    unit('status-2', `סטנדאפ ב-30 שניות`, `אתמול, היום, חסימות. בלי מילוי.`, ['st-001', 'st-005', 'st-006', 'st-012', 'st-019'], 'st-022'),
+    unit('status-3', `חסום, מאחר, מחליק`, `לדווח על בעיה עם סיבה וצעד הבא.`, ['st-003', 'st-011', 'st-014', 'st-021', 'st-026'], 'st-027'),
+    unit('status-4', `עדכון שבועי`, `מצב, מה נעשה, מה הלאה, סיכון.`, ['st-009', 'st-015', 'st-018', 'st-020', 'st-023', 'st-029'], 'st-033'),
+    unit('status-5', `סטטוס להנהלה`, `צבע, סיכון ובקשה. גם "לא יודע עדיין".`, ['st-010', 'st-017', 'st-024', 'st-025', 'st-030', 'st-032'], 'st-031')
+  ] },
+  { id: 't-incident', title_he: `הקול בזמן תקלה`, title_en: 'Incident voice', desc_he: `גשר תקלה, הודעות ללקוחות ופוסטמורטם בלי אשמה.`, icon: 'bolt', color: '#F04438', units: [
+    unit('incident-1', `down, rollback, investigating`, `המילים הבסיסיות של תקלה.`, ['in-001', 'in-002', 'in-003', 'in-004', 'in-010', 'in-018'], 'in-027'),
+    unit('incident-2', `עדכון בגשר`, `השפעה, פעולה, עדכון הבא.`, ['in-008', 'in-009', 'in-014', 'in-017', 'in-019'], 'in-021'),
+    unit('incident-3', `לנהל את הגשר`, `לפתוח, לחלק תפקידים, לסגור.`, ['in-005', 'in-011', 'in-012', 'in-021', 'in-026'], 'in-022'),
+    unit('incident-4', `מול לקוחות`, `טון רגוע, בלי פרטים פנימיים.`, ['in-012', 'in-015', 'in-019', 'in-028', 'in-011'], 'in-023'),
+    unit('incident-5', `פוסטמורטם בלי אשמה`, `טריגר, סיבת שורש, משימות.`, ['in-006', 'in-007', 'in-013', 'in-016', 'in-020', 'in-029'], 'in-024'),
+    unit('incident-6', `שאלות קשות אחרי תקלה`, `לענות בלי להתגונן ובלי להאשים.`, ['in-025', 'in-030', 'in-031', 'in-013', 'in-016'], 'in-032')
+  ] },
+  { id: 't-systems', title_he: `להציג מערכת`, title_en: 'Present a system', desc_he: `ארכיטקטורה, מסלול של בקשה, פשרות, סקייל וכשלים.`, icon: 'wrench', color: '#0EA5E9', units: [
+    unit('systems-1', `מילים של ארכיטקטורה`, `responsible for, single point of failure.`, ['sy-001', 'sy-004', 'sy-007', 'sy-008', 'sy-011', 'sy-014'], 'sy-026'),
+    unit('systems-2', `מסלול של בקשה`, `first, then, finally.`, ['sy-003', 'sy-010', 'sy-012', 'sy-018', 'sy-019'], 'sy-020'),
+    unit('systems-3', `שקף עם דיאגרמה`, `להוביל את העין של הקהל.`, ['sy-016', 'sy-019', 'sy-026', 'sy-003', 'sy-015'], 'sy-024'),
+    unit('systems-4', `למה X ולא Y`, `בחירה, סיבה ופשרה.`, ['sy-002', 'sy-006', 'sy-009', 'sy-013', 'sy-017', 'sy-027'], 'sy-021'),
+    unit('systems-5', `סקייל וכשלים`, `מה קורה כשמשהו נופל.`, ['sy-005', 'sy-014', 'sy-015', 'sy-023', 'sy-030'], 'sy-022'),
+    unit('systems-6', `מערכת שלמה, ושאלות`, `תמונה גדולה בדקה, ואז שאלות קשות.`, ['sy-025', 'sy-028', 'sy-029', 'sy-031', 'sy-017'], 'sy-032')
+  ] },
+  { id: 't-meetings', title_he: `פגישות שעובדות`, title_en: 'Meetings that work', desc_he: `להסכים, לא להסכים, להתפרץ, להבהיר ולסגור עם החלטה.`, icon: 'users', color: '#22C55E', units: [
+    unit('meetings-1', `הבסיס`, `I agree, sorry to interrupt, what do you think.`, ['mt-001', 'mt-002', 'mt-003', 'mt-007', 'mt-010', 'mt-016'], 'mt-027'),
+    unit('meetings-2', `להתפרץ ולהבהיר`, `להיכנס לשיחה ולשאול בדיוק מה לא ברור.`, ['mt-006', 'mt-013', 'mt-015', 'mt-020', 'mt-003'], 'mt-026'),
+    unit('meetings-3', `לא להסכים בנימוס`, `הכרה, דאגה, הצעה.`, ['mt-005', 'mt-017', 'mt-029', 'mt-010', 'mt-019'], 'mt-021'),
+    unit('meetings-4', `דחיפה חזרה`, `לא בלי חלופה.`, ['mt-012', 'mt-018', 'mt-019', 'mt-030', 'mt-032'], 'mt-022'),
+    unit('meetings-5', `לנהל פגישה`, `זמן, מטרה, אג'נדה, החלטה.`, ['mt-004', 'mt-008', 'mt-011', 'mt-014', 'mt-025', 'mt-031'], 'mt-023'),
+    unit('meetings-6', `לסכם ולסגור`, `החלטה, משימות, בעלים.`, ['mt-008', 'mt-009', 'mt-028', 'mt-023', 'mt-011'], 'mt-024')
+  ] },
+  { id: 't-numbers', title_he: `מספרים בקול`, title_en: 'Numbers out loud', desc_he: `מספרים גדולים, אחוזים, תאריכים, מגמות ו-p95.`, icon: 'chart', color: '#FFB020', units: [
+    unit('numbers-1', `לקרוא מספרים`, `thousand, million, point, fifteen מול fifty.`, ['nu-003', 'nu-006', 'nu-008', 'nu-020', 'nu-021', 'nu-024'], 'nu-030'),
+    unit('numbers-2', `אחוזים והשוואות`, `up by, lower than, twice as.`, ['nu-002', 'nu-007', 'nu-009', 'nu-016', 'nu-019'], 'nu-028'),
+    unit('numbers-3', `תאריכים וטווחים`, `on March 5th, between X and Y.`, ['nu-004', 'nu-005', 'nu-011', 'nu-014', 'nu-017'], 'nu-029'),
+    unit('numbers-4', `מגמות בגרף`, `spiked, dropped, plateaued.`, ['nu-012', 'nu-013', 'nu-031', 'nu-007', 'nu-016'], 'nu-025'),
+    unit('numbers-5', `זמני תגובה`, `p95, p99, milliseconds.`, ['nu-001', 'nu-015', 'nu-018', 'nu-022', 'nu-023'], 'nu-026'),
+    unit('numbers-6', `כסף ומשמעות`, `סכום, ליחידה, והשוואה.`, ['nu-010', 'nu-019', 'nu-014', 'nu-009', 'nu-032'], 'nu-027')
+  ] },
+  { id: 't-vocab', title_he: `אוצר מילים טכני`, title_en: 'Tech vocabulary', desc_he: `roll out, spin up, phase out, throttle. בלי "do a deploy".`, icon: 'book', color: '#5A2BE0', units: [
+    unit('vocab-1', `בלי do a`, `פועל אחד במקום do + שם עצם.`, ['vo-001', 'vo-002', 'vo-010', 'vo-015', 'vo-018', 'vo-023'], 'vo-024'),
+    unit('vocab-2', `להרים ולפרק`, `spin up, tear down.`, ['vo-004', 'vo-005', 'vo-020', 'vo-021', 'vo-029'], 'vo-025'),
+    unit('vocab-3', `להוציא משימוש`, `deprecate, phase out, mitigate.`, ['vo-006', 'vo-009', 'vo-017', 'vo-030', 'vo-031'], 'vo-026'),
+    unit('vocab-4', `עומס ועמידות`, `throttle, back off, fail over.`, ['vo-007', 'vo-012', 'vo-014', 'vo-016', 'vo-031'], 'vo-027'),
+    unit('vocab-5', `צוות ותהליכים`, `onboard, raise a ticket, run a postmortem.`, ['vo-003', 'vo-008', 'vo-011', 'vo-013', 'vo-019', 'vo-022'], 'vo-028'),
+    unit('vocab-6', `הכל ביחד`, `להסביר מונחים בבהירות.`, ['vo-002', 'vo-012', 'vo-020', 'vo-021', 'vo-024'], 'vo-032')
+  ] },
+  { id: 't-stress', title_he: `להישמע טבעי: דגש`, title_en: 'Sound native: stress', desc_he: `דגש במילה ואינטונציה במשפט. RE-cord מול re-CORD.`, icon: 'wave', color: '#FF7A1A', units: [
+    unit('stress-1', `שם עצם מול פועל`, `record, increase, progress, update.`, ['ws-001', 'ws-003', 'ws-008', 'ws-009', 'ws-030'], 'ws-033'),
+    unit('stress-2', `עוד זוגות`, `present, decrease, content, object.`, ['ws-002', 'ws-004', 'ws-005', 'ws-006', 'ws-007', 'ws-010'], 'ws-034'),
+    unit('stress-3', `דגש שזז`, `analysis, technology, availability.`, ['ws-012', 'ws-013', 'ws-014', 'ws-015', 'ws-016', 'ws-029', 'ws-031'], 'ws-038'),
+    unit('stress-4', `מילים טכניות`, `Kubernetes, Linux, cache, queue.`, ['ws-011', 'ws-017', 'ws-018', 'ws-019', 'ws-020', 'ws-021', 'ws-022'], 'ws-039'),
+    unit('stress-5', `אינטונציה`, `שאלה עולה, תשובה יורדת.`, ['ws-023', 'ws-024', 'ws-025', 'ws-026', 'ws-032'], 'ws-035'),
+    unit('stress-6', `דגש של משמעות`, `ניגוד והדגשה.`, ['ws-024', 'ws-026', 'ws-027', 'ws-028', 'ws-036'], 'ws-037')
+  ] },
+  { id: 't-interview', title_he: `לדבר על ההשפעה שלך`, title_en: 'Talk about your impact', desc_he: `תפקיד, השפעה במספרים, סיפורי STAR וכישלון שלמדת ממנו.`, icon: 'star', color: '#1B1530', units: [
+    unit('interview-1', `לדבר על התפקיד`, `for five years, responsible for, in my last role.`, ['iv-001', 'iv-002', 'iv-010', 'iv-013', 'iv-014'], 'iv-024'),
+    unit('interview-2', `השפעה במספרים`, `I cut, by [X] percent, which means.`, ['iv-003', 'iv-005', 'iv-007', 'iv-011', 'iv-016'], 'iv-019'),
+    unit('interview-3', `לקחת קרדיט`, `מה אתה עשית, בלי יהירות.`, ['iv-004', 'iv-006', 'iv-008', 'iv-012', 'iv-018'], 'iv-022'),
+    unit('interview-4', `סיפור STAR`, `מצב, משימה, פעולה, תוצאה.`, ['iv-003', 'iv-006', 'iv-015', 'iv-016', 'iv-025'], 'iv-020'),
+    unit('interview-5', `כישלון וקונפליקט`, `כנות ולמידה.`, ['iv-006', 'iv-009', 'iv-017', 'iv-023', 'iv-027'], 'iv-021'),
+    unit('interview-6', `סוף הראיון`, `למה עוזבים, 90 יום, שאלות למראיין.`, ['iv-010', 'iv-017', 'iv-026', 'iv-028', 'iv-029'], 'iv-030')
+  ] },
+  { id: 't-smalltalk', title_he: `שיחת חולין`, title_en: 'Small talk', desc_he: `פתיחה לפני פגישה, סוף שבוע, מזג אוויר וסיום נעים.`, icon: 'smile', color: '#F5A524', units: [
+    unit('smalltalk-1', `פתיחה קלילה`, `how are you doing, can you hear me.`, ['sm-001', 'sm-010', 'sm-011', 'sm-015', 'sm-031'], 'sm-025'),
+    unit('smalltalk-2', `סוף שבוע`, `לענות עם פרט אחד ולשאול חזרה.`, ['sm-002', 'sm-008', 'sm-017', 'sm-027', 'sm-030', 'sm-019'], 'sm-020'),
+    unit('smalltalk-3', `מקום ומזג אוויר`, `based in, isn't it, where you are.`, ['sm-003', 'sm-005', 'sm-006', 'sm-018', 'sm-021'], 'sm-024'),
+    unit('smalltalk-4', `מה לא שואלים`, `נושאים בטוחים עם כל אחד.`, ['sm-009', 'sm-012', 'sm-013', 'sm-016', 'sm-022', 'sm-029'], 'sm-028'),
+    unit('smalltalk-5', `סיום מנומס`, `talk soon, have a good one.`, ['sm-004', 'sm-007', 'sm-014', 'sm-026', 'sm-032'], 'sm-023')
+  ] },
+  { id: 't-stage', title_he: `נוכחות על הבמה`, title_en: 'Stage presence', desc_he: `בלי מילות מילוי, פתיחה וסיום חזקים, הדגמות ושאלות מהקהל.`, icon: 'mic', color: '#8A84A3', units: [
+    unit('stage-1', `שתיקה במקום so`, `לעצור במקום למלא.`, ['f-001', 'f-002', 'f-003', 'f-006', 'f-009'], 'f-004'),
+    unit('stage-2', `פתיחה וסיום`, `שאלה, מפה, ומשפט סיום.`, ['r-001', 'r-002', 'r-004', 'r-007', 's-016'], 's-001'),
+    unit('stage-3', `הדגמה בלי להיבהל`, `לדבר בזמן שהמסך רץ, גם כשמשהו נכשל.`, ['r-003', 'r-005', 'r-010', 'f-008', 'r-004'], 's-009'),
+    unit('stage-4', `שאלות מהקהל`, `תשובה קודם, הסבר אחר כך.`, ['r-008', 'r-009', 's-013', 'q-008', 'q-013', 'q-017'], 'q-014'),
+    unit('stage-5', `מול הנהלה`, `קצר, מספרים, בקשה.`, ['r-006', 's-010', 'f-007', 'q-001', 'q-010'], 's-011'),
+    unit('stage-6', `דקה שלמה בלי מילוי`, `שליטה מלאה בקצב ובשקט.`, ['f-011', 's-012', 's-014', 'q-016', 'r-012'], 'f-010')
+  ] }
 ];

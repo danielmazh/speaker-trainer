@@ -1,7 +1,7 @@
 // Service worker: cache-first for same-origin app files, so the game works offline.
 // Bump VERSION on every release to refresh the cache.
 // Privacy: nothing about audio ever passes through here. Recordings are blob URLs in page memory.
-const VERSION = 'v1-2026-10-21';
+const VERSION = 'v3-2026-10-21';
 const CACHE = `speaker-trainer-${VERSION}`;
 const FONT_CACHE = 'speaker-trainer-fonts';
 
@@ -19,6 +19,8 @@ const APP_FILES = [
   './js/engine.js',
   './js/speech.js',
   './js/analyze.js',
+  './js/data.js',
+  './js/theme.js',
   './js/ui/art.js',
   './js/ui/coach.js',
   './js/ui/dom.js',
@@ -28,6 +30,7 @@ const APP_FILES = [
   './js/ui/mic.js',
   './js/ui/mission.js',
   './js/ui/onboarding.js',
+  './js/ui/path.js',
   './js/ui/play.js',
   './js/ui/play-choice.js',
   './js/ui/play-fix.js',
@@ -39,6 +42,7 @@ const APP_FILES = [
   './js/ui/result.js',
   './js/ui/shell.js',
   './js/ui/stats.js',
+  './js/ui/track.js',
   './js/ui/tts.js',
   './icons/icon.svg',
   './icons/icon-192.png',
@@ -47,10 +51,15 @@ const APP_FILES = [
   './icons/icon-maskable-512.png',
 ];
 
+// Install fails if any app file fails, so a release never activates with a partial cache.
+// The old version keeps serving until a full install succeeds.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((c) => Promise.all(APP_FILES.map((u) => c.add(new Request(u, { cache: 'reload' })).catch(() => null))))
+      .then((c) => Promise.all(APP_FILES.map((u) => fetch(new Request(u, { cache: 'reload' })).then((res) => {
+        if (!res.ok) throw new Error(`sw: ${u} ${res.status}`);
+        return c.put(u, res);
+      }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -78,7 +87,11 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
-      }).catch(() => caches.match('./index.html'))),
+      }).catch((err) => {
+        // Offline fallback to the app shell only for page navigations, never for JS or CSS.
+        if (req.mode === 'navigate') return caches.match('./index.html');
+        throw err;
+      })),
     );
     return;
   }

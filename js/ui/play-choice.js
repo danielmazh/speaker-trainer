@@ -10,10 +10,15 @@ export function mount(el, item, { ctx, finish }) {
   for (const c of item.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   for (let i = opts.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [opts[i], opts[j]] = [opts[j], opts[i]]; }
 
+  // Word stress items put the word itself in `wrong`: show it neutral, not as a mistake.
+  const stress = item.cat === 'stress';
   el.innerHTML = `<div class="stack">
     <div class="card stack-sm">
-      <div class="tiny muted bold">נאמר בהרצאה${item.src ? ` <span class="ts">[${esc(item.src)}]</span>` : ''}:</div>
-      ${item.wrong ? `<blockquote class="en quote-bad italic" dir="ltr" lang="en">${esc(item.wrong)}</blockquote>` : ''}
+      ${stress
+        ? `<div class="tiny muted bold">איפה הדגש?</div>
+      ${item.wrong ? `<p class="en quote-neutral" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</p>` : ''}`
+        : `<div class="tiny muted bold">נאמר בהרצאה${item.src ? ` <bdi class="ts" dir="ltr">[${esc(item.src)}]</bdi>` : ''}:</div>
+      ${item.wrong ? `<blockquote class="en quote-bad italic" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</blockquote>` : ''}`}
       ${item.why_he ? `<p class="small muted">${esc(item.why_he)}</p>` : ''}
     </div>
     <div class="options" role="group" aria-label="אפשרויות">

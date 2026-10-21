@@ -88,7 +88,9 @@ const ALIAS = {
   'spell-check': 'grammar', scroll: 'scripts', help: 'qa', presentation: 'presenting',
 };
 
+// cls is escaped; name only picks from the fixed set above.
 export function icon(name, cls = '') {
+  cls = String(cls).replace(/[^\w -]/g, '');
   const key = P[name] ? name : (ALIAS[name] && P[ALIAS[name]] ? ALIAS[name] : 'sparkles');
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${P[key]}</svg>`;
 }

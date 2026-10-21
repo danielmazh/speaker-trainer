@@ -239,3 +239,136 @@ hr.soft { border: 0; height: 1px; background: var(--line); margin: 4px 0; }
   .badges { grid-template-columns: repeat(3, 1fr); }
 }
 .mission .band h1 { font-size: 1.3rem; }
+
+/* ================= phase 3 ================= */
+
+/* ---------- home additions ---------- */
+.cont-card {
+  --c: var(--primary);
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  border: 0; text-align: start; color: var(--ink);
+  transition: transform .12s;
+}
+.cont-card:active, .mini:active, .track-card:active, .coach-card:active { transform: scale(.98); }
+.cont-card .bar { width: 100%; margin-top: 4px; }
+.cont-card .bar > i { background: var(--c); }
+.go-btn.sm { width: 44px; height: 44px; flex-basis: 44px; box-shadow: none; }
+.go-btn.sm svg { width: 18px; height: 18px; }
+.track-ico {
+  width: 44px; height: 44px; flex: 0 0 44px; border-radius: 14px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--c, var(--primary)) 14%, var(--surface)); color: var(--c, var(--primary));
+}
+.track-ico svg { width: 22px; height: 22px; }
+.mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mini {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  color: var(--ink); text-decoration: none; min-height: 76px; transition: transform .12s;
+}
+.mini .ico { width: 44px; height: 44px; flex-basis: 44px; }
+.ring-pct { font-size: .8rem; font-weight: 800; color: var(--ink); }
+.goal-tile .ring-pct { font-size: 1rem; }
+.goal-tile .good-ink svg { width: 20px; height: 20px; }
+
+/* ---------- path ---------- */
+.coach-card { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; transition: transform .12s; }
+.chev-l { color: var(--muted); display: grid; }
+.chev-l svg { width: 20px; height: 20px; }
+.tracks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.track-card {
+  --c: var(--primary);
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: start;
+  padding: 14px; border: 0; border-radius: 20px; background: var(--surface); color: var(--ink);
+  box-shadow: var(--sh-tile); transition: transform .12s;
+}
+.track-text { display: flex; flex-direction: column; gap: 2px; }
+.track-title { font-size: .95rem; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.track-title .tag { font-size: .6875rem; padding: 2px 8px; }
+.track-desc { font-size: .78rem; color: var(--muted-ink); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.track-meta { font-size: .72rem; font-weight: 600; color: var(--muted); }
+.track-meta svg { width: 13px; height: 13px; vertical-align: -2px; }
+.track-card .ring .val { stroke: var(--c); }
+
+/* ---------- track ---------- */
+.band-ico { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 14px; display: grid; place-items: center; background: var(--on-band-15); color: #fff; }
+.band-ico svg { width: 22px; height: 22px; }
+.track .band .sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.unit-n { font-size: 1.375rem; font-weight: 800; }
+.crown-chip {
+  position: absolute; top: -6px; inset-inline-end: -6px;
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); color: var(--muted); border: 2px solid var(--line);
+}
+.crown-chip svg { width: 14px; height: 14px; }
+.crown-chip.ok { background: var(--gold); color: #fff; border-color: var(--surface); }
+.zz-node.locked .crown-chip { opacity: .6; }
+.zz-node.trophy .zz-dot { border-style: dashed; }
+.zz-node.trophy.done .zz-dot { background: var(--gold); border: 0; color: #fff; box-shadow: 0 10px 22px rgba(255,176,32,.35); }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.boss-line { display: inline-flex; align-items: center; gap: 4px; font-size: .6875rem; font-weight: 600; color: var(--muted); }
+.boss-line svg { width: 13px; height: 13px; }
+.boss-line.ok { color: var(--warn-ink); }
+.track .zz-label { max-width: calc(100% - 120px); }
+.unit-sheet { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.unit-sheet h2 { font-size: 1.375rem; }
+.big-ico { width: 64px; height: 64px; flex-basis: 64px; border-radius: 20px; background: color-mix(in srgb, var(--c) 14%, var(--surface)); color: var(--c); }
+.big-ico svg { width: 30px; height: 30px; }
+.unit-types { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+
+/* ---------- onboarding questions ---------- */
+.q-top { justify-content: space-between; align-items: center; padding-inline: 28px 16px; }
+.q-prog { display: flex; gap: 6px; padding: 4px 28px 0; }
+.q-prog i { flex: 1 1 0; height: 6px; border-radius: 3px; background: var(--primary-100); }
+.q-prog i.done { background: var(--primary); }
+.q-prog i.now { background: var(--primary-300); }
+.q-body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 12px; padding: 32px 28px 8px; }
+.q-body h1 { font-size: 1.625rem; font-weight: 800; line-height: 1.25; }
+.q-body > p { font-size: .95rem; }
+.q-ico { width: 56px; height: 56px; flex-basis: 56px; border-radius: 18px; }
+.q-ico svg { width: 28px; height: 28px; }
+.q-opts, .pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.q-opts { margin-top: 8px; }
+.q-chip svg { width: 16px; height: 16px; }
+.q-chip[aria-pressed="true"] { box-shadow: var(--sh-tile); }
+.q-seg { margin-top: 8px; }
+.questions .ob-foot .link-btn { color: var(--muted-ink); }
+
+/* ---------- stats v2 ---------- */
+.stat-tiles.four { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.stat-tiles.four .stat-tile { padding: 10px 4px; font-size: .6875rem; text-align: center; line-height: 1.2; }
+.stat-tiles.four .stat-tile b { font-size: 1.125rem; }
+.stat-tiles.four .stat-tile svg { width: 14px; height: 14px; }
+.heat { width: 100%; height: auto; display: block; }
+.heat rect, .heat-key i { fill: var(--line); background: var(--line); }
+.heat .h1, .heat-key .h1 { fill: var(--primary-100); background: var(--primary-100); }
+.heat .h2, .heat-key .h2 { fill: var(--primary-300); background: var(--primary-300); }
+.heat .h3, .heat-key .h3 { fill: var(--primary); background: var(--primary); }
+.heat rect.today { stroke: var(--flame); stroke-width: 2.5; }
+.heat-key { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.heat-key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sm-seg button { min-height: 40px; font-size: .82rem; }
+.tline { width: 100%; height: auto; display: block; overflow: visible; }
+.tline .t-band { fill: var(--good-50); }
+.tline .t-goal { stroke: var(--good); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.tline .t-area { fill: var(--primary-50); opacity: .8; }
+.tline .t-line { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.tline .t-pt { fill: var(--surface); stroke: var(--primary); stroke-width: 2; }
+.tline .t-pt.last { fill: var(--primary); }
+.tline .t-val { fill: var(--ink); font: 700 12px var(--f-en); }
+.trend-key { display: flex; justify-content: space-between; gap: 8px; }
+.trend-key span { display: inline-flex; align-items: center; gap: 4px; }
+.trend-key svg { width: 12px; height: 12px; }
+.trend-empty { padding: 8px 0; }
+.weak-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.weak-list li { --c: var(--primary); display: flex; align-items: center; gap: 10px; }
+.weak-list .btn { flex: 0 0 auto; padding-inline: 14px; }
+.weak-list .btn svg { width: 16px; height: 16px; }
+
+@media (max-width: 370px) {
+  .mini { padding: 10px; gap: 8px; }
+  .mini .ico { width: 38px; height: 38px; flex-basis: 38px; }
+  .stat-tiles.four .stat-tile b { font-size: 1rem; }
+  .track .zz-label { max-width: calc(100% - 110px); }
+  .q-body { padding-inline: 24px; }
+}
+/* Hebrew lines that may start with English: keep punctuation at the true end, stay right aligned. */
+.track .zz-sub, .track-desc, .unit-sheet p, .cont-card .bold { unicode-bidi: plaintext; text-align: right; }

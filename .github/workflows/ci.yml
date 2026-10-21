@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests
+        run: node --test tests/*.test.mjs
+
+      - name: No em dash or en dash in tracked text files
+        shell: bash
+        run: |
+          # U+2014 and U+2013 as UTF-8 bytes. -I skips binary files.
+          if LC_ALL=C git grep -nI -e $'\xe2\x80\x94' -e $'\xe2\x80\x93'; then
+            echo "::error::Found an em dash or en dash. Use a hyphen (-) instead."
+            exit 1
+          fi
+          echo "OK: no long dashes."
+
+      - name: No obvious secrets
+        shell: bash
+        run: |
+          pattern='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{22,}|(^|[^A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}'
+          if git grep -nIE -e "$pattern" -- . ':!.github/workflows/ci.yml'; then
+            echo "::error::Possible secret found. Remove it and rotate it."
+            exit 1
+          fi
+          echo "OK: no secret patterns."
+
+      - name: HTML sanity (no external scripts, fonts only)
+        shell: bash
+        run: |
+          fail=0
+          files=$(git ls-files '*.html')
+          for f in $files; do
+            # Any script loaded from another host.
+            if grep -noiE '<script[^>]*src=["'"'"']?(https?:)?//[^"'"'"' >]+' "$f"; then
+              echo "::error file=$f::External script found. Only same-origin scripts are allowed."
+              fail=1
+            fi
+            # Frames and objects are not used by the app.
+            if grep -noiE '<(iframe|object|embed)\b' "$f"; then
+              echo "::error file=$f::iframe, object or embed found."
+              fail=1
+            fi
+            # External link or style hosts other than Google Fonts.
+            bad=$(grep -oiE '<link[^>]*href=["'"'"']?(https?:)?//[^"'"'"' >]+' "$f" \
+              | grep -oiE '//[^/"'"'"' >]+' \
+              | grep -viE '^//(fonts\.googleapis\.com|fonts\.gstatic\.com)$' || true)
+            if [ -n "$bad" ]; then
+              echo "::error file=$f::External link host not allowed: $bad"
+              fail=1
+            fi
+          done
+          exit $fail

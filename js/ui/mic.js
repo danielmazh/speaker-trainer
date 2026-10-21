@@ -50,7 +50,7 @@ export function diffHtml(diff, max = 0) {
 }
 
 export function starsHtml(id = 'stars') {
-  return `<div class="stars" id="${id}" role="radiogroup" aria-label="דרג את עצמך מ-1 עד 5">
+  return `<div class="stars" id="${id}" data-testid="stars" role="radiogroup" aria-label="דרג את עצמך מ-1 עד 5">
     ${[1, 2, 3, 4, 5].map((n) => `<button role="radio" aria-checked="false" data-star="${n}" aria-label="${n} מתוך 5">${icon('star')}</button>`).join('')}
   </div>`;
 }
@@ -96,12 +96,12 @@ export function micPanel(host, ctx, opts = {}) {
   const noMicAtAll = !canRecord && !sup.recognition;
   const R = 62, C = 2 * Math.PI * R;
 
-  host.innerHTML = `<div class="mic-panel">
+  host.innerHTML = `<div class="mic-panel" data-testid="mic-panel">
     ${preNote ? `<div class="note warn">${icon('micOff')}<span>${esc(preNote)}</span></div>` : ''}
     <div class="mic-err note warn" hidden>${icon('circleAlert')}<span></span></div>
     ${live && canRec ? `<div class="card transcript-card">
       <div class="card-head"><span class="tiny muted bold">מה שאמרת</span><span class="live" hidden><i></i>LIVE</span></div>
-      <p class="transcript en" dir="ltr" lang="en" aria-live="polite"><span class="ph">Your words show up here...</span></p>
+      <p class="transcript en" dir="ltr" lang="en" aria-live="polite" data-testid="transcript"><span class="ph">Your words show up here...</span></p>
     </div>` : ''}
     ${opts.between || ''}
     <div class="mic-area">
@@ -111,7 +111,7 @@ export function micPanel(host, ctx, opts = {}) {
           <circle cx="70" cy="70" r="${R}" class="lvl-track"/>
           <circle cx="70" cy="70" r="${R}" class="lvl-arc" stroke-dasharray="0 ${C.toFixed(1)}"/>
         </svg>
-        <button class="mic-core" aria-pressed="false" aria-label="${esc(opts.label || 'התחל להקליט')}" ${noMicAtAll ? 'disabled' : ''}>
+        <button class="mic-core" data-testid="mic" aria-pressed="false" aria-label="${esc(opts.label || 'התחל להקליט')}" ${noMicAtAll ? 'disabled' : ''}>
           <span class="i-mic">${icon(noMicAtAll ? 'micOff' : 'mic')}</span><span class="i-stop"></span><span class="i-load">${icon('loader')}</span>
         </button>
       </div>
@@ -119,8 +119,8 @@ export function micPanel(host, ctx, opts = {}) {
       <div class="mic-hint">${noMicAtAll ? 'אין מיקרופון בדפדפן הזה' : 'הקש ודבר'}<bdi class="mic-time"></bdi></div>
     </div>
     <div class="mic-alt">
-      <button class="link-btn" data-type>${icon('keyboard')} הקלד מה אמרת</button>
-      ${opts.noSelf ? '' : `<button class="link-btn" data-self>${icon('starLine')} דרג את עצמך</button>`}
+      <button class="link-btn" data-type data-testid="mic-type">${icon('keyboard')} הקלד מה אמרת</button>
+      ${opts.noSelf ? '' : `<button class="link-btn" data-self data-testid="mic-self">${icon('starLine')} דרג את עצמך</button>`}
     </div>
     <div class="mic-after" hidden></div>
   </div>`;
@@ -268,8 +268,8 @@ export function micPanel(host, ctx, opts = {}) {
     after.hidden = false;
     after.innerHTML = `<div class="card stack-sm">
       <label class="field"><span class="lbl">הקלד באנגלית מה אמרת (או מה היית אומר)</span>
-      <textarea class="textarea en" dir="ltr" lang="en" autocomplete="off" autocapitalize="sentences" spellcheck="false" rows="3"></textarea></label>
-      <button class="btn sm" data-check>${icon('check')} בדוק</button>
+      <textarea data-testid="typed" class="textarea en" dir="ltr" lang="en" autocomplete="off" autocapitalize="sentences" spellcheck="false" rows="3"></textarea></label>
+      <button class="btn sm" data-check data-testid="typed-check">${icon('check')} בדוק</button>
     </div>`;
     const ta = after.querySelector('textarea');
     ta.focus();
@@ -294,6 +294,13 @@ export function micPanel(host, ctx, opts = {}) {
     opts.onDone && opts.onDone(take);
   }
 
+  // speech.js ends the take itself when the page goes hidden (no error). Finish it here too,
+  // so coming back to the app shows the result instead of a stuck "listening" mic.
+  const onHide = (e) => { if ((e.type === 'pagehide' || document.visibilityState === 'hidden') && state === 'listening') stop(); };
+  document.addEventListener('visibilitychange', onHide);
+  window.addEventListener('pagehide', onHide);
+  ctx.onLeave(() => { document.removeEventListener('visibilitychange', onHide); window.removeEventListener('pagehide', onHide); });
+
   btn.addEventListener('click', () => (state === 'idle' ? start() : state === 'listening' ? stop() : null));
   q('[data-type]').addEventListener('click', () => typed());
   q('[data-self]')?.addEventListener('click', () => { if (state !== 'listening') fallback(null, 0); });
@@ -313,6 +320,8 @@ export function takeMetrics(take) {
     wpm: a ? a.wpm : 0,
     fillerTotal: a ? a.fillerTotal : undefined,
     fillersPerMin: a && take.mode === 'speech' ? a.fillersPerMin : undefined,
+    fillers: a && a.fillers ? { ...a.fillers } : {},
+    beDrops: a && a.beDrops ? a.beDrops.length : 0,
     targetScore: a ? a.targetScore : null,
     selfRated: take.selfScore != null,
   };

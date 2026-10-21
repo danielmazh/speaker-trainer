@@ -18,7 +18,11 @@ export const prefersReducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // SVG ring. pct 0..100. Returns html string.
+// Numbers are coerced, cls/color/track are escaped. `label` is trusted HTML: build it
+// from static markup and escaped or numeric values only.
 export function ringSvg(pct, { size = 64, stroke = 7, cls = '', color = '', track = '', label = '' } = {}) {
+  size = Number(size) || 64; stroke = Number(stroke) || 7;
+  cls = esc(cls); color = esc(color); track = esc(track);
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(100, Number(pct) || 0));

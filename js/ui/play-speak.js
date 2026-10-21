@@ -20,9 +20,9 @@ export function mount(el, item, api) {
   const timerEl = document.querySelector('[data-timer]');
 
   const counters = `<div class="counters" aria-live="off">
-    <div class="counter" data-k="wpm"><span class="cv"><span class="cdot">${icon('gauge')}</span><b>-</b></span><span class="cl">מילים לדקה</span></div>
-    <div class="counter" data-k="fpm"><span class="cv"><span class="cdot">${icon('mute')}</span><b>0</b></span><span class="cl">מילוי לדקה</span></div>
     <div class="counter" data-k="must"><span class="cv"><span class="cdot">${icon(must.length ? 'target' : 'message')}</span><b class="en-num"><bdi>${must.length ? `0/${must.length}` : '0'}</bdi></b></span><span class="cl">${must.length ? 'מילות חובה' : 'מילים'}</span></div>
+    <div class="counter" data-k="fpm"><span class="cv"><span class="cdot">${icon('mute')}</span><b>0</b></span><span class="cl">מילוי לדקה</span></div>
+    <div class="counter" data-k="wpm"><span class="cv"><span class="cdot">${icon('gauge')}</span><b>-</b></span><span class="cl">מילים לדקה</span></div>
   </div>`;
 
   el.innerHTML = `<div class="stack speak">

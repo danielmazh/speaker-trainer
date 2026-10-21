@@ -7,6 +7,8 @@ import { artStage } from './fx.js';
 import { diffHtml, segHtml } from './mic.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// Stored state is untrusted: numbers from it are coerced before they reach innerHTML.
+const int = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : 0);
 
 function headline(avg) {
   if (avg >= 90) return ['וואו, כמו על במה!', 'ככה נשמע דובר בטוח.'];
@@ -25,7 +27,8 @@ export function render(root, ctx, { task, results, outcome, items }) {
   const avg = results.length ? Math.round(results.reduce((a, r) => a + r.score, 0) / results.length) : 0;
   const [title, sub] = headline(avg);
   const st = ctx.state;
-  const next = ctx.nextTask();
+  const isUnit = !!(task.unit || task.back === 'track');
+  const next = task.practice || isUnit ? null : ctx.nextTask();
 
   // Fillers across all spoken takes.
   const fill = {};
@@ -51,27 +54,28 @@ export function render(root, ctx, { task, results, outcome, items }) {
   });
   const recs = results.map((r, k) => ({ r, k })).filter(({ r }) => r._take && r._take.audioUrl);
 
-  root.innerHTML = `<section class="screen no-nav result">
+  root.innerHTML = `<section class="screen no-nav result" data-testid="result">
     <header class="band result-band">
       <div class="result-row">
         <div class="result-text">
           <h1>${esc(title)}</h1>
           <p class="sub">${esc(sub)}</p>
           <div class="row">
-            <span class="band-pill"><bdi>+<span data-xp>0</span> XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>
-            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}"><bdi>${st.streak.count || 0}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
+            <span class="band-pill"><bdi>+<span data-xp data-testid="xp-gained">0</span> XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>
+            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}"><bdi>${int(st.streak && st.streak.count)}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
           </div>
         </div>
-        ${ringSvg(0, { size: 124, stroke: 20, cls: 'on-band score-ring', label: `<div><b class="score-n en-num">0</b><div class="of" dir="ltr">/100</div></div>` })}
+        ${ringSvg(0, { size: 124, stroke: 20, cls: 'on-band score-ring', label: `<div><b class="score-n en-num" data-testid="score">0</b><div class="of" dir="ltr">/100</div></div>` })}
       </div>
     </header>
 
     <div class="body">
-      ${outcome.missionDone ? `<div class="card mission-done"><span class="md-art">${artTrophy(64)}</span><div class="grow"><div class="bold">המשימה היומית הושלמה!</div><div class="small muted">5 מתוך 5, כולל בונוס של 50 XP.</div></div></div>` : ''}
+      ${outcome.unitDone || outcome.bossPassed ? `<div class="card mission-done" data-testid="unit-done"><span class="md-art">${artTrophy(64)}</span><div class="grow"><div class="bold">${outcome.unitDone ? 'יחידה הושלמה!' : 'ניצחת את הבוס!'}</div><div class="small muted">${outcome.unitDone ? 'היחידה הבאה במסלול נפתחה.' : 'עוד קצת תרגול, והיחידה מאחוריך.'}</div></div></div>` : ''}
+      ${outcome.missionDone ? `<div class="card mission-done" data-testid="mission-done"><span class="md-art">${artTrophy(64)}</span><div class="grow"><div class="bold">המשימה היומית הושלמה!</div><div class="small muted">5 מתוך 5, כולל בונוס של 50 XP.</div></div></div>` : ''}
 
       ${spokeAtAll ? `<div class="card stack-sm">
         <div class="card-head"><h2>מילות מילוי</h2><bdi class="en-num bold ${fpm >= 1 ? 'bad-text' : 'good-ink'}">${fpm} / min</bdi></div>
-        ${fillRows.length ? `<ul class="fill-rows" dir="ltr">${fillRows.map(([w, n]) => `<li><span class="en fw">${esc(w)}</span><span class="bar"><i style="--p:${Math.round((n / fillMax) * 100)}%;background:${n >= 2 ? 'var(--bad)' : 'var(--warn)'}"></i></span><span class="fx en-num">x${n}</span></li>`).join('')}</ul>`
+        ${fillRows.length ? `<ul class="fill-rows" dir="ltr" data-testid="filler-rows">${fillRows.map(([w, n]) => `<li><span class="en fw">${esc(w)}</span><span class="bar"><i style="--p:${Math.round((n / fillMax) * 100)}%;background:${n >= 2 ? 'var(--bad)' : 'var(--warn)'}"></i></span><span class="fx en-num">x${n}</span></li>`).join('')}</ul>`
           : `<p class="small good-ink">${icon('check')} אפס מילות מילוי. ככה בדיוק!</p>`}
       </div>` : ''}
 
@@ -93,7 +97,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
 
       ${recs.length ? `<div class="card stack-sm">
         ${recs.map(({ r, k }) => `<div class="player" data-k="${k}">
-          <button class="play-btn" data-audio="${k}" aria-label="השמע את ההקלטה">${icon('play')}</button>
+          <button class="play-btn" data-testid="playback" data-audio="${k}" aria-label="השמע את ההקלטה">${icon('play')}</button>
           <div class="pl-text"><div class="bold small">השמע את ההקלטה${recs.length > 1 ? ` ${recs.indexOf(recs.find((x) => x.k === k)) + 1}` : ''}</div><bdi class="tiny muted en-num">${fmtTime(r._take.durationSec || 0)}</bdi></div>
           <div class="pl-wave" aria-hidden="true">${waveBars(k + 3).map((hh) => `<i style="height:${hh}px"></i>`).join('')}</div>
         </div>`).join('')}
@@ -101,8 +105,10 @@ export function render(root, ctx, { task, results, outcome, items }) {
       </div>` : `<p class="privacy-line">${icon('lock2')} האפליקציה לא שומרת ולא מעלה הקלטות.</p>`}
 
       <div class="btn-row">
-        <button class="btn line fixed" data-again>${icon('rotate')} שוב</button>
-        ${next ? `<button class="btn big" data-next>המשך לשלב הבא ${icon('arrowL')}</button>` : `<a class="btn big" href="#home">הביתה ${icon('arrowL')}</a>`}
+        <button class="btn line fixed" data-again data-testid="again">${icon('rotate')} שוב</button>
+        ${isUnit ? `<a class="btn big" href="#track" data-testid="result-track">חזרה למסלול ${icon('arrowL')}</a>`
+          : next ? `<button class="btn big" data-next data-testid="result-next">המשך לשלב הבא ${icon('arrowL')}</button>`
+          : `<a class="btn big" href="#home" data-testid="result-home">הביתה ${icon('arrowL')}</a>`}
       </div>
     </div>
   </section>`;
@@ -178,8 +184,8 @@ function missionModal(ctx) {
       <h2>המשימה הושלמה!</h2>
       <p class="muted small">עוד יום של אנגלית בקול. ככה בונים ביטחון לבמה.</p>
       <div class="rewards">
-        <span class="reward warn">${icon('flameLine')} <bdi>${st.streak.count}</bdi> ימים ברצף</span>
-        <span class="reward">${icon('starLine')} רמה <bdi>${lv.level}</bdi></span>
+        <span class="reward warn">${icon('flameLine')} <bdi>${int(st.streak && st.streak.count)}</bdi> ימים ברצף</span>
+        <span class="reward">${icon('starLine')} רמה <bdi>${int(lv.level)}</bdi></span>
       </div>
       <button class="btn block big" data-ok>מעולה, ממשיכים</button>`, { label: 'המשימה הושלמה', onClose: resolve });
     m.el.querySelector('[data-ok]').addEventListener('click', m.close);
