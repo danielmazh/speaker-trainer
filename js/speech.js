@@ -44,7 +44,7 @@ const START_TIMEOUT_MS = 5000; // exclusive take: no recognition onstart this lo
 
 /** Platform flags. Never throws. iPadOS reports a Mac UA, so touch points decide there. */
 export function platform() {
-  const out = { mobile: false, ios: false, android: false };
+  const out = { mobile: false, ios: false, android: false, brave: false };
   try {
     const nav = g.navigator || {};
     const ua = String(nav.userAgent || '');
@@ -52,6 +52,8 @@ export function platform() {
     out.ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && Number(nav.maxTouchPoints) > 1);
     const uad = nav.userAgentData;
     out.mobile = out.android || out.ios || !!(uad && uad.mobile === true) || /Mobi/i.test(ua);
+    // Brave ships the Web Speech API but blocks its speech service, so every take fails.
+    out.brave = !!nav.brave;
   } catch { /* never throw */ }
   return out;
 }
@@ -459,6 +461,12 @@ function makeSession({
         return;
       }
       if (FATAL.has(code)) recDisabled = true;
+      if (local && onDevice === 'auto') {
+        // Auto mode tried on-device and it failed: use the browser service from the next take on.
+        onDeviceCache.set(lang, 'no');
+        emitErr('local-failed');
+        return;
+      }
       emitErr(mapRecError(code, local, isIOS));
     };
     r.onend = () => {
@@ -575,6 +583,7 @@ function makeSession({
       let useRec = false;
       if (recognize) {
         if (!SR) emitErr('unsupported');
+        else if (platform().brave) emitErr('brave'); // known not to work: record only, never retry
         else {
           const c = await chooseLocal();
           if (state !== 'starting') { stopTracks(); return; }

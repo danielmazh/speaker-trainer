@@ -24,7 +24,9 @@ const ERR_HE = {
   'audio-capture': 'המיקרופון לא נפתח בפעם הזו. נסה שוב, או הקלד את התשובה.',
   'mic-timeout': 'המיקרופון לא נפתח בזמן. נסה שוב, או הקלד את התשובה.',
   unsupported: 'הדפדפן הזה לא ממיר דיבור לטקסט. אני מקליט, אתה מקשיב ומדרג את עצמך. או מקליד את התשובה.',
-  'ondevice-unavailable': 'זיהוי על המכשיר לא זמין, ובחרת לא להשתמש בשירות של הדפדפן. אפשר לשנות בפרופיל, להקליד או לדרג את עצמך.',
+  'ondevice-unavailable': 'זיהוי דיבור על המכשיר לא זמין בטלפון הזה. בפרופיל אפשר לעבור ל"אוטומטי". בינתיים אפשר להקליד או להקליט לשמיעה.',
+  'local-failed': 'הזיהוי על המכשיר לא עבד. נסה שוב: הפעם נשתמש בשירות הדיבור של הדפדפן.',
+  brave: 'הדפדפן Brave חוסם זיהוי דיבור, אז אין כאן תמלול. כדי לתרגל בקול, פתח את המשחק ב-Chrome. כאן אפשר להקליד או להקליט לשמיעה.',
   network: 'שירות הדיבור של הדפדפן לא זמין כרגע (אולי אין רשת). נסה שוב, או הקלד את התשובה.',
   'no-speech': 'לא שמעתי מילים. נסה שוב, קרוב יותר למיקרופון.',
   'rec-failed': 'זיהוי הדיבור נעצר ולא הצליח להתחיל מחדש. נסה שוב, או הקלד את התשובה.',
@@ -32,9 +34,9 @@ const ERR_HE = {
   'dictation-off': 'זיהוי הדיבור כבוי באייפון. הפעל הכתבה (הגדרות > כללי > מקלדת > הפעל הכתבה) ואם צריך גם את Siri, או הקלד את התשובה.',
   'service-off': 'שירות הדיבור של הדפדפן חסום. אפשר להקליד את התשובה או לדרג את עצמך.',
 };
-const CHIP_HE = { unsupported: 'בלי זיהוי דיבור', 'not-allowed': 'אין גישה למיקרופון' };
+const CHIP_HE = { unsupported: 'בלי זיהוי דיבור', 'not-allowed': 'אין גישה למיקרופון', brave: 'Brave: בלי זיהוי דיבור' };
 // Only a denied permission is kept for the session. Everything else is per take.
-const STICKY = new Set(['not-allowed']);
+const STICKY = new Set(['not-allowed', 'brave']);
 // Errors that end a take at once when no recorder runs beside recognition (mobile, or no mic stream).
 const ENDS_TAKE = new Set(['not-allowed', 'audio-capture', 'mic-timeout']);
 const MIC_PX = 88; // compact block: the mic fits a sticky bottom dock (about 180px with status and actions)
@@ -45,7 +47,7 @@ const MIC_PX = 88; // compact block: the mic fits a sticky bottom dock (about 18
  * -> { sticky: keep for the session, show: show now, endsTake: stop the take now, message }
  */
 export function errorPolicy(code, takeKind = 'both') {
-  const quiet = code === 'unsupported' || code === 'no-speech';
+  const quiet = code === 'unsupported' || code === 'brave' || code === 'no-speech';
   return {
     sticky: STICKY.has(code),
     show: !quiet && !!ERR_HE[code],
@@ -172,12 +174,14 @@ export function micPanel(host, ctx, opts = {}) {
   // 2026-10-25: block styles live in css/play.css; injectCss() kept unused for hosts without it.
   const sup = S.support();
   const plat = (typeof S.platform === 'function' && S.platform()) || { mobile: false };
+  // Brave blocks the speech service: treat it like a browser without recognition (2026-10-25).
+  const recOk = sup.recognition && !plat.brave;
   const session = ctx.session || (ctx.session = {});
   const issue = STICKY.has(session.micIssue) ? session.micIssue : null;
   const canRecord = sup.recorder;
-  const canRec = sup.recognition && !issue;
+  const canRec = recOk && !issue;
   // Mobile with recognition: recognition-only takes; recording for playback is its own take.
-  const mobileRec = !!plat.mobile && sup.recognition;
+  const mobileRec = !!plat.mobile && recOk;
   const live = opts.live !== false;
   const seconds = Number(opts.seconds) || 0;
   const size = Math.min(Number(opts.size) || MIC_PX, MIC_PX);
@@ -194,9 +198,9 @@ export function micPanel(host, ctx, opts = {}) {
   if (typeof (opts.onEnd || opts.onStop) === 'function') endFns.push(opts.onEnd || opts.onStop);
   const pulse = { speaking: false, sound: false, bump: 0, ph: 0 };
 
-  const noteCode = !sup.recognition ? 'unsupported' : issue;
+  const noteCode = plat.brave && sup.recognition ? 'brave' : !recOk ? 'unsupported' : issue;
   const noteFull = noticeMode(session, noteCode) === 'full';
-  const noMicAtAll = !canRecord && !sup.recognition;
+  const noMicAtAll = !canRecord && !recOk;
   const R = 62, C = 2 * Math.PI * R;
   const selfLabel = mobileRec ? 'הקלט לשמיעה' : 'דרג';
   const selfAria = mobileRec ? 'הקלט לשמיעה, בלי תמלול' : 'דרג את עצמך';

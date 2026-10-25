@@ -356,15 +356,15 @@ test('denied permission gives not-allowed and no recognition', async () => {
 test('platform(): Android, iPhone, iPadOS, userAgentData.mobile, desktop', async () => {
   const S = await load();
   setG('navigator', { userAgent: ANDROID_UA });
-  assert.deepEqual(S.platform(), { mobile: true, ios: false, android: true });
+  assert.deepEqual(S.platform(), { mobile: true, ios: false, android: true, brave: false });
   setG('navigator', { userAgent: IPHONE_UA });
-  assert.deepEqual(S.platform(), { mobile: true, ios: true, android: false });
+  assert.deepEqual(S.platform(), { mobile: true, ios: true, android: false, brave: false });
   setG('navigator', { userAgent: DESKTOP_UA.replace('Chrome/129.0 ', ''), maxTouchPoints: 5 });
   assert.equal(S.platform().ios, true, 'iPadOS reports a Mac UA');
   setG('navigator', { userAgent: 'x', userAgentData: { mobile: true } });
   assert.equal(S.platform().mobile, true);
   setG('navigator', { userAgent: DESKTOP_UA, userAgentData: { mobile: false } });
-  assert.deepEqual(S.platform(), { mobile: false, ios: false, android: false });
+  assert.deepEqual(S.platform(), { mobile: false, ios: false, android: false, brave: false });
 });
 
 test('Android: recognition take never opens getUserMedia, no recorder, no level meter', async () => {
@@ -720,4 +720,24 @@ test('visibility and pagehide listeners are removed after every take, on every p
     await s.stop();
   }
   assert.equal(total(), 0, 'every add has a remove');
+});
+
+test('Brave: detected, its note is sticky and quiet, never blames the user', async () => {
+  const { errorPolicy } = await import('../js/ui/mic.js');
+  const p = errorPolicy('brave', 'rec-only');
+  assert.equal(p.sticky, true, 'brave stays for the session');
+  assert.equal(p.endsTake, false, 'record-only take keeps going');
+  assert.match(p.message, /Chrome/);
+  const od = errorPolicy('ondevice-unavailable');
+  assert.doesNotMatch(od.message, /בחרת/, 'no "you chose" wording');
+  assert.equal(errorPolicy('local-failed').sticky, false);
+  const prev = globalThis.navigator;
+  Object.defineProperty(globalThis, 'navigator', { value: { userAgent: 'Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile', brave: {} }, configurable: true });
+  try {
+    const { platform } = await import(`../js/speech.js?brave=${Date.now()}`);
+    assert.equal(platform().brave, true);
+    assert.equal(platform().android, true);
+  } finally {
+    Object.defineProperty(globalThis, 'navigator', { value: prev, configurable: true });
+  }
 });
