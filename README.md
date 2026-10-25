@@ -42,7 +42,7 @@ See [CONTRACT.md](CONTRACT.md) for the modules and their interfaces.
 
 ## Deploy
 
-GitHub Pages deploys through `.github/workflows/pages.yml` on every push to `main` (about a minute). It publishes only the app files. Bump the cache version in `sw.js` on every release.
+GitHub Pages serves `main` from the repo root. Push to `main` and the site updates in about a minute. Bump the cache version in `sw.js` on every release.
 
 ## Copyright
 
