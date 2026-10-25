@@ -28,6 +28,7 @@ export function render(root, ctx) {
         <button data-ptab="me" aria-pressed="${tab === 'me'}">פרופיל</button>
         <button data-ptab="mic" aria-pressed="${tab === 'mic'}">הגדרות</button>
         <button data-ptab="data" aria-pressed="${tab === 'data'}">נתונים</button>
+        <button data-ptab="about" aria-pressed="${tab === 'about'}" data-testid="tab-about">אודות</button>
       </div>
 
       <div class="stack" data-ppanel="me" ${tab === 'me' ? '' : 'hidden'}>
@@ -114,7 +115,25 @@ export function render(root, ctx) {
         <p class="small muted">מוחק נקודות, רצף, תגים והיסטוריה. אי אפשר לבטל.</p>
         <button class="btn line" data-reset style="color:var(--bad);border-color:var(--bad-50)">${icon('trash')} אפס את ההתקדמות</button>
       </div>
-      <p class="tiny muted center">Speaker Trainer · בלי חשבון, בלי פרסומות, בלי מעקב.</p>
+      </div>
+
+      <div class="stack" data-ppanel="about" ${tab === 'about' ? '' : 'hidden'} data-testid="about">
+        <div class="card stack-sm">
+          <h2>${icon('sparkles', 'h-ic')} Speaker Trainer</h2>
+          <p class="small">משחק קצר כל יום שמאמן אנגלית מדוברת לאנשי הייטק: הרצאות, פגישות, עדכוני סטטוס ותקלות.</p>
+          <p class="tiny muted">גרסה <bdi dir="ltr">${esc(String(ctx.E?.APP_VERSION || ''))}</bdi></p>
+        </div>
+        <div class="card stack-sm">
+          <h2>${icon('lock', 'h-ic')} פרטיות</h2>
+          <p class="small muted">בלי חשבון, בלי פרסומות, בלי מעקב. ההקלטות לא נשמרות ולא נשלחות. ההתקדמות נשמרת רק בדפדפן הזה.</p>
+        </div>
+        <div class="card stack-sm">
+          <h2>${icon('medal', 'h-ic')} זכויות יוצרים</h2>
+          <p class="small"><bdi dir="ltr">© ${new Date().getFullYear()} Daniel Mazhbits</bdi>. כל הזכויות שמורות.</p>
+          <p class="tiny muted">הקוד, התוכן, התרגילים והעיצוב מוגנים בזכויות יוצרים. אין להעתיק, להפיץ או לפרסם אותם בלי אישור בכתב.</p>
+        </div>
+      </div>
+      <p class="tiny muted center">Speaker Trainer · <bdi dir="ltr">© ${new Date().getFullYear()} Daniel Mazhbits</bdi></p>
       </div>
     </div>
   </section>`;
