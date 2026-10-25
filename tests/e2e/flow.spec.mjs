@@ -73,7 +73,7 @@ for (const mode of ['mic', 'nomic']) {
         await page.reload();
         await page.goto('?nosw#home');
         await expect(streakPill(page)).toContainText('1');
-        await expect(page.getByText('Mission complete!')).toBeVisible();
+        await expect(page.getByTestId('mission-hero')).toContainText('המשימה הושלמה!');
         await page.goto('?nosw#mission');
         await expect(page.locator('[data-testid="mission-node"][data-status="done"]')).toHaveCount(5);
         await expect(page.getByTestId('mission-finished')).toBeVisible();
@@ -106,9 +106,11 @@ test.describe('speak task with the fake mic', () => {
 
     const stage = page.getByTestId('stage');
     await page.evaluate((t) => { window.__fake.text = t; window.__fake.stepMs = 150; }, SCRIPT);
+    // Compact mic block (mic, status, type and rate actions): fits a sticky dock at 360x740.
+    expect((await stage.getByTestId('mic-block').boundingBox()).height).toBeLessThanOrEqual(180);
     await stage.getByTestId('mic').click();
     await expect(stage.locator('.mic')).toHaveAttribute('data-state', 'listening');
-    await expect(stage.getByText('LIVE')).toBeVisible();
+    await expect(stage.getByText('בשידור')).toBeVisible();
     await expect(stage.getByTestId('transcript').locator('mark.hl-filler').first()).toBeVisible();
     await expect(stage.getByTestId('transcript').locator('mark.hl-bedrop')).toHaveCount(1); // "we gonna"
     await page.waitForFunction(() => document.querySelector('[data-testid="transcript"]').textContent.includes('fast'));
@@ -127,7 +129,11 @@ test.describe('speak task with the fake mic', () => {
     await expect(rows).toHaveAttribute('dir', 'ltr');
     const words = await rows.locator('.fw').allTextContents();
     expect(words).toEqual(expect.arrayContaining(['so', 'basically', 'um']));
-    await expect(res.getByTestId('playback')).toHaveCount(1); // in-memory playback only
+    // In-memory playback only. On mobile, recognition alone owns the mic, so a speech take has no recording.
+    const mobile = await page.evaluate(async () => (await import('./js/speech.js')).platform().mobile);
+    await expect(res.getByTestId('playback')).toHaveCount(mobile ? 0 : 1);
+    // Mobile: the take never opened getUserMedia (no fight with recognition). Desktop: one stream.
+    expect(await page.evaluate(() => window.__fake.gum)).toBe(mobile ? 0 : 1);
     await expect(res.getByTestId('xp-gained')).not.toHaveText('0');
     const last = (await state(page)).history.at(-1);
     expect(last.metrics.fillerTotal).toBeGreaterThanOrEqual(3);

@@ -22,7 +22,7 @@
 .band-title { display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .band-pill {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
-  min-height: 40px; padding: 6px 14px; border-radius: var(--r-pill);
+  min-height: 44px; padding: 6px 14px; border-radius: var(--r-pill);
   background: var(--on-band-15); color: #fff; font-weight: 700; font-size: .95rem;
   font-family: var(--f-en); text-decoration: none; white-space: nowrap;
 }
@@ -235,9 +235,9 @@
 .toast {
   pointer-events: auto;
   display: flex; flex-direction: row; align-items: center; gap: 12px;
-  width: 100%; max-width: 480px; box-sizing: border-box;
+  width: auto; max-width: min(400px, 100%); box-sizing: border-box;
   background: var(--surface); color: var(--ink);
-  border-radius: 16px; padding: 12px 16px;
+  border-radius: 16px; padding: 10px 14px;
   box-shadow: 0 8px 24px rgba(27,21,48,.12);
   border: 2px solid var(--primary-50);
   font-size: .875rem; font-weight: 600;
@@ -323,22 +323,25 @@
 .seg.on-band button[aria-pressed="true"] { background: #fff; color: var(--primary); }
 
 .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; }
+/* 56x44 hit area; the 52x32 track and the knob are drawn inside it. */
 .switch {
-  position: relative; width: 52px; height: 32px; flex: 0 0 52px;
-  border-radius: 999px; border: 0; padding: 0;
-  background: var(--line);
+  position: relative; width: 56px; height: 44px; flex: 0 0 56px;
+  border: 0; padding: 0; background: none; border-radius: 22px;
+}
+.switch::before {
+  content: ""; position: absolute; inset: 6px 2px;
+  border-radius: 999px; background: var(--line);
   transition: background .2s;
 }
 .switch::after {
-  content: ""; position: absolute; top: 4px; inset-inline-start: 4px;
+  content: ""; position: absolute; top: 10px; inset-inline-start: 6px;
   width: 24px; height: 24px; border-radius: 50%; background: #fff;
   box-shadow: 0 2px 6px rgba(0,0,0,.2);
   transition: transform .25s var(--ease-spring);
 }
-.switch[aria-checked="true"] { background: var(--primary); }
+.switch[aria-checked="true"]::before { background: var(--primary); }
 [dir="rtl"] .switch[aria-checked="true"]::after { transform: translateX(-20px); }
 [dir="ltr"] .switch[aria-checked="true"]::after { transform: translateX(20px); }
-.switch::before { content: ""; position: absolute; inset: -6px -4px; }
 
 /* ---------- stars ---------- */
 .stars { display: flex; gap: 6px; justify-content: center; direction: ltr; }
@@ -387,3 +390,75 @@
 @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } }
 .d-block { display: block; }
 .mono { font-family: var(--f-mono); font-size: .75rem; line-height: 1.45; direction: ltr; text-align: left; }
+
+/* ================= ux overhaul: shared building blocks ================= */
+
+/* Compact band for inner screens: one row (back, title, one pill), small padding. */
+.band.compact {
+  padding: calc(max(8px, var(--sat)) + 8px) var(--gutter) 14px;
+  gap: 10px; border-radius: 0 0 24px 24px;
+}
+.band.compact h1 { font-size: 1.25rem; }
+.band.compact .band-title { gap: 10px; }
+.band.compact .prog-row { margin-top: 6px; gap: 8px; }
+.band.compact .prog-row .bar { flex: 1 1 auto; }
+.band.compact > .sub { margin-top: -4px; }
+.band .sub .nowrap-num, .nowrap-num { white-space: nowrap; }
+
+/* Tabs: a segmented control that switches panels on the same screen. */
+.seg.tabs { position: relative; }
+.seg.tabs button { font-size: .875rem; padding: 0 4px; line-height: 1.15; }
+.tab-panel:empty { display: none; }
+
+/* Sticky bottom action bar: the one primary action is always on screen. */
+.action-bar {
+  position: sticky; z-index: 5;
+  bottom: 0;
+  display: flex; gap: 10px; align-items: center;
+  margin: 4px calc(var(--gutter) * -1) 0;
+  padding: 18px var(--gutter) calc(12px + var(--sab));
+  background: linear-gradient(to top, var(--bg) 72%, color-mix(in srgb, var(--bg) 0%, transparent));
+}
+.action-bar > .btn { flex: 1 1 0; }
+.action-bar > .btn.fixed { flex: 0 0 auto; padding-inline: 16px; }
+/* Screens with the bottom nav: the bar sits right above it. */
+body:has(#nav:not([hidden])) .action-bar { bottom: calc(var(--nav-h) + 12px + var(--sab)); padding-bottom: 12px; }
+
+/* Tap targets of 44px at least. */
+.sm-seg button { min-height: 44px; }
+.icon-btn.light { min-width: 44px; }
+
+/* Accordions (details/summary), shared by coach tips, profile and stats. */
+.acc { border-top: 1px solid var(--line); }
+.acc:first-child { border-top: 0; }
+.acc summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 48px; padding: 10px 2px;
+}
+.acc summary::-webkit-details-marker { display: none; }
+.acc .chev { color: var(--muted); transition: transform .25s; display: grid; }
+.acc .chev svg { width: 18px; height: 18px; }
+.acc[open] .chev { transform: rotate(180deg); }
+.acc-title { font-size: .9rem; font-weight: 600; }
+.acc.plain { border: 0; }
+.acc.plain[open] { background: none; }
+.acc-group { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: 2px; }
+.acc-group .acc:first-child { border-top: 0; }
+.pick-acc .pick { padding: 2px 0 12px; }
+
+/* Row link card: icon, two lines, chevron. */
+.row-link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; color: var(--ink); text-decoration: none; min-height: 60px; transition: transform .12s; }
+.row-link .ico { width: 40px; height: 40px; flex-basis: 40px; }
+.file-btn { cursor: pointer; position: relative; }
+.file-btn:focus-within { outline: 3px solid var(--primary); outline-offset: 3px; }
+
+/* Bottom nav with text labels (moved from js/ui/shell.js NAV_CSS, 2026-10-25). */
+.nav a.tab { width: auto; min-width: 56px; min-height: 52px; height: auto; border-radius: 18px; padding: 4px 6px 3px; gap: 1px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.nav a.tab svg { width: 22px; height: 22px; }
+.nav .nav-lbl { font-size: 11px; line-height: 1.1; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+.nav a.tab[aria-current="page"] { color: #fff; background: rgba(255,255,255,.18); }
+.nav a.tab[aria-current="page"] .nav-lbl { font-weight: 800; }
+.nav a.tab[aria-current="page"]::after { display: none; }
+.nav .slot-center { position: relative; display: flex; align-items: flex-end; justify-content: center; }
+.nav .center-lbl { position: absolute; bottom: -2px; inset-inline: 0; text-align: center; color: #fff; }

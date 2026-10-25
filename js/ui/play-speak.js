@@ -1,5 +1,5 @@
-// Speak: the hero screen. Prompt and must-say chips in the band, timer pill,
-// live transcript with fillers, live counters, big mic with level ring, banned chips that shake.
+// Speak: prompt and must-say chips in the band, timer pill, banned chips under it,
+// then the mic dock at the bottom: live transcript (fixed height), live counters, the mic.
 import { esc, fmtTime } from './dom.js';
 import { icon } from './icons.js';
 import { micPanel, takeScore } from './mic.js';
@@ -11,10 +11,20 @@ export function mount(el, item, api) {
   const banned = item.banned || [];
   const seconds = Number(item.seconds) || 60;
 
-  api.band({
+  const extra = api.band({
     title: item.title_he || 'דבר בקול',
-    extra: `<p class="band-prompt en" dir="ltr" lang="en">${esc(item.prompt_en)}</p>
+    extra: `<div class="prompt-wrap"><p class="band-prompt en clamp3" dir="ltr" lang="en" data-prompt>${esc(item.prompt_en)}</p>
+        <button class="more-btn" data-more hidden aria-expanded="false">עוד</button></div>
       ${must.length ? `<div class="must-row" aria-label="מילים שחובה להגיד">${must.map((m, k) => `<span class="must-chip" data-m="${k}"><span class="mc-ic">${icon('circleDashed')}</span><bdi>${esc(m)}</bdi></span>`).join('')}</div>` : ''}`,
+  });
+  // Long prompt: 3 lines, "עוד" opens the rest.
+  const pr = extra.querySelector('[data-prompt]');
+  const more = extra.querySelector('[data-more]');
+  requestAnimationFrame(() => { if (pr.scrollHeight > pr.clientHeight + 2) more.hidden = false; });
+  more.addEventListener('click', () => {
+    const open = pr.classList.toggle('clamp3');
+    more.textContent = open ? 'עוד' : 'פחות';
+    more.setAttribute('aria-expanded', String(!open));
   });
   api.pill(`<bdi class="en-num" data-timer>${fmtTime(seconds)}</bdi>${icon('timer')}`);
   const timerEl = document.querySelector('[data-timer]');
@@ -26,9 +36,9 @@ export function mount(el, item, api) {
   </div>`;
 
   el.innerHTML = `<div class="stack speak">
-    ${item.why_he ? `<p class="note">${icon('bulb')}<span>${esc(item.why_he)}</span></p>` : ''}
     ${banned.length ? `<div class="ban-row"><span class="tiny muted">בלי:</span>${banned.map((m, k) => `<span class="ban-chip" data-b="${k}"><bdi>${esc(m)}</bdi></span>`).join('')}</div>` : ''}
-    <div data-mic></div>
+    ${item.why_he ? `<p class="note">${icon('bulb')}<span>${esc(item.why_he)}</span></p>` : ''}
+    <div class="play-dock" data-mic></div>
   </div>`;
 
   const banCounts = banned.map(() => 0);
@@ -75,9 +85,12 @@ export function mount(el, item, api) {
   }
 
   micPanel(el.querySelector('[data-mic]'), ctx, {
-    size: 176,
+    size: 88,
+    compact: true,
     seconds,
     must, banned,
+    minWords: 15,
+    analyze: { must, banned, minWords: 15 },
     between: counters,
     label: 'התחל לדבר',
     onTick: (left) => { if (timerEl) timerEl.textContent = fmtTime(left); },
@@ -86,10 +99,10 @@ export function mount(el, item, api) {
       if (take.analysis) update(take.analysis, take.transcript, take.durationSec);
       const reveal = `<div class="reveal">
         <div class="spread"><div class="tiny muted">ככה זה יכול להישמע</div>${listenBtn('הקשב')}</div>
-        <p class="en model" dir="ltr">${esc(item.model_en)}</p>
-        ${item.bad ? `<div class="tiny muted">דוגמה חלשה</div><p class="en quote-bad small" dir="ltr">${esc(item.bad)}</p>` : ''}
+        <p class="en model" dir="ltr" lang="en">${esc(item.model_en)}</p>
+        ${item.bad ? `<div class="tiny muted">דוגמה חלשה</div><p class="en quote-bad small" dir="ltr" lang="en">${esc(item.bad)}</p>` : ''}
       </div>`;
-      finish({ score: takeScore(take), take, revealHtml: reveal, afterFeedback: (fb) => bindListen(fb, item.model_en) });
+      finish({ score: takeScore(take), take, revealHtml: reveal, revealLabel: 'הצג תשובה לדוגמה', afterFeedback: (fb) => bindListen(fb, item.model_en) });
     },
   });
 }

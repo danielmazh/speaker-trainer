@@ -26,7 +26,7 @@
 .must-chip.on { background: var(--good); border-color: var(--good); animation: hitPop .24s var(--ease-out); }
 @keyframes hitPop { 50% { transform: scale(1.12); } }
 
-.stage.in { animation: screenIn .3s var(--ease-out) both; }
+.stage.in { animation: screenIn .2s var(--ease-out) both; }
 .stage > .stack { gap: 14px; }
 .center-self { align-self: center; }
 
@@ -82,8 +82,7 @@
 .ban-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ban-chip {
   display: inline-flex; padding: 4px 10px; border-radius: var(--r-pill); font-family: var(--f-en); font-size: .75rem; font-weight: 600;
-  background: var(--surface); border: 1px dashed color-mix(in srgb, var(--bad) 50%, transparent); color: var(--bad);
-  text-decoration: line-through; text-decoration-thickness: 1.5px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--muted-ink);
 }
 .ban-chip.hit { background: var(--bad); color: #fff; border-style: solid; border-color: var(--bad); }
 .ban-chip.shake { animation: shake .45s; }
@@ -254,3 +253,171 @@ mark.hl-must { background: var(--good-50); color: var(--good-ink); font-weight: 
 
 /* Neutral prompt (word stress choice): the word is not a mistake. */
 .quote-neutral { font-family: var(--f-en); font-size: 1.25rem; font-weight: 700; text-align: center; padding: 14px 12px; border-radius: var(--r-inner, 16px); background: var(--primary-50); color: var(--ink); }
+
+/* ================= ux overhaul: play layout ================= */
+
+/* Compact task band: close, segments, pill in one row; kicker and title under it. */
+.task-band { padding: calc(max(8px, var(--sat)) + 6px) var(--gutter) 12px; gap: 6px; border-radius: 0 0 24px 24px; }
+.task-band .task-bar { gap: 10px; }
+.task-band .band-pill { min-height: 40px; padding: 4px 12px; }
+.task-head { display: flex; flex-direction: column; gap: 0; }
+.task-title { font-size: 1.05rem; line-height: 1.3; margin-top: 2px; }
+.task-band .band-extra { gap: 8px; }
+.band-prompt { font-size: .9rem; line-height: 1.4; }
+.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.prompt-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.more-btn { background: none; border: 0; color: #fff; font-weight: 700; font-size: .8rem; text-decoration: underline; min-height: 32px; padding: 0 2px; }
+.must-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.must-row::-webkit-scrollbar { display: none; }
+.must-chip { flex: 0 0 auto; }
+
+.play-body { padding-top: 12px; }
+.stage > .stack { gap: 12px; }
+
+/* Shadow: one card. */
+.word-card { gap: 6px; padding: 14px 16px; text-align: start; }
+.word-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.word-big { font-size: 2rem; line-height: 1.15; }
+.word-card .hint { justify-content: center; font-size: .875rem; }
+.word-card hr.soft { margin: 4px 0; }
+.word-card .sentence { font-size: 1.15rem; }
+.icon-btn.light.sm-ic { width: 44px; height: 44px; }
+.recall-card { display: flex; flex-direction: column; gap: 8px; }
+.recall-card .levels { margin: 0; }
+.recall-card .cloze { line-height: 1.75; }
+.lvl-pip:disabled { opacity: .5; }
+
+/* Q&A: question card, then a slim think row in the dock. */
+.question { font-size: 1.15rem; }
+.q-card { gap: 8px; }
+.think { display: flex; align-items: center; gap: 12px; padding: 8px 4px; }
+.think .btn.sm { flex: 0 0 auto; }
+.think-n { font-size: 1.2rem; }
+
+/* Sticky dock at the bottom of every speaking task: the mic is always on screen. */
+.play-dock {
+  position: sticky; bottom: 0; z-index: 4;
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 8px var(--gutter) 4px;
+  background: linear-gradient(to top, var(--bg) 82%, color-mix(in srgb, var(--bg) 0%, transparent));
+  display: flex; flex-direction: column; gap: 6px;
+}
+.play-dock:empty { display: none; }
+.play-dock > [data-mic]:not([hidden]) { display: block; }
+/* Mic panel inside the dock: compact. These rules also hold if mic.js keeps its older markup. */
+.play-dock .mic-panel { gap: 8px; }
+.play-dock .mic-area { padding: 0; gap: 4px; }
+.play-dock .wave { height: 18px; }
+.play-dock .mic-hint { font-size: .75rem; }
+.play-dock .mic-alt { gap: 0 10px; }
+.play-dock .mic-alt .link-btn { font-size: .82rem; }
+.play-dock .transcript-card { padding: 10px 14px; gap: 4px; }
+/* Fixed transcript height: no layout shift while words come in. */
+.play-dock .transcript { font-size: .95rem; line-height: 1.6; height: calc(2 * 1.6em); min-height: calc(2 * 1.6em); max-height: calc(2 * 1.6em); }
+.play-dock .counters { gap: 6px; }
+.play-dock .counter { flex-direction: row; justify-content: center; gap: 6px; padding: 6px 4px; border-radius: 14px; }
+.play-dock .cv b { font-size: 1rem; }
+.play-dock .cdot { width: 20px; height: 20px; }
+.play-dock .cl { font-size: .68rem; line-height: 1.1; }
+.play-dock .mic-after .card { padding: 10px 12px; }
+.play-dock .mic-after .textarea { min-height: 64px; }
+.play-dock .note { padding: 8px 10px; font-size: .75rem; }
+
+/* ---------- feedback bottom sheet ---------- */
+.feedback:empty { display: none; }
+.feedback {
+  position: fixed; z-index: 40;
+  inset-inline: 0; bottom: 0;
+  margin: 0 auto; width: min(480px, 100%);
+  pointer-events: none;
+}
+.fb-card {
+  pointer-events: auto;
+  display: flex; flex-direction: column; gap: 0;
+  max-height: 62dvh;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  border-top: 4px solid var(--primary);
+  box-shadow: 0 -12px 32px rgba(27,21,48,.16);
+  animation: sheetUp .22s var(--ease-out) both;
+}
+.fb-scroll { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 14px var(--gutter) 6px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.fb-foot { padding: 8px var(--gutter) calc(12px + var(--sab)); border-top: 1px solid var(--line); background: var(--surface); }
+.fb-foot .btn { min-height: 52px; }
+.fb-foot .btn.fixed { flex: 0 0 auto; padding-inline: 16px; }
+.fb-more summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--primary); font-weight: 600; font-size: .9rem; }
+.fb-more summary::-webkit-details-marker { display: none; }
+.fb-more summary svg { width: 16px; height: 16px; transition: transform .2s; }
+.fb-more[open] summary svg { transform: rotate(180deg); }
+/* While the sheet is open: the mic itself is done, room is left under the content for the sheet. */
+.play.has-fb .play-body { padding-bottom: calc(var(--fb-h, 320px) + 8px); }
+.play.has-fb .play-dock { position: static; background: none; padding-bottom: 0; }
+.play.has-fb .play-dock .mic-block, .play.has-fb .play-dock .mic-area, .play.has-fb .play-dock .mic-alt, .play.has-fb [data-peek], .play.has-fb .play-dock .counters { display: none; }
+
+/* ---------- result ---------- */
+.result-band { padding: calc(max(8px, var(--sat)) + 10px) var(--gutter) 16px; border-radius: 0 0 24px 24px; }
+.result-row { gap: 14px; justify-content: flex-start; }
+.result-text { gap: 2px; }
+.result-text h1 { font-size: 1.3rem; }
+.result-text .row { margin-top: 6px; gap: 6px; }
+.result-text .band-pill { min-height: 36px; padding: 4px 12px; font-size: .9rem; }
+.score-n { font-size: 1.75rem; }
+.mission-done { padding: 10px 14px; gap: 10px; }
+.mission-done .md-art { display: grid; }
+.badge-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: linear-gradient(135deg, var(--gold-50, var(--warn-50)), var(--surface)); }
+.details-card { gap: 10px; }
+.details-card .tab-panel { max-height: 40dvh; overflow-y: auto; }
+
+/* ---------- landscape phones: prompt on one side, dock on the other ---------- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .task-band { padding-top: calc(max(4px, var(--sat)) + 4px); padding-bottom: 8px; }
+  .task-head { flex-direction: row; align-items: baseline; gap: 10px; }
+  .task-title { font-size: .95rem; }
+  .play .stage > .stack:has(> .play-dock) { display: grid; grid-template-columns: 1fr minmax(260px, 40%); align-items: start; gap: 12px 16px; }
+  .play .stage > .stack:has(> .play-dock) > * { grid-column: 1; }
+  /* Choice: prompt on one side, the options on the other. */
+  .play[data-type="choice"] .stage > .stack { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 12px 16px; }
+  .play[data-type="choice"] .stage > .stack > .options { grid-column: 2; grid-row: 1 / span 3; }
+  .play[data-type="choice"] .stage > .stack > :not(.options) { grid-column: 1; }
+  .task-band .band-extra { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .task-band .band-extra .prompt-wrap { flex: 1 1 320px; }
+  .band-prompt.clamp3 { -webkit-line-clamp: 2; }
+  .play-dock .transcript-card .card-head { display: none; }
+  .play-dock .counter { padding: 4px; }
+  .play-dock .cl { white-space: nowrap; font-size: .62rem; }
+  .play-body { padding-top: 8px; }
+  .play .stage > .stack:has(> .play-dock) > .play-dock { grid-column: 2; grid-row: 1 / span 6; position: sticky; top: 8px; margin: 0; padding: 0; background: none; }
+  .play .options { gap: 8px; }
+  .play .opt { min-height: 48px; padding: 8px 12px; }
+  .feedback { inset-inline: auto 0; width: min(440px, 52%); margin: 0; }
+  .fb-card { max-height: 100dvh; height: 100dvh; border-radius: 0; border-top-width: 4px; }
+  .play.has-fb .play-body { padding-bottom: 16px; }
+  .result-band .score-ring { transform: scale(.85); }
+}
+
+/* Compact mic block (moved from js/ui/mic.js BLOCK_CSS, 2026-10-25). */
+.mic-block{display:flex;flex-direction:column;gap:4px;padding:4px 0 calc(4px + env(safe-area-inset-bottom,0px))}
+.mic-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.mic-block .mic-area{padding:0;gap:0}
+.mic-side{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:72px;min-height:48px;padding:4px 6px;border:0;border-radius:12px;background:none;color:var(--primary);font:inherit;font-size:.75rem;font-weight:600;line-height:1.2;cursor:pointer}
+.mic-side svg{width:22px;height:22px}
+.mic-side:disabled{opacity:.4;cursor:default}
+.mic-block .mic-core svg{width:28px;height:28px}
+.mic-block .mic-core .i-stop{width:22px;height:22px;border-radius:6px}
+.mic-status{min-height:20px;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 8px;text-align:center;font-size:.8125rem;line-height:1.35}
+.mic-status .mic-hint{font-size:inherit}
+.mic-err{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:2px 8px;color:var(--warn-ink)}
+.mic-err[hidden]{display:none}
+.mic-err svg{width:16px;height:16px;flex:0 0 16px}
+.mic-err .mic-err-t{max-width:34ch}
+.mic-retry{font-weight:700}
+.mic-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border:0;border-radius:999px;background:var(--warn-50);color:var(--warn-ink);font:inherit;font-size:.75rem;cursor:pointer}
+.mic-chip svg{width:14px;height:14px}
+.mic-panel.compact .transcript-card{padding:8px 12px;gap:4px}
+.mic-panel.compact .transcript{max-height:calc(2 * 2em);font-size:1rem}
+.mic-panel.compact .transcript-card[hidden]{display:none}
+.mic[data-state="starting"] .halo{opacity:0}
+.mic[data-state="starting"] .i-mic{display:none}
+.mic[data-state="starting"] .i-load{display:grid;animation:spinFull 1s linear infinite}
+.mic[data-state="starting"] .lvl-ring{opacity:1;animation:spin 1s linear infinite}
+.mic[data-state="starting"] .lvl-arc{stroke-dasharray:98 400 !important}

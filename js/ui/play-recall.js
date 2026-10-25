@@ -1,4 +1,5 @@
 // Recall: a script from memory. Cloze levels hide more words, then speak it and diff.
+// The level is locked while recording; the bonus uses the level the take started with.
 import { esc } from './dom.js';
 import { icon } from './icons.js';
 import { micPanel, takeScore } from './mic.js';
@@ -22,57 +23,69 @@ function clozeHtml(text, level, seed = 1) {
 
 export function mount(el, item, { ctx, finish }) {
   const st = ctx.state.items[item.id];
-  let level = Math.min(4, st ? (st.reps || 0) + 1 : 0);
+  const reps = st ? Number(st.reps) || 0 : 0;
+  // Never start on level 0 (that is reading, not recall). The cloze changes with each attempt.
+  let level = Math.max(1, Math.min(4, reps + 1));
+  const seed = 1 + (reps % 3);
+  let rec = null;
+  let levelAtStart = level;
 
   el.innerHTML = `<div class="stack">
-    <div class="card">
-      <div class="spread"><span class="tag">${icon('scripts')} ${esc(item.title_he)}</span></div>
-      ${item.why_he ? `<p class="small muted" style="margin-top:8px">${icon('bulb')} ${esc(item.why_he)}</p>` : ''}
+    <div class="card recall-card">
+      <div class="spread"><span class="tag">${icon('scripts')} ${esc(item.title_he)}</span>
+        <button class="icon-btn light" data-peek aria-label="החזק כדי לראות הכול">${icon('eye')}</button></div>
       <div class="levels" role="group" aria-label="כמה להסתיר">
         ${LEVELS.map((l, k) => `<button class="lvl-pip" data-l="${k}" aria-pressed="${k === level}" aria-label="רמה ${k + 1}: ${l}">${k + 1}</button>`).join('')}
         <span class="tiny muted lvl-name"></span>
       </div>
       <p class="en cloze" dir="ltr" lang="en" data-cloze></p>
-      <button class="link-btn" data-peek>${icon('eye')} החזק כדי לראות הכול</button>
+      <p class="tiny muted">קרא בשקט, הסתר עוד, ואז אמור הכול בקול.${item.why_he ? ` ${esc(item.why_he)}` : ''}</p>
     </div>
-    <div class="note">${icon('mic')}<span>קרא פעם אחת בשקט, הסתר עוד, ואז אמור את כל הטקסט בקול.</span></div>
-    <div data-mic></div>
+    <div class="play-dock" data-mic></div>
   </div>`;
 
   const cz = el.querySelector('[data-cloze]');
   const draw = (lv = level) => {
-    cz.innerHTML = clozeHtml(item.text_en, lv);
+    cz.innerHTML = clozeHtml(item.text_en, lv, seed);
     el.querySelector('.lvl-name').textContent = LEVELS[level];
   };
   draw();
+  const recording = () => !!(rec && rec.recording);
   el.querySelector('.levels').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]');
-    if (!b) return;
+    if (!b || recording()) return;
     level = Number(b.dataset.l);
     el.querySelectorAll('[data-l]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     ctx.haptic(8);
     draw();
   });
   const peek = el.querySelector('[data-peek]');
-  const showAll = () => draw(0);
+  const showAll = () => { if (!recording()) draw(0); };
   const back = () => draw(level);
   peek.addEventListener('pointerdown', showAll);
   peek.addEventListener('pointerup', back);
   peek.addEventListener('pointerleave', back);
   peek.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showAll(); setTimeout(back, 2500); } });
+  const lock = (on) => {
+    el.querySelectorAll('[data-l]').forEach((x) => { x.disabled = on; });
+    peek.disabled = on;
+  };
 
-  micPanel(el.querySelector('[data-mic]'), ctx, {
+  rec = micPanel(el.querySelector('[data-mic]'), ctx, {
     target: item.text_en,
+    analyze: { target: item.text_en },
     live: true,
+    compact: true,
+    size: 88,
     label: 'הקלט את הטקסט',
-    onStart: () => draw(level),
+    onStart: () => { levelAtStart = level; lock(true); draw(level); },
     onDone: (take) => {
+      lock(false);
       // Level bonus: harder level, small boost, never above 100.
       const base = takeScore(take);
-      const score = take.analysis ? Math.min(100, Math.round(base * (0.85 + level * 0.05))) : base;
-      const reveal = `<div class="reveal"><div class="tiny muted">הטקסט המלא</div><p class="en small" dir="ltr">${esc(item.text_en)}</p></div>`;
-      finish({ score, take, revealHtml: reveal });
+      const score = take.analysis ? Math.min(100, Math.round(base * (0.85 + levelAtStart * 0.05))) : base;
+      const reveal = `<div class="reveal"><p class="en small" dir="ltr" lang="en">${esc(item.text_en)}</p></div>`;
+      finish({ score, take, revealHtml: reveal, revealLabel: 'הצג את הטקסט המלא' });
     },
   });
 }
-

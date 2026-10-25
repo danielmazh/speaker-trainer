@@ -1,10 +1,11 @@
-// Coach: audience picker in the band, icebreaker card, audience plan, tips accordion, practice links.
+// Coach: audience picker in the band, then three tabs: the plan for that audience, an icebreaker, tips.
 import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { bindListen } from './tts.js';
 
 let audId = null;
 let iceIdx = -1;
+let tab = 'plan';
 const TIP_IC = ['slide', 'listChecks', 'pauseBars', 'message', 'users', 'target', 'mic', 'bulb'];
 
 export function render(root, ctx) {
@@ -13,18 +14,26 @@ export function render(root, ctx) {
   if (iceIdx < 0 && ICEBREAKERS.length) iceIdx = Math.floor(Math.random() * ICEBREAKERS.length);
 
   root.innerHTML = `<section class="screen coach" data-testid="coach">
-    <header class="band">
-      <div><h1>המאמן</h1><p class="sub">הכנה מהירה לפני הרצאה</p></div>
-      <div class="stack-xs">
-        <span class="aud-label">מי בקהל?</span>
-        <div class="seg on-band aud-seg" data-testid="audiences" role="group" aria-label="בחר קהל">
-          ${AUDIENCES.map((a) => `<button data-aud="${esc(a.id)}" aria-pressed="${a.id === audId}">${esc(a.name_he)}</button>`).join('')}
-        </div>
+    <header class="band compact">
+      <div class="band-title">
+        <button class="icon-btn" data-back aria-label="חזרה">${icon('arrowR')}</button>
+        <div class="grow"><h1>המאמן</h1><p class="sub">הכנה מהירה לפני הרצאה</p></div>
+      </div>
+      <div class="seg on-band aud-seg" data-testid="audiences" role="group" aria-label="מי בקהל?">
+        ${AUDIENCES.map((a) => `<button data-aud="${esc(a.id)}" aria-pressed="${a.id === audId}">${esc(a.name_he)}</button>`).join('')}
       </div>
     </header>
 
     <div class="body">
-      <div class="card ice-card-wrap">
+      <div class="seg tabs" role="group" aria-label="מה להציג">
+        <button data-ctab="plan" aria-pressed="${tab === 'plan'}">הקהל שלך</button>
+        <button data-ctab="ice" aria-pressed="${tab === 'ice'}">פתיח</button>
+        <button data-ctab="tips" aria-pressed="${tab === 'tips'}">טיפים</button>
+      </div>
+
+      <div class="card stack-sm" data-cpanel="plan" data-audout data-testid="audience-plan" ${tab === 'plan' ? '' : 'hidden'}></div>
+
+      <div class="card ice-card-wrap" data-cpanel="ice" ${tab === 'ice' ? '' : 'hidden'}>
         <div class="card-head">
           <span class="tag warn">${icon('smile')} פתיח</span>
           <div class="row nowrap">
@@ -35,10 +44,7 @@ export function render(root, ctx) {
         <div data-iceout data-testid="icebreaker" aria-live="polite"></div>
       </div>
 
-      <div class="card stack-sm" data-audout data-testid="audience-plan"></div>
-
-      <div class="section-head"><h2>טיפים להצגה</h2></div>
-      <div class="card acc-card">
+      <div class="card acc-card" data-cpanel="tips" ${tab === 'tips' ? '' : 'hidden'}>
         ${COACH.map((c, k) => `<details class="acc">
           <summary><span class="ico">${icon(TIP_IC[k % TIP_IC.length])}</span><span class="grow acc-title">${esc(c.title_he)}</span><span class="chev">${icon('chevDown')}</span></summary>
           <div class="acc-body">
@@ -51,6 +57,14 @@ export function render(root, ctx) {
       </div>
     </div>
   </section>`;
+
+  const showTab = (t) => {
+    tab = t;
+    root.querySelectorAll('[data-ctab]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.ctab === t)));
+    root.querySelectorAll('[data-cpanel]').forEach((p) => { p.hidden = p.dataset.cpanel !== t; });
+  };
+  on(root, '[data-back]', 'click', () => { if (history.length > 1) history.back(); else ctx.go('home'); });
+  on(root, '[data-ctab]', 'click', (e, b) => { showTab(b.dataset.ctab); ctx.haptic(8); });
 
   const drawIce = () => {
     const i = ICEBREAKERS[iceIdx];
@@ -65,7 +79,7 @@ export function render(root, ctx) {
   const drawAud = () => {
     const a = AUDIENCES.find((x) => x.id === audId);
     const out = root.querySelector('[data-audout]');
-    if (!a) { out.hidden = true; return; }
+    if (!a) { out.innerHTML = '<p class="muted small">אין כרגע תוכניות לקהל.</p>'; return; }
     out.innerHTML = `<div class="card-head"><h2>מול ${esc(a.name_he)}</h2><span class="tag">${icon('users')} תוכנית</span></div>
       <ul class="checks">${(a.focus_he || []).map((f) => `<li>${icon('check')}<span>${esc(f)}</span></li>`).join('')}</ul>
       ${a.skip_he ? `<p class="small"><b>לדלג:</b> ${esc(a.skip_he)}</p>` : ''}
@@ -83,6 +97,7 @@ export function render(root, ctx) {
     root.querySelectorAll('[data-aud]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     ctx.haptic(8);
     drawAud();
+    showTab('plan');
   });
   on(root, '[data-ice]', 'click', () => {
     if (ICEBREAKERS.length > 1) {

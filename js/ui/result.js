@@ -5,6 +5,7 @@ import { icon } from './icons.js';
 import { artTrophy } from './art.js';
 import { artStage } from './fx.js';
 import { diffHtml, segHtml } from './mic.js';
+import { ic } from './shell.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // Stored state is untrusted: numbers from it are coerced before they reach innerHTML.
@@ -54,64 +55,69 @@ export function render(root, ctx, { task, results, outcome, items }) {
   });
   const recs = results.map((r, k) => ({ r, k })).filter(({ r }) => r._take && r._take.audioUrl);
 
+  const badgeList = (outcome.newBadges || []).map((id) => (ctx.C.BADGES || []).find((b) => b.id === id)).filter(Boolean);
+  // Detail tabs: only the ones that have data. One panel at a time keeps the screen short.
+  const tabs = [];
+  if (spokeAtAll) {
+    tabs.push(['fill', 'מילוי', `<div class="card-head"><span class="small bold">מילות מילוי</span><span><bdi class="en-num bold ${fpm >= 1 ? 'bad-text' : 'good-ink'}">${fpm}</bdi> <span class="tiny muted">לדקה</span></span></div>
+      ${fillRows.length ? `<ul class="fill-rows" dir="ltr" data-testid="filler-rows">${fillRows.map(([w, n]) => `<li><span class="en fw">${esc(w)}</span><span class="bar"><i style="--p:${Math.round((n / fillMax) * 100)}%;background:${n >= 2 ? 'var(--bad)' : 'var(--warn)'}"></i></span><span class="fx en-num">x${n}</span></li>`).join('')}</ul>`
+        : `<p class="small good-ink">${icon('check')} אפס מילות מילוי. ככה בדיוק!</p>`}`]);
+  }
+  if (diffs.length) {
+    tabs.push(['diff', 'משפטים', `${diffs.map(({ r }) => diffHtml(displayDiff(r._take.analysis.diff), 36).replace(/<div class="diff-key[\s\S]*?<\/div>/, '')).join('<hr class="soft">')}
+      <div class="diff-key tiny"><span class="d-ok">נאמר</span><span class="d-miss">חסר</span><span class="d-extra">נוסף</span></div>`]);
+  } else if (results.some((r) => r._take && r._take.transcript)) {
+    tabs.push(['said', 'מה אמרת', results.filter((r) => r._take && r._take.transcript).map((r) => `<p class="en said-text" dir="ltr" lang="en">${segHtml(ctx.A, r._take.transcript)}</p>`).join('')]);
+  }
+  if (tips.length) tabs.push(['tips', 'טיפים', `<ul class="tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`]);
+  if (recs.length) {
+    tabs.push(['rec', 'הקלטה', `${recs.map(({ r, k }, n) => `<div class="player" data-k="${k}">
+        <button class="play-btn" data-testid="playback" data-audio="${k}" aria-label="השמע את ההקלטה">${icon('play')}</button>
+        <div class="pl-text"><div class="bold small">ההקלטה שלך${recs.length > 1 ? ` ${n + 1}` : ''}</div><bdi class="tiny muted en-num">${fmtTime(r._take.durationSec || 0)}</bdi></div>
+        <div class="pl-wave" aria-hidden="true">${waveBars(k + 3).map((hh) => `<i style="height:${hh}px"></i>`).join('')}</div>
+      </div>`).join('')}
+      <p class="privacy-line">${icon('lock2')} ההקלטה נשמרת רק בזיכרון ונמחקת כשיוצאים מהמסך.</p>`]);
+  }
+
   root.innerHTML = `<section class="screen no-nav result" data-testid="result">
     <header class="band result-band">
       <div class="result-row">
-        <div class="result-text">
+        ${ringSvg(0, { size: 88, stroke: 12, cls: 'on-band score-ring', label: `<div><b class="score-n en-num" data-testid="score">0</b><div class="of" dir="ltr">/100</div></div>` })}
+        <div class="result-text grow">
           <h1>${esc(title)}</h1>
           <p class="sub">${esc(sub)}</p>
           <div class="row">
             <span class="band-pill"><bdi>+<span data-xp data-testid="xp-gained">0</span> XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>
-            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}"><bdi>${int(st.streak && st.streak.count)}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
+            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}" aria-label="רצף: ${int(ctx.E.currentStreak(st))} ימים"><bdi>${int(ctx.E.currentStreak(st))}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
           </div>
         </div>
-        ${ringSvg(0, { size: 124, stroke: 20, cls: 'on-band score-ring', label: `<div><b class="score-n en-num" data-testid="score">0</b><div class="of" dir="ltr">/100</div></div>` })}
       </div>
     </header>
 
     <div class="body">
-      ${outcome.unitDone || outcome.bossPassed ? `<div class="card mission-done" data-testid="unit-done"><span class="md-art">${artTrophy(64)}</span><div class="grow"><div class="bold">${outcome.unitDone ? 'יחידה הושלמה!' : 'ניצחת את הבוס!'}</div><div class="small muted">${outcome.unitDone ? 'היחידה הבאה במסלול נפתחה.' : 'עוד קצת תרגול, והיחידה מאחוריך.'}</div></div></div>` : ''}
-      ${outcome.missionDone ? `<div class="card mission-done" data-testid="mission-done"><span class="md-art">${artTrophy(64)}</span><div class="grow"><div class="bold">המשימה היומית הושלמה!</div><div class="small muted">5 מתוך 5, כולל בונוס של 50 XP.</div></div></div>` : ''}
+      ${outcome.unitDone || outcome.bossPassed ? `<div class="card mission-done" data-testid="unit-done"><span class="md-art">${artTrophy(44)}</span><div class="grow"><div class="bold">${outcome.unitDone ? 'יחידה הושלמה!' : 'ניצחת את הבוס!'}</div><div class="tiny muted">${outcome.unitDone ? 'היחידה הבאה במסלול נפתחה.' : 'עוד קצת תרגול, והיחידה מאחוריך.'}</div></div></div>` : ''}
+      ${outcome.missionDone ? `<div class="card mission-done" data-testid="mission-done"><span class="md-art">${artTrophy(44)}</span><div class="grow"><div class="bold">המשימה היומית הושלמה!</div><div class="tiny muted">5 מתוך 5, כולל בונוס של 50 XP.</div></div></div>` : ''}
+      ${badgeList.length ? `<div class="card badge-row" data-testid="new-badges">${badgeList.map((b) => `<div class="row nowrap"><span class="ico gold">${ic(b.icon, 'medal')}</span><span class="grow"><span class="bold small d-block">תג חדש: ${esc(b.title_he)}</span><span class="tiny muted">${esc(b.desc_he)}</span></span></div>`).join('')}</div>` : ''}
 
-      ${spokeAtAll ? `<div class="card stack-sm">
-        <div class="card-head"><h2>מילות מילוי</h2><bdi class="en-num bold ${fpm >= 1 ? 'bad-text' : 'good-ink'}">${fpm} / min</bdi></div>
-        ${fillRows.length ? `<ul class="fill-rows" dir="ltr" data-testid="filler-rows">${fillRows.map(([w, n]) => `<li><span class="en fw">${esc(w)}</span><span class="bar"><i style="--p:${Math.round((n / fillMax) * 100)}%;background:${n >= 2 ? 'var(--bad)' : 'var(--warn)'}"></i></span><span class="fx en-num">x${n}</span></li>`).join('')}</ul>`
-          : `<p class="small good-ink">${icon('check')} אפס מילות מילוי. ככה בדיוק!</p>`}
+      ${tabs.length ? `<div class="card stack-sm details-card" data-testid="result-details">
+        ${tabs.length > 1 ? `<div class="seg sm-seg" role="group" aria-label="פרטים">${tabs.map(([id, label], k) => `<button data-tab="${id}" aria-pressed="${k === 0}">${label}</button>`).join('')}</div>` : `<div class="tiny muted bold">${tabs[0][1]}</div>`}
+        ${tabs.map(([id, , html], k) => `<div class="tab-panel stack-sm" data-panel="${id}" ${k ? 'hidden' : ''}>${html}</div>`).join('')}
       </div>` : ''}
+      ${recs.length ? '' : `<p class="privacy-line">${icon('lock2')} האפליקציה לא שומרת ולא מעלה הקלטות.</p>`}
 
-      ${diffs.length ? `<div class="card stack-sm">
-        <h2 class="card-title">המשפט המתוקן</h2>
-        ${diffs.map(({ r }) => diffHtml(displayDiff(r._take.analysis.diff), 36).replace(/<div class="diff-key[\s\S]*?<\/div>/, '')).join('<hr class="soft">')}
-        <div class="diff-key tiny"><span class="d-ok">נאמר</span><span class="d-miss">חסר</span><span class="d-extra">נוסף</span></div>
-      </div>` : ''}
-
-      ${!diffs.length && results.some((r) => r._take && r._take.transcript) ? `<div class="card stack-sm">
-        <h2 class="card-title">התמלול שלך</h2>
-        ${results.filter((r) => r._take && r._take.transcript).map((r) => `<p class="en said-text" dir="ltr">${segHtml(ctx.A, r._take.transcript)}</p>`).join('')}
-      </div>` : ''}
-
-      ${tips.length ? `<div class="card stack-sm">
-        <h2 class="card-title">${icon('bulb')} טיפים</h2>
-        <ul class="tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-      </div>` : ''}
-
-      ${recs.length ? `<div class="card stack-sm">
-        ${recs.map(({ r, k }) => `<div class="player" data-k="${k}">
-          <button class="play-btn" data-testid="playback" data-audio="${k}" aria-label="השמע את ההקלטה">${icon('play')}</button>
-          <div class="pl-text"><div class="bold small">השמע את ההקלטה${recs.length > 1 ? ` ${recs.indexOf(recs.find((x) => x.k === k)) + 1}` : ''}</div><bdi class="tiny muted en-num">${fmtTime(r._take.durationSec || 0)}</bdi></div>
-          <div class="pl-wave" aria-hidden="true">${waveBars(k + 3).map((hh) => `<i style="height:${hh}px"></i>`).join('')}</div>
-        </div>`).join('')}
-        <p class="privacy-line">${icon('lock2')} ההקלטה נשמרת רק בזיכרון ונמחקת כשיוצאים מהמסך.</p>
-      </div>` : `<p class="privacy-line">${icon('lock2')} האפליקציה לא שומרת ולא מעלה הקלטות.</p>`}
-
-      <div class="btn-row">
-        <button class="btn line fixed" data-again data-testid="again">${icon('rotate')} שוב</button>
+      <div class="action-bar">
+        <button class="btn line fixed" data-again data-testid="again">${icon('rotate')} שחק שוב</button>
         ${isUnit ? `<a class="btn big" href="#track" data-testid="result-track">חזרה למסלול ${icon('arrowL')}</a>`
-          : next ? `<button class="btn big" data-next data-testid="result-next">המשך לשלב הבא ${icon('arrowL')}</button>`
+          : next ? `<button class="btn big" data-next data-testid="result-next">לשלב הבא ${icon('arrowL')}</button>`
           : `<a class="btn big" href="#home" data-testid="result-home">הביתה ${icon('arrowL')}</a>`}
       </div>
     </div>
   </section>`;
+  root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+    root.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    root.querySelectorAll('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+    ctx.haptic(8);
+  }));
   window.scrollTo(0, 0);
 
   const ring = root.querySelector('.score-ring');
@@ -160,16 +166,19 @@ export function render(root, ctx, { task, results, outcome, items }) {
   // Celebrations in order: mission complete, level up, badges.
   (async () => {
     await wait(reduce ? 200 : 1200);
+    if (!root.isConnected || !root.querySelector('[data-testid="result"]')) return;
     if (outcome.missionDone) {
       ctx.confetti({ count: 160 });
       ctx.haptic([30, 50, 30, 50, 60]);
       await missionModal(ctx);
     }
+    if (!root.isConnected || !root.querySelector('[data-testid="result"]')) return;
     if (outcome.levelUp) {
       ctx.confetti({ count: 90 });
       await ctx.levelUpModal(outcome.levelUp, { xp: outcome.xpGained, badge: outcome.newBadges.length > 0 });
     }
-    if (outcome.newBadges.length) ctx.announceBadges(outcome.newBadges);
+    // New badges show as a row on this screen (no toast that could cover the next task).
+    if (badgeList.length && root.isConnected) ctx.haptic([20, 40, 20]);
   })();
 }
 
@@ -184,7 +193,7 @@ function missionModal(ctx) {
       <h2>המשימה הושלמה!</h2>
       <p class="muted small">עוד יום של אנגלית בקול. ככה בונים ביטחון לבמה.</p>
       <div class="rewards">
-        <span class="reward warn">${icon('flameLine')} <bdi>${int(st.streak && st.streak.count)}</bdi> ימים ברצף</span>
+        <span class="reward warn">${icon('flameLine')} <bdi>${int(ctx.E.currentStreak(st))}</bdi> ימים ברצף</span>
         <span class="reward">${icon('starLine')} רמה <bdi>${int(lv.level)}</bdi></span>
       </div>
       <button class="btn block big" data-ok>מעולה, ממשיכים</button>`, { label: 'המשימה הושלמה', onClose: resolve });

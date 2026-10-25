@@ -66,3 +66,4 @@ export function fmtTime(sec) {
 
 // Hebrew plural helper for simple counts.
 export function heCount(n, one, many) { return n === 1 ? one : `${n} ${many}`; }
+

@@ -1,4 +1,6 @@
-// Task runner: task band, plays every item of one task, feedback sheet, then the result screen.
+// Task runner: compact task band, plays every item of one task, feedback bottom sheet, then the result screen.
+// Layout: band on top, the prompt in the middle, the mic (or answers) in a sticky dock at the bottom.
+// Feedback is a fixed bottom sheet with its own scroll, so the prompt stays in view and "continue" is always visible.
 import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { KIND } from './shell.js';
@@ -20,10 +22,29 @@ const TITLE = {
   recall: 'אמור את הטקסט בעל פה',
   qa: 'ענה על שאלה קשה',
 };
+// The task in progress survives a reload or a tab restore (sessionStorage, no audio, no answers).
+const TASK_KEY = 'speakerTrainer.ui.task';
+function saveTask(t) { try { sessionStorage.setItem(TASK_KEY, JSON.stringify(t)); } catch { /* private mode */ } }
+function loadTask() { try { return JSON.parse(sessionStorage.getItem(TASK_KEY) || 'null'); } catch { return null; } }
+export function clearSavedTask() { try { sessionStorage.removeItem(TASK_KEY); } catch { /* ignore */ } }
+
+// Restore only a plain task shape with string ids.
+function validTask(t) {
+  return t && typeof t === 'object' && typeof t.id === 'string' && Array.isArray(t.itemIds) && t.itemIds.every((x) => typeof x === 'string');
+}
 
 export function render(root, ctx) {
   let task = ctx.session.task;
-  ctx.session.task = null; // a reload or a new visit picks the next task again
+  ctx.session.task = null;
+  if (!task) {
+    const saved = loadTask();
+    if (validTask(saved)) task = saved;
+  }
+  // A daily task from yesterday (app left open over midnight): take today's next step instead.
+  if (task && !task.practice && !(ctx.state.daily.tasks || []).some((t) => t.id === task.id)) {
+    task = ctx.nextTask();
+    if (task) ctx.toast('יום חדש, משימה חדשה.', { kind: 'info', iconName: 'calendar', ms: 2500 });
+  }
   if (!task) task = ctx.nextTask();
   ctx.session.urls = [];
   // Privacy: recordings live only in memory and die when we leave this screen.
@@ -31,18 +52,22 @@ export function render(root, ctx) {
     for (const u of ctx.session.urls || []) { try { URL.revokeObjectURL(u); } catch { /* ignore */ } }
     ctx.session.urls = [];
     try { speechSynthesis.cancel(); } catch { /* ignore */ }
+    document.body.classList.remove('fb-open');
   });
 
   if (!task) {
-    root.innerHTML = `<section class="screen no-nav play">
-      <header class="band"><div class="band-title"><a class="icon-btn" href="#home" aria-label="חזרה">${icon('arrowR')}</a><h1>אין שלבים פתוחים</h1></div></header>
+    clearSavedTask();
+    root.innerHTML = `<section class="screen no-nav play" data-testid="play-empty">
+      <header class="band compact"><div class="band-title"><a class="icon-btn" href="#home" aria-label="חזרה">${icon('arrowR')}</a><h1>אין שלבים פתוחים</h1></div></header>
       <div class="body"><div class="card stack center">
         <span class="ico" style="margin:0 auto">${icon('trophy')}</span>
-        <p>סיימת את המשימה של היום. אפשר לתרגל מיומנות מהמסך הראשי.</p>
-        <a class="btn" href="#home">למסך הראשי</a>
-      </div></div></section>`;
+        <p>סיימת את המשימה של היום. אפשר לתרגל נושא מהמסלול.</p>
+      </div>
+      <div class="action-bar"><a class="btn big block" href="#path">למסלול ${icon('arrowL')}</a></div></div></section>`;
     return;
   }
+  saveTask(task);
+  ctx.onLeave(clearSavedTask);
 
   const items = (task.itemIds || []).map((id) => ctx.item(id)).filter(Boolean);
   const kind = KIND[task.kind] || KIND.practice;
@@ -64,22 +89,32 @@ export function render(root, ctx) {
         </div>
         <span class="band-pill" data-pill></span>
       </div>
-      <div>
+      <div class="task-head">
         <div class="kicker" data-kicker data-testid="play-kicker"></div>
         <h1 class="task-title" data-title></h1>
       </div>
       <div data-extra class="band-extra"></div>
     </header>
-    <div class="body">
+    <div class="body play-body">
       <div id="stage" class="stage" data-testid="stage"></div>
-      <div id="feedback" class="feedback" aria-live="polite" data-testid="feedback"></div>
     </div>
+    <div id="feedback" class="feedback" aria-live="polite" data-testid="feedback"></div>
   </section>`;
 
+  const screen = root.querySelector('.play');
   const stage = root.querySelector('#stage');
   const fb = root.querySelector('#feedback');
   const segs = root.querySelectorAll('.segs i');
   const pill = root.querySelector('[data-pill]');
+
+  // Leave guard: the router asks before it leaves #play (system back, nav). Nothing to lose: leave at once.
+  const dirty = () => results.length > 0 || !!stage.querySelector('.mic[data-state="listening"], .mic[data-state="processing"]');
+  const askLeave = () => (dirty()
+    ? ctx.confirm({ title: 'לצאת מהשלב?', text: 'מה שעשית בשלב הזה לא יישמר. ההקלטות נמחקות.', ok: 'לצאת', cancel: 'להישאר' })
+    : Promise.resolve(true));
+  ctx.setLeaveGuard?.(askLeave);
+  ctx.onLeave(() => ctx.setLeaveGuard?.(null));
+
   // Band segments: in the daily mission one per step (done gold, current white with item progress),
   // in free practice one per item.
   function paintSegs(doneItems) {
@@ -113,13 +148,22 @@ export function render(root, ctx) {
     return;
   }
 
+  function closeSheet() {
+    fb.innerHTML = '';
+    screen.classList.remove('has-fb');
+    document.body.classList.remove('fb-open');
+    screen.style.removeProperty('--fb-h');
+  }
+
   function show() {
     const it = items[idx];
     busy = false;
-    fb.innerHTML = '';
+    closeSheet();
+    // Badge toasts from the last result must not cover this task's header.
+    document.querySelectorAll('#toasts .toast.badge').forEach((t) => t.remove());
     paintSegs(idx);
     root.querySelector('.segs').setAttribute('aria-valuenow', String(idx));
-    const where = task.practice ? 'תרגול' : `שלב ${stepNo} מתוך ${daily.length}`;
+    const where = task.practice ? (task.unit ? 'יחידה' : 'תרגול') : `שלב ${stepNo} מתוך ${daily.length}`;
     const secs = it.type === 'speak' && Number(it.seconds) > 0 ? ` - ${Math.round(Number(it.seconds))} שניות` : '';
     root.querySelector('[data-kicker]').textContent = `${kind.he}${secs} - ${where}${items.length > 1 ? ` - ${idx + 1}/${items.length}` : ''}`;
     root.querySelector('[data-title]').textContent = TITLE[it.type] || task.title_he;
@@ -133,6 +177,7 @@ export function render(root, ctx) {
     if (!P) { finish({ score: 0 }); return; }
     stage.dataset.item = it.id;
     stage.dataset.type = it.type;
+    screen.dataset.type = it.type;
     P.mount(stage, it, api);
     window.scrollTo({ top: 0 });
   }
@@ -158,26 +203,34 @@ export function render(root, ctx) {
     const last = idx === items.length - 1;
     const canRetry = !!take;
     const showDiff = a && a.diff && a.diff.length && ['fix', 'shadow', 'recall'].includes(it.type);
-    const said = take && take.transcript && !showDiff && !['speak', 'qa'].includes(it.type)
-      ? `<p class="en said-text">${segHtml(ctx.A, take.transcript)}</p>` : '';
+    const said = take && take.transcript && !showDiff
+      ? `<p class="en said-text" dir="ltr" lang="en">${segHtml(ctx.A, take.transcript)}</p>` : '';
     const source = take ? (take.mode === 'typed' ? 'לפי מה שהקלדת' : take.selfScore != null ? 'לפי הדירוג שלך' : '') : '';
+    // Long reveals (model answer, full text) sit behind a toggle so the sheet stays short.
+    const reveal = r.revealHtml
+      ? (r.revealLabel ? `<details class="fb-more" data-testid="fb-more"><summary>${icon('chevDown')} ${esc(r.revealLabel)}</summary>${r.revealHtml}</details>` : r.revealHtml)
+      : '';
 
-    fb.innerHTML = `<div class="fb-card card ${tone}">
-      <div class="fb-head">
-        <span class="fb-ico">${icon(good ? 'check' : ok ? 'sparkles' : 'x')}</span>
-        <div class="grow"><div class="fb-title">${esc(title)}</div>${source ? `<div class="tiny muted">${source}</div>` : ''}</div>
-        <span class="tag ${good ? 'good' : ok ? 'warn' : 'bad'}">${icon(good ? 'check' : 'target')} <bdi>${score}%</bdi></span>
+    fb.innerHTML = `<div class="fb-card ${tone}" role="region" aria-label="משוב">
+      <div class="fb-scroll">
+        <div class="fb-head">
+          <span class="fb-ico">${icon(good ? 'check' : ok ? 'sparkles' : 'x')}</span>
+          <div class="grow"><div class="fb-title">${esc(title)}</div>${source ? `<div class="tiny muted">${source}</div>` : ''}</div>
+          <span class="tag ${good ? 'good' : ok ? 'warn' : 'bad'}">${icon(good ? 'check' : 'target')} <bdi>${score}%</bdi></span>
+        </div>
+        ${r.rule ? `<p class="en fb-rule" dir="ltr" lang="en">${esc(r.rule)}</p>` : ''}
+        ${showDiff ? `<div class="tiny muted">מה אמרת מול המשפט</div>${diffHtml(a.diff, 36)}` : said ? `<div class="tiny muted">מה אמרת</div>${said}` : ''}
+        ${a && a.beDrops && a.beDrops.length ? `<div class="small">תיקון: <span class="en fix-pair"><s>${esc(a.beDrops[0].text)}</s> ${icon('arrowR')} <b>${esc(a.beDrops[0].fix)}</b></span></div>` : ''}
+        ${tip && !good ? `<p class="small fb-tip">${icon('bulb')} ${esc(tip)}</p>` : ''}
+        ${reveal}
       </div>
-      ${r.rule ? `<p class="en fb-rule">${esc(r.rule)}</p>` : ''}
-      ${showDiff ? `<div class="tiny muted">התמלול שלך מול המשפט</div>${diffHtml(a.diff, 36)}` : said}
-      ${a && a.beDrops && a.beDrops.length ? `<div class="small">תיקון: <span class="en fix-pair"><s>${esc(a.beDrops[0].text)}</s> ${icon('arrowR')} <b>${esc(a.beDrops[0].fix)}</b></span></div>` : ''}
-      ${tip && !good ? `<p class="small fb-tip">${icon('bulb')} ${esc(tip)}</p>` : ''}
-      ${r.revealHtml || ''}
-      <div class="btn-row">
-        ${canRetry ? `<button class="btn line fixed" data-retry data-testid="retry">${icon('rotate')} שוב</button>` : ''}
-        <button class="btn big ${tone === 'good' ? 'good' : tone === 'bad' && !canRetry ? 'bad' : ''}" data-next data-testid="feedback-next">${last ? 'לתוצאות' : 'המשך'} ${icon('arrowL')}</button>
+      <div class="btn-row fb-foot">
+        ${canRetry ? `<button class="btn line fixed" data-retry data-testid="retry">${icon('rotate')} נסה שוב</button>` : ''}
+        <button class="btn big ${tone === 'good' ? 'good' : ''}" data-next data-testid="feedback-next">${last ? 'לתוצאות' : 'המשך'} ${icon('arrowL')}</button>
       </div>
     </div>`;
+    screen.classList.add('has-fb');
+    document.body.classList.add('fb-open');
     const nb = fb.querySelector('[data-next]');
     nb.addEventListener('click', next);
     fb.querySelector('[data-retry]')?.addEventListener('click', () => {
@@ -185,20 +238,29 @@ export function render(root, ctx) {
       show();
     });
     r.afterFeedback && r.afterFeedback(fb);
-    setTimeout(() => { fb.scrollIntoView({ behavior: 'smooth', block: 'end' }); nb.focus({ preventScroll: true }); }, 60);
+    // Room under the content for the sheet, so the user can still scroll to anything it covers. No auto scroll.
+    requestAnimationFrame(() => {
+      const card = fb.querySelector('.fb-card');
+      if (card) screen.style.setProperty('--fb-h', `${Math.round(card.getBoundingClientRect().height)}px`);
+      nb.focus({ preventScroll: true });
+    });
   }
 
   function next() {
     idx++;
     if (idx < items.length) { show(); return; }
+    closeSheet();
+    ctx.setLeaveGuard?.(null);
+    clearSavedTask();
     const outcome = ctx.finishTask(task, results.map(({ itemId, score, metrics }) => ({ itemId, score, metrics })));
     result.render(root, ctx, { task, results, outcome, items });
   }
 
   on(root, '[data-close]', 'click', async () => {
-    if (idx === 0 && !results.length) { ctx.go(backTo); return; }
-    const ok = await ctx.confirm({ title: 'לצאת מהשלב?', text: 'מה שעשית בשלב הזה לא יישמר. ההקלטות נמחקות.', ok: 'לצאת', cancel: 'להישאר' });
-    if (ok) ctx.go(backTo);
+    if (!(await askLeave())) return;
+    ctx.setLeaveGuard?.(null);
+    clearSavedTask();
+    ctx.go(backTo);
   });
 
   show();

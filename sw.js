@@ -1,9 +1,16 @@
-// Service worker: cache-first for same-origin app files, so the game works offline.
-// Bump VERSION on every release to refresh the cache.
+// Service worker: the game works offline, and new releases reach users fast.
+// - Page loads (navigations, index.html): network first with a 3 s timeout, cache as fallback.
+//   So a new index.html is used on the next open, even when VERSION was not bumped.
+// - App files (JS, CSS, icons): cache first, revalidated in the background on every load.
+//   When a file changed on the server, open pages get an 'ASSETS_UPDATED' message.
+// - A new VERSION installs a full new cache and then waits. The page shows "גרסה חדשה מוכנה";
+//   the "רענן" button posts SKIP_WAITING, and the page reloads on controllerchange.
+// Bump VERSION on every release anyway: it gives a clean, complete cache for the new code.
 // Privacy: nothing about audio ever passes through here. Recordings are blob URLs in page memory.
-const VERSION = 'v5-2026-10-21';
+const VERSION = 'v6-2026-10-25';
 const CACHE = `speaker-trainer-${VERSION}`;
 const FONT_CACHE = 'speaker-trainer-fonts';
+const NAV_TIMEOUT_MS = 3000;
 
 const APP_FILES = [
   './',
@@ -54,14 +61,24 @@ const APP_FILES = [
 // Install fails if any app file fails, so a release never activates with a partial cache.
 // The old version keeps serving until a full install succeeds.
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then((c) => Promise.all(APP_FILES.map((u) => fetch(new Request(u, { cache: 'reload' })).then((res) => {
-        if (!res.ok) throw new Error(`sw: ${u} ${res.status}`);
-        return c.put(u, res);
-      }))))
-      .then(() => self.skipWaiting()),
-  );
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    await Promise.all(APP_FILES.map(async (u) => {
+      const res = await fetch(new Request(u, { cache: 'reload' }));
+      if (!res.ok) throw new Error(`sw: ${u} ${res.status}`);
+      await c.put(u, res);
+    }));
+    // Workers before v6 (cache names v1..v5) have pages without the update toast, so
+    // nobody could ever tap "רענן". Take over from them at once, one time only.
+    const keys = await caches.keys();
+    if (keys.some((k) => /^speaker-trainer-v[1-5]-/.test(k))) await self.skipWaiting();
+  })());
+});
+
+// The page asks for the new version (button "רענן").
+self.addEventListener('message', (e) => {
+  const d = e.data;
+  if (d === 'SKIP_WAITING' || (d && d.type === 'SKIP_WAITING')) self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
@@ -72,27 +89,68 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// Same file, new content? Compare validators; no validator means "unknown", not "changed".
+function changed(oldRes, newRes) {
+  for (const h of ['etag', 'last-modified', 'content-length']) {
+    const a = oldRes.headers.get(h), b = newRes.headers.get(h);
+    if (a && b) return a !== b;
+  }
+  return false;
+}
+
+let notified = false;
+function notifyUpdate() {
+  if (notified) return;
+  notified = true;
+  self.clients.matchAll({ type: 'window' }).then((list) => list.forEach((c) => c.postMessage({ type: 'ASSETS_UPDATED' })));
+}
+
+// Network first for the page itself. Falls back to the cached shell after NAV_TIMEOUT_MS or offline.
+function pageResponse(e) {
+  const cached = caches.match('./index.html');
+  const net = fetch(e.request);
+  // Registered first, so the clone happens before anyone reads the body.
+  e.waitUntil(net.then((res) => {
+    if (!(res && res.ok && res.type === 'basic')) return undefined;
+    const copy = res.clone();
+    return caches.open(CACHE).then((c) => c.put('./index.html', copy));
+  }).catch(() => {}));
+  const timeout = new Promise((resolve) => setTimeout(resolve, NAV_TIMEOUT_MS));
+  return Promise.race([net.catch(() => null), timeout.then(() => null)]).then(async (res) => {
+    if (res) return res;
+    const hit = await cached;
+    if (hit) return hit;
+    return net; // nothing cached yet: wait for the network (or fail like the browser would)
+  });
+}
+
+// Cache first, then refresh the cached copy in the background.
+function assetResponse(e) {
+  const req = e.request;
+  const cacheP = caches.open(CACHE);
+  const hitP = cacheP.then((c) => c.match(req)).catch(() => undefined);
+  const netP = hitP.then((hit) => fetch(req).then((res) => {
+    if (res && res.ok && res.type === 'basic') {
+      if (hit && changed(hit, res)) notifyUpdate();
+      const copy = res.clone();
+      // Allowed here: the waitUntil(netP) below is still pending.
+      e.waitUntil(cacheP.then((c) => c.put(req, copy)).catch(() => {}));
+    }
+    return res;
+  }));
+  e.waitUntil(netP.catch(() => {}));
+  return hitP.then((hit) => hit || netP);
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    // App shell: navigations get index.html (hash routing keeps one page).
-    const key = req.mode === 'navigate' ? './index.html' : req;
-    e.respondWith(
-      caches.match(key, { ignoreSearch: req.mode === 'navigate' }).then((hit) => hit || fetch(req).then((res) => {
-        if (res && res.ok && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      }).catch((err) => {
-        // Offline fallback to the app shell only for page navigations, never for JS or CSS.
-        if (req.mode === 'navigate') return caches.match('./index.html');
-        throw err;
-      })),
-    );
+    const isPage = req.mode === 'navigate' || /\/(index\.html)?$/.test(url.pathname);
+    if (url.pathname.endsWith('/sw.js')) return; // never cache the worker itself
+    e.respondWith(isPage ? pageResponse(e) : assetResponse(e));
     return;
   }
 

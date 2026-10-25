@@ -176,3 +176,153 @@ test('target diff keeps original casing and punctuation in orig, w stays normali
   assert.equal(okay.orig, 'OK?');
   assert.deepEqual(r2.diff.filter((d) => d.w === 'are').map((d) => d.orig), ['']);
 });
+
+// ---------------------------------------------------------------------------
+// New options and fixes (2026-10-25 scoring audit)
+
+test('avoid: reading the wrong sentence unchanged is capped at 30 with a Hebrew tip', () => {
+  const wrong = 'fixing stuff that not working so well';
+  const right = 'fixing things that are not working well';
+  const bad = analyze(wrong, 4, { target: right, avoid: wrong });
+  assert.equal(bad.saidAvoid, true);
+  assert.ok(bad.score <= 30, `wrong read ${bad.score}`);
+  assert.equal(bad.tips_he[0], 'זה המשפט עם הטעות. נסה את הגרסה המתוקנת.');
+  const good = analyze(right, 4, { target: right, avoid: wrong });
+  assert.equal(good.saidAvoid, false);
+  assert.ok(good.score >= 90, `right read ${good.score}`);
+  assert.ok(good.avoidScore < good.targetScore);
+  // A one-word correction still separates the two readings.
+  const w2 = "I'm agree with you.", r2 = 'I agree with you.';
+  assert.ok(analyze(w2, 2, { target: r2, avoid: w2 }).score <= 30);
+  assert.ok(analyze(r2, 2, { target: r2, avoid: w2 }).score >= 90);
+  // No avoid option: old fields stay, new ones are null/false.
+  const plain = analyze(right, 4, { target: right });
+  assert.equal(plain.avoidScore, null);
+  assert.equal(plain.saidAvoid, false);
+});
+
+test('reference: key-word coverage of a model answer', () => {
+  const model = 'Because the alert was on errors, not on traffic. The traffic dropped, but nothing errored. We added a traffic alert, and we would now detect it in about 5 minutes.';
+  const self = analyze(model, 12, { reference: model, minWords: 12 });
+  assert.equal(self.referenceScore, 1);
+  assert.ok(self.keyHit.length >= 5 && self.keyHit.length <= 8, self.keyHit.join(','));
+  assert.ok(self.score >= 85, `self ${self.score}`);
+  const para = analyze('We only alerted on errors, and traffic dropped without errors. Now we have a traffic alert and we would detect it in five minutes.', 10, { reference: model, minWords: 12 });
+  assert.ok(para.score >= 80, `paraphrase ${para.score}`);
+  const off = analyze('The team worked very hard on this and we are proud of the results we got this year.', 8, { reference: model, minWords: 12 });
+  assert.ok(off.referenceScore < 0.3);
+  assert.ok(off.score < 60, `off-topic ${off.score}`);
+  assert.ok(off.tips_he.some((t) => t.startsWith('אפשר להוסיף גם:')));
+});
+
+test('minWords: short answers are scaled down, "yes" scores low', () => {
+  const yes = analyze('yes', 1, { minWords: 12 });
+  assert.ok(yes.score <= 15, `yes ${yes.score}`);
+  assert.equal(yes.lengthFactor, Math.round((1 / 12) * 1000) / 1000);
+  assert.ok(yes.tips_he.includes('התשובה קצרה מדי. הוסף עוד משפט או שניים.'));
+  assert.ok(analyze("I don't know", 2, { minWords: 12 }).score < 40);
+  const long = analyze('We moved the cache to its own cluster, and now the API answers in half the time it used to.', 6, { minWords: 12 });
+  assert.equal(long.lengthFactor, 1);
+  // Without minWords the old behavior stays.
+  assert.equal(analyze('yes', 1).lengthFactor, null);
+});
+
+test('must-only gaming: saying only the must phrases does not score 100', () => {
+  const must = ['traffic', 'servers'];
+  const gamed = analyze('traffic servers', 3, { must, minWords: 15 });
+  assert.equal(gamed.mustHit.length, 2);
+  assert.ok(gamed.score < 20, `must only ${gamed.score}`);
+  const real = analyze('We split the traffic across three servers, so one slow node does not hurt the users any more.', 7, { must, minWords: 15 });
+  assert.ok(real.score >= 90, `real ${real.score}`);
+});
+
+test('p.m. and a.m. are not the filler "um" and match PM/AM', () => {
+  const r = analyze("We'll deploy it by 3 p.m. on Friday.", 4, { target: "We'll deploy it by 3 PM on Friday." });
+  assert.equal(r.fillerTotal, 0);
+  assert.equal(r.targetScore, 1);
+  assert.equal(r.score, 100);
+  assert.equal(analyze('the job runs at 9 a.m. every day', 4).fillerTotal, 0);
+  assert.equal(tokenize('by 3 p.m. Then')[2].norm, 'pm');
+  assert.equal(tokenize('by 3 p.m. Then')[3].boundary, true);
+  assert.equal(analyze('um we start at ten', 3).fillers.um, 1);
+  assert.equal(analyze('hmm we start at ten', 3).fillers.um, 1);
+});
+
+test('numbers said as words match digits and the other way', () => {
+  const pairs = [
+    ['We have twenty-one services', 'We have 21 services.'],
+    ['We have 21 services', 'We have twenty-one services.'],
+    ['It costs three thousand dollars', 'It costs $3,000.'],
+    ['It costs 3000 dollars', 'It costs $3,000.'],
+    ['It costs $3,000', 'It costs three thousand dollars.'],
+    ['about forty percent of users', 'about 40% of users'],
+    ['about 40% of users', 'about forty percent of users'],
+    ['three point five seconds', '3.5 seconds'],
+    ['fifteen hundred dollars a month', '1,500 dollars a month'],
+    ['a thousand users', '1,000 users'],
+    ['between March third and March seventh', 'between March 3rd and March 7th'],
+    ['in twenty twenty-six', 'in 2026'],
+    ['two million requests', '2 million requests'],
+  ];
+  for (const [spoken, target] of pairs) {
+    assert.equal(analyze(spoken, 3, { target }).targetScore, 1, `${spoken} vs ${target}`);
+  }
+  // Separate numbers stay separate.
+  assert.equal(analyze('two or three servers', 3, { target: '2 or 3 servers' }).targetScore, 1);
+  assert.ok(analyze('five servers', 3, { target: '50 servers' }).targetScore < 1);
+});
+
+test('like and actually: real uses are not fillers', () => {
+  for (const line of [
+    'users like it',
+    'tools like Git and Grafana help a lot',
+    'what actually happened was a config change',
+    'Then people use the old flow, like they do today.',
+    "What's the weather like where you are?",
+    'Could you say that again?',
+    'We are almost out of time, so let us wrap up.',
+    'It read ten thousand rows.',
+  ]) {
+    const r = analyze(line, 5);
+    assert.equal(r.fillerTotal, 0, `fillers in: ${line} -> ${JSON.stringify(r.fillers)}`);
+    assert.equal(r.beDrops.length, 0, `beDrops in: ${line}`);
+  }
+  assert.equal(analyze('Actually, the cache is fine', 4).fillers.actually, 1);
+  assert.equal(analyze('and actually we shipped it', 4).fillers.actually, 1);
+  assert.equal(analyze('we need like two more days', 4).fillers.like, 1);
+  assert.equal(analyze('So, we start now', 4).fillers.so, 1);
+});
+
+test('content: model answers score high, wrong sentences stay low, no spoken placeholders', async () => {
+  const { ITEMS } = await import('../js/content.js');
+  const dur = (t) => Math.max(1, (t.split(/\s+/).length / 130) * 60);
+  for (const it of ITEMS) {
+    if (it.type === 'speak') {
+      const r = analyze(it.model_en, dur(it.model_en), { must: it.must, banned: it.banned, minWords: 15 });
+      assert.ok(r.score >= 90, `${it.id} speak model ${r.score}`);
+    } else if (it.type === 'qa') {
+      const r = analyze(it.model_en, dur(it.model_en), { reference: it.model_en, minWords: 12 });
+      assert.ok(r.score >= 85, `${it.id} qa model ${r.score}`);
+    } else if (it.type === 'fix') {
+      const ok = analyze(it.right, dur(it.right), { target: it.right, avoid: it.wrong });
+      const bad = analyze(it.wrong, dur(it.wrong), { target: it.right, avoid: it.wrong });
+      assert.ok(ok.score >= 90, `${it.id} fix right ${ok.score}`);
+      assert.ok(bad.score <= 30, `${it.id} fix wrong ${bad.score}`);
+    }
+    for (const f of ['right', 'model_en', 'text_en', 'sentence_en']) {
+      if (typeof it[f] === 'string') assert.ok(!/\[[A-Za-z]+\]/.test(it[f]), `${it.id}.${f} has a placeholder`);
+    }
+  }
+});
+
+test('content: choice answers are balanced and the quote is never an option', async () => {
+  const { ITEMS } = await import('../js/content.js');
+  const ch = ITEMS.filter((i) => i.type === 'choice');
+  const dist = [0, 0, 0];
+  for (const i of ch) {
+    dist[i.correct]++;
+    const n = (s) => String(s).trim().toLowerCase();
+    assert.ok(!i.options.some((o) => n(o) === n(i.wrong)), `${i.id} quote equals an option`);
+  }
+  for (const c of dist) assert.ok(Math.abs(c - ch.length / 3) <= 2, `distribution ${dist}`);
+});

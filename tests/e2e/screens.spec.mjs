@@ -72,12 +72,14 @@ test.describe('coach', () => {
     await expect(plan.getByRole('heading').first()).not.toHaveText(firstTitle);
     expect(await page.evaluate(() => window.__vibes.length)).toBeGreaterThan(0);
 
+    await page.getByRole('button', { name: 'פתיח', exact: true }).click();
     const ice = page.getByTestId('icebreaker');
     const before = await ice.textContent();
     await page.getByTestId('new-icebreaker').click();
     await expect(ice).not.toHaveText(before);
     await expect(ice.locator('[lang="en"]').first()).toHaveAttribute('dir', 'ltr');
 
+    await page.getByRole('button', { name: 'טיפים', exact: true }).click();
     const acc = page.locator('details').first();
     await acc.locator('summary').click();
     await expect(acc).toHaveAttribute('open', '');
@@ -123,6 +125,7 @@ test.describe('stats and profile', () => {
       localStorage.setItem('speakerTrainer.v1', JSON.stringify(s));
     });
     await page.reload();
+    await page.getByRole('button', { name: 'נתונים', exact: true }).click();
     const reset = page.getByRole('button', { name: /אפס/ }).first();
     await reset.click();
     const dlg = page.getByRole('dialog');
@@ -167,6 +170,7 @@ test.describe('keyboard and focus', () => {
   test('modal traps focus, Escape closes and returns focus', async ({ page }) => {
     await seed(page);
     await page.goto('?nosw#profile');
+    await page.getByRole('button', { name: 'נתונים', exact: true }).click();
     const btn = page.getByRole('button', { name: /אפס/ }).first();
     await btn.focus();
     await page.keyboard.press('Enter');
@@ -178,5 +182,20 @@ test.describe('keyboard and focus', () => {
     }
     await page.keyboard.press('Escape');
     await expect(btn).toBeFocused();
+  });
+});
+
+test.describe('profile auto-save', () => {
+  test('edits save on change, also when leaving the screen at once', async ({ page }) => {
+    await seed(page, 'Maya');
+    await page.goto('?nosw#profile');
+    await page.getByRole('button', { name: /ראש צוות/ }).click();
+    await page.getByLabel('השם שלך').fill('Dana');
+    await page.goto('?nosw#stats'); // hash route change right after typing
+    await expect.poll(async () => (await state(page)).profile.role).toBe('lead');
+    await page.goto('?nosw#profile');
+    await page.getByLabel('השם שלך').fill('Noa');
+    await page.getByRole('navigation').getByRole('link').first().click();
+    await expect.poll(async () => (await state(page)).name).toBe('Noa');
   });
 });

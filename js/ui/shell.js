@@ -142,3 +142,40 @@ export function daysUntil(dateStr, today) {
   const a = new Date(`${today}T12:00:00`), b = new Date(`${dateStr}T12:00:00`);
   return Math.round((b - a) / 86400000);
 }
+
+// ---------- bottom nav (2026-10-25: labels under icons, clear active state, 44px+ targets) ----------
+
+// Tab routes. `play` is the raised center button (starts the next step of today's mission).
+export const NAV_TABS = [
+  { r: 'home', label: 'בית', ic: 'home' },
+  { r: 'path', label: 'מסלול', ic: 'map' },
+  { r: 'play', label: 'אימון', ic: 'play', center: true },
+  { r: 'stats', label: 'נתונים', ic: 'chart' },
+  { r: 'profile', label: 'פרופיל', ic: 'user' },
+];
+
+// Which tab is lit for a route (detail screens light their parent tab).
+export function navActive(route) {
+  if (route === 'mission') return 'home';
+  if (route === 'coach' || route === 'track') return 'path';
+  return route;
+}
+
+export function navHtml() {
+  return NAV_TABS.map((n) => n.center
+    ? `<span class="slot-center"><a href="#play" class="center" data-r="play" aria-label="${esc(n.label)}: המשימה של היום" title="המשימה של היום"><span class="pulse" aria-hidden="true"></span><span class="core">${icon(n.ic)}</span></a><span class="nav-lbl center-lbl" aria-hidden="true">${esc(n.label)}</span></span>`
+    : `<a href="#${n.r}" data-r="${n.r}" class="tab">${icon(n.ic)}<span class="nav-lbl">${esc(n.label)}</span></a>`).join('');
+}
+
+// Nav label styles. Kept here until css/components.css takes them over (it is owned by
+// another contributor). Inline <style> is allowed by the CSP (style-src 'unsafe-inline').
+export const NAV_CSS = `
+.nav a.tab { width: auto; min-width: 56px; min-height: 52px; height: auto; border-radius: 18px; padding: 4px 6px 3px; gap: 1px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.nav a.tab svg { width: 22px; height: 22px; }
+.nav .nav-lbl { font-size: 11px; line-height: 1.1; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+.nav a.tab[aria-current="page"] { color: #fff; background: rgba(255,255,255,.18); }
+.nav a.tab[aria-current="page"] .nav-lbl { font-weight: 800; }
+.nav a.tab[aria-current="page"]::after { display: none; }
+.nav .slot-center { position: relative; display: flex; align-items: flex-end; justify-content: center; }
+.nav .center-lbl { position: absolute; bottom: -2px; inset-inline: 0; text-align: center; color: #fff; }
+`;

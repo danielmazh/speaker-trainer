@@ -5,8 +5,8 @@ import { icon } from './icons.js';
 import { ic, catColor, rememberedTrack, TYPE_HE } from './shell.js';
 
 const XS = [72, 30, 68, 28, 66, 32];
-const STEP = 112;
-const TOP = 48;
+const STEP = 84;
+const TOP = 40;
 
 export function render(root, ctx) {
   const id = ctx.session.trackId || rememberedTrack();
@@ -51,22 +51,21 @@ export function render(root, ctx) {
         : '';
     return `<div class="zz-label ${cls}" style="${side}">
       <span class="zz-name">${esc(u.title_he)}${n.s === 'open' ? ' <span class="now-pill">עכשיו</span>' : ''}</span>
-      <span class="zz-sub clamp2">${esc(u.goal_he || '')}</span>
       ${meta}
-      ${boss ? `<span class="boss-line ${bossOk ? 'ok' : ''}">${icon('crown')} בוס: ${esc(TYPE_HE[boss.type] || '')}${bossOk ? ' - עבר' : ''}</span>` : ''}
+      ${boss && n.s !== 'locked' ? `<span class="boss-line ${bossOk ? 'ok' : ''}">${icon('crown')} בוס: ${esc(TYPE_HE[boss.type] || '')}${bossOk ? ' - עבר' : ''}</span>` : ''}
     </div>`;
   };
 
+  const curUnit = p.currentUnitId ? units.find((u) => u.id === p.currentUnitId) : null;
+  const curNo = curUnit ? units.indexOf(curUnit) + 1 : 0;
   root.innerHTML = `<section class="screen mission track" data-testid="track" style="--c:${esc(col)}">
-    <header class="band">
+    <header class="band compact">
       <div class="band-title">
         <a class="icon-btn" href="#path" aria-label="חזרה למסלולים">${icon('arrowR')}</a>
-        <div class="grow"><h1>${esc(track.title_he)}</h1><p class="sub">${esc(track.desc_he || '')}</p></div>
+        <div class="grow"><h1>${esc(track.title_he)}</h1>
+          <div class="row nowrap prog-row"><div class="bar on-band thin grow"><i style="--p:${p.pct}%"></i></div><bdi class="en-num tiny bold">${p.unitsDone}/${p.unitsTotal}</bdi></div>
+        </div>
         <span class="band-ico" aria-hidden="true">${ic(track.icon, track.id.replace(/^t-/, ''))}</span>
-      </div>
-      <div class="row nowrap prog-row">
-        <div class="bar on-band grow"><i style="--p:${p.pct}%"></i></div>
-        <bdi class="en-num bold">${p.unitsDone}/${p.unitsTotal}</bdi>
       </div>
     </header>
 
@@ -84,8 +83,8 @@ export function render(root, ctx) {
           ${label(n, k)}
         </li>`).join('')}
       </ol>
-      ${p.currentUnitId ? `<button class="btn block big" data-go="${esc(p.currentUnitId)}">${p.unitsDone ? 'המשך ליחידה הבאה' : 'מתחילים את היחידה הראשונה'} ${icon('arrowL')}</button>` : ''}
       <p class="tiny muted center">יחידה נפתחת אחרי שכל התרגילים בקודמת עברו 70, כולל הבוס.</p>
+      ${curUnit ? `<div class="action-bar"><button class="btn block big" data-go="${esc(curUnit.id)}" data-testid="track-continue">${p.unitsDone || (p.units[curUnit.id] || {}).pct ? 'המשך' : 'התחל'} יחידה <bdi>${curNo}</bdi> ${icon('arrowL')}</button></div>` : ''}
     </div>
   </section>`;
 
@@ -120,8 +119,9 @@ export function render(root, ctx) {
     const u = units.find((x) => x.id === b.dataset.unit);
     if (u) { ctx.haptic(10); openSheet(u); }
   });
+  // The sticky button starts the current unit at once (2 taps from Path: track row, then this).
   on(root, '[data-go]', 'click', (e, b) => {
     const u = units.find((x) => x.id === b.dataset.go);
-    if (u) openSheet(u);
+    if (u) { ctx.haptic(10); ctx.startUnit(track, u); }
   });
 }

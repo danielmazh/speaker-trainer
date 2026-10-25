@@ -8,10 +8,11 @@ test.describe('offline', () => {
     await page.unrouteAll();
     await setStore(page, { v: 1, onboarded: true, name: 'Alex' });
     await page.goto('./#home');
-    await page.waitForFunction(async () => {
+    // Poll from the test side: waitForFunction does not await an async predicate's result.
+    await expect.poll(() => page.evaluate(async () => {
       const r = await navigator.serviceWorker.getRegistration();
       return !!(r && r.active);
-    }, null, { timeout: 20_000 });
+    }), { timeout: 20_000 }).toBe(true);
     await page.reload();
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 10_000 });
     // Every same-origin file the app loaded must be in the cache.

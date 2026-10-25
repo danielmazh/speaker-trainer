@@ -132,7 +132,9 @@ function initFakes(mode) {
   w.webkitSpeechRecognition = FakeSR;
 
   if (navigator.mediaDevices) {
+    w.__fake.gum = 0;
     navigator.mediaDevices.getUserMedia = async () => {
+      w.__fake.gum++;
       const ac = new (w.AudioContext)();
       const o = ac.createOscillator();
       const g = ac.createGain();
@@ -350,7 +352,8 @@ export async function playItem(page, it, k, mode, { allRight = false } = {}) {
     return 'speech';
   }
   // No mic: self rating for shadow, peek for the second fix, typed for the rest.
-  await expect(stage.locator('.note.warn').first()).toBeVisible();
+  // The no-mic note shows in full once per session, then as a small chip by the mic.
+  await expect(stage.locator('.mic-note:not([hidden]), .mic-chip').first()).toBeVisible();
   if (it.type === 'shadow') {
     await stage.getByTestId('mic-self').click();
     await stage.getByTestId('stars').locator('[data-star="4"]').click();

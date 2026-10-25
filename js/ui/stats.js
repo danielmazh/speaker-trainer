@@ -1,6 +1,6 @@
-// Stats: profile band with 4 tiles, 30-day heatmap, one trend line with a toggle,
-// accuracy by skill, weakest 3 skills with practice buttons, badges grid. SVG only, no libraries.
-import { esc, ringSvg, on } from './dom.js';
+// Stats in about one screen: 4 tiles, the weakest topic with a practice button, 30-day heatmap,
+// one trend line with a toggle, then "עוד" for accuracy bars, weakest 3 and badges. SVG only, no libraries.
+import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { ic, catColor, profileOf } from './shell.js';
 
@@ -73,24 +73,29 @@ export function render(root, ctx) {
 
   const tile = (val, label, ico, cls = '') => `<div class="stat-tile"><span class="sv"><b class="en-num">${val}</b><span class="${cls}">${icon(ico)}</span></span><span>${label}</span></div>`;
 
+  const streakNow = ctx.E.currentStreak(st);
+  const weak0 = weakest[0] ? ctx.cat(weakest[0]) : null;
+
   root.innerHTML = `<section class="screen stats" data-testid="stats">
-    <header class="band">
-      <div class="spread">
-        <div class="row nowrap">
-          <div class="avatar-ring">${ringSvg(lv.pct, { size: 64, stroke: 5, cls: 'on-band', label: `<span class="avatar sm">${name ? esc(name[0].toUpperCase()) : icon('user')}</span>` })}</div>
-          <div class="grow">${name ? `<h1 class="en">${esc(name)}</h1>` : '<h1>הפרופיל שלי</h1>'}<p class="sub">רמה ${lv.level} - ${esc(lv.title_he)}</p></div>
-        </div>
-        <a class="icon-btn" href="#profile" aria-label="פרופיל והגדרות">${icon('settings')}</a>
+    <header class="band compact">
+      <div class="band-title">
+        <div class="grow"><h1>ההתקדמות שלי</h1><p class="sub">רמה <bdi>${lv.level}</bdi> - ${esc(lv.title_he)}${name ? ` · <bdi>${esc(name)}</bdi>` : ''}</p></div>
       </div>
       <div class="stat-tiles four">
         ${tile(fmt(N(s.minutesTotal)), 'דקות', 'timer')}
         ${tile(fmt(N(s.wordsSpoken)), 'מילים', 'message')}
         ${tile(Math.round(N(s.avgScore)), 'ציון ממוצע', 'target')}
-        ${tile(N(st.streak.count), 'רצף', 'flameLine', 'flame-ic')}
+        ${tile(streakNow, 'רצף', 'flameLine', 'flame-ic')}
       </div>
     </header>
 
     <div class="body">
+      ${weak0 ? `<div class="card weak-pin" data-testid="weakest-pin" style="--c:${esc(catColor(weak0))}">
+        <span class="m-ic">${ic(weak0.icon, weak0.id)}</span>
+        <span class="grow"><span class="tiny muted d-block">כדאי לחזק</span><span class="bold small">${esc(weak0.label_he)}</span> <span class="tiny muted">ממוצע <bdi>${(acc[weak0.id] || { avg: 0 }).avg}%</bdi></span></span>
+        <button class="btn sm" data-practice="${esc(weak0.id)}">${icon('target')} תרגל</button>
+      </div>` : ''}
+
       <div class="card stack-sm">
         <div class="card-head"><h2>30 ימים אחרונים</h2><span class="tag flame">${icon('flameLine')} <bdi>${activeDays}</bdi> ימים פעילים</span></div>
         ${heatmap(days, prof.dailyGoalMin, today)}
@@ -104,33 +109,36 @@ export function render(root, ctx) {
         <div data-trend-body></div>
       </div>
 
-      <div class="card stack-sm">
-        <div class="card-head"><h2>דיוק לפי כישור</h2><bdi class="tiny muted en-num">${N(s.mastered)} mastered</bdi></div>
-        ${accRows.length ? `<ul class="mastery">
-          ${accRows.map(([c, a]) => { const cat = ctx.cat(c); return `<li style="--c:${esc(catColor(cat))}"><span class="m-ic">${ic(cat.icon, cat.id)}</span><span class="grow"><span class="spread small"><span>${esc(cat.label_he)}</span><span class="muted"><bdi class="en-num">${a.avg}%</bdi> <span class="tiny">(<bdi>${a.count}</bdi>)</span></span></span><span class="bar thin"><i style="--p:${a.avg}%"></i></span></span></li>`; }).join('')}
-        </ul>` : '<p class="small muted">עוד אין נתונים. כל תרגיל שתעשה יופיע כאן.</p>'}
-      </div>
-
-      ${weakest.length ? `<div class="card stack-sm" data-testid="weakest">
-        <div class="card-head"><h2>כדאי לחזק</h2><span class="tiny muted">3 הכישורים החלשים</span></div>
-        <ul class="weak-list">
-          ${weakest.map((c) => { const cat = ctx.cat(c); const a = acc[c] || { avg: 0 }; return `<li style="--c:${esc(catColor(cat))}">
-            <span class="m-ic">${ic(cat.icon, cat.id)}</span>
-            <span class="grow"><span class="bold small d-block">${esc(cat.label_he)}</span><span class="tiny muted">ממוצע <bdi>${a.avg}%</bdi></span></span>
-            <button class="btn sm ghost" data-practice="${esc(c)}">${icon('target')} תרגל</button>
-          </li>`; }).join('')}
-        </ul>
-      </div>` : ''}
-
-      <div class="card stack-sm">
-        <div class="card-head"><h2>תגים</h2><bdi class="tiny muted en-num">${have.size}/${badges.length}</bdi></div>
-        <div class="badges">
-          ${badges.map((b, k) => { const got = have.has(b.id); return `<div class="badge ${got ? 'got' : 'locked'}" tabindex="0" style="--bc:${BADGE_COLORS[k % BADGE_COLORS.length]}" aria-label="${esc(`${b.title_he}: ${b.desc_he}${got ? '' : ' (נעול)'}`)}" title="${esc(b.desc_he)}">
-            <span class="medal">${got ? ic(b.icon, 'medal') : icon('lock2')}</span>
-            <span class="b-name">${esc(b.title_he)}</span>
-          </div>`; }).join('')}
+      <details class="card more-card" data-testid="stats-more">
+        <summary><span class="grow bold">עוד: דיוק לפי נושא ותגים</span><bdi class="tiny muted en-num">${have.size}/${badges.length}</bdi><span class="chev">${icon('chevDown')}</span></summary>
+        <div class="stack">
+          <div class="stack-sm">
+            <div class="card-head"><h2>דיוק לפי נושא</h2><span class="tiny muted"><bdi class="en-num">${N(s.mastered)}</bdi> נשלטו</span></div>
+            ${accRows.length ? `<ul class="mastery">
+              ${accRows.map(([c, a]) => { const cat = ctx.cat(c); return `<li style="--c:${esc(catColor(cat))}"><span class="m-ic">${ic(cat.icon, cat.id)}</span><span class="grow"><span class="spread small"><span>${esc(cat.label_he)}</span><span class="muted"><bdi class="en-num">${a.avg}%</bdi> <span class="tiny">(<bdi>${a.count}</bdi>)</span></span></span><span class="bar thin"><i style="--p:${a.avg}%"></i></span></span></li>`; }).join('')}
+            </ul>` : '<p class="small muted">עוד אין נתונים. כל תרגיל שתעשה יופיע כאן.</p>'}
+          </div>
+          ${weakest.length > 1 ? `<div class="stack-sm" data-testid="weakest">
+            <div class="card-head"><h2>כדאי לחזק</h2><span class="tiny muted">3 הנושאים החלשים</span></div>
+            <ul class="weak-list">
+              ${weakest.map((c) => { const cat = ctx.cat(c); const a = acc[c] || { avg: 0 }; return `<li style="--c:${esc(catColor(cat))}">
+                <span class="m-ic">${ic(cat.icon, cat.id)}</span>
+                <span class="grow"><span class="bold small d-block">${esc(cat.label_he)}</span><span class="tiny muted">ממוצע <bdi>${a.avg}%</bdi></span></span>
+                <button class="btn sm ghost" data-practice="${esc(c)}">${icon('target')} תרגל</button>
+              </li>`; }).join('')}
+            </ul>
+          </div>` : ''}
+          <div class="stack-sm">
+            <div class="card-head"><h2>תגים</h2><bdi class="tiny muted en-num">${have.size}/${badges.length}</bdi></div>
+            <div class="badges">
+              ${badges.map((b, k) => { const got = have.has(b.id); return `<div class="badge ${got ? 'got' : 'locked'}" tabindex="0" style="--bc:${BADGE_COLORS[k % BADGE_COLORS.length]}" aria-label="${esc(`${b.title_he}: ${b.desc_he}${got ? '' : ' (נעול)'}`)}" title="${esc(b.desc_he)}">
+                <span class="medal">${got ? ic(b.icon, 'medal') : icon('lock2')}</span>
+                <span class="b-name">${esc(b.title_he)}</span>
+              </div>`; }).join('')}
+            </div>
+          </div>
         </div>
-      </div>
+      </details>
     </div>
   </section>`;
 

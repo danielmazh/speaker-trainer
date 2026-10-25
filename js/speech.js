@@ -15,6 +15,13 @@
 //   support()        -> { recognition, onDevice:'yes'|'no'|'unknown', recorder, secure }
 //   createSession()  -> { start, stop, cancel, discard }
 // Extra helpers:
+//   platform()            -> { mobile, ios, android }  from userAgentData.mobile or the UA
+//   micPermission()       -> Promise<'granted'|'prompt'|'denied'|'unknown'>  never rejects
+//
+// Mic ownership: on mobile (Android, iOS) SpeechRecognition and getUserMedia fight for the
+// mic. There, a take with recognition never opens getUserMedia (no recorder, no level meter).
+// Recognition alone owns the mic, and the caller drives a visual level from onActivity().
+// A take with recognize:false is the explicit "record to listen" mode (no transcript).
 //   probeOnDevice(lang)   -> Promise<'yes'|'no'|'unknown'>  explicit only, 3 s timeout, cached
 //   cachedOnDevice(lang)  -> 'yes'|'no'|'unknown'|null    last probe result, no probe
 //   installOnDevice(lang) -> Promise<boolean>  asks Chrome to download the local model (call from a tap)
@@ -28,7 +35,50 @@ function getSR() {
 const onDeviceCache = new Map(); // lang -> 'yes'|'no'|'unknown'
 const probeInflight = new Map(); // lang -> Promise, so parallel calls share one probe
 const PROBE_TIMEOUT_MS = 3000;
-const MIC_TIMEOUT_MS = 6000;
+const MIC_TIMEOUT_MS = 6000; // only after permission is granted
+const PROMPT_TIMEOUT_MS = 60000; // permission state unknown: a prompt may be open
+const PERM_QUERY_MS = 400;
+const FAST_RUN_MS = 1000; // a recognition run shorter than this, with no result, is a failed run
+const MAX_FAST_RUNS = 3; // then give up on recognition for this take ('rec-failed')
+
+/** Platform flags. Never throws. iPadOS reports a Mac UA, so touch points decide there. */
+export function platform() {
+  const out = { mobile: false, ios: false, android: false };
+  try {
+    const nav = g.navigator || {};
+    const ua = String(nav.userAgent || '');
+    out.android = /Android/i.test(ua);
+    out.ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && Number(nav.maxTouchPoints) > 1);
+    const uad = nav.userAgentData;
+    out.mobile = out.android || out.ios || !!(uad && uad.mobile === true) || /Mobi/i.test(ua);
+  } catch { /* never throw */ }
+  return out;
+}
+
+/** Mic permission state without prompting. 'unknown' when the browser cannot tell. Never rejects. */
+export async function micPermission(timeoutMs = PERM_QUERY_MS) {
+  try {
+    const P = g.navigator && g.navigator.permissions;
+    if (!P || typeof P.query !== 'function') return 'unknown';
+    let raw;
+    try { raw = P.query({ name: 'microphone' }); } catch { return 'unknown'; }
+    const st = await withTimeout(raw, timeoutMs);
+    const v = st && st.state;
+    return v === 'granted' || v === 'prompt' || v === 'denied' ? v : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function permStatus(timeoutMs) {
+  try {
+    const P = g.navigator && g.navigator.permissions;
+    if (!P || typeof P.query !== 'function') return null;
+    let raw;
+    try { raw = P.query({ name: 'microphone' }); } catch { return null; }
+    return (await withTimeout(raw, timeoutMs)) || null;
+  } catch { return null; }
+}
 
 /** Last probe result for `lang`, or null if probeOnDevice() has not finished yet. Never throws. */
 export function cachedOnDevice(lang = 'en-US') {
@@ -113,10 +163,11 @@ function withTimeout(p, ms) {
 
 const now = () => (g.performance && g.performance.now ? g.performance.now() : Date.now());
 
-function mapRecError(code, local) {
+// iOS: 'service-not-allowed' means Siri and Dictation are off, not a blocked mic.
+function mapRecError(code, local, ios) {
   switch (code) {
     case 'not-allowed': return 'not-allowed';
-    case 'service-not-allowed': return local ? 'ondevice-unavailable' : 'not-allowed';
+    case 'service-not-allowed': return local ? 'ondevice-unavailable' : ios ? 'dictation-off' : 'service-off';
     case 'language-not-supported': return local ? 'ondevice-unavailable' : 'unsupported';
     case 'no-speech': return 'no-speech';
     case 'network': return 'network';
@@ -134,20 +185,30 @@ function mapMediaError(e) {
 }
 
 // Join final segments. Android Chrome sometimes repeats a phrase in the next final
-// ("we are" then "we are going"). If a segment starts with the previous one, it replaces it.
-function joinSegments(segs) {
+// ("we are" then "we are going"). Compared by whole words, never by characters:
+// - the new segment starts with all words of the previous one: it replaces it;
+// - the previous one ends with all words of the new one (2 words or more): it is a repeat, drop it.
+// "I" then "It works" keeps both; "deploy now" then "now" keeps both.
+const wordsOf = (s) => s.toLowerCase().split(/\s+/).map((w) => w.replace(/^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu, '')).filter(Boolean);
+function startsWithWords(a, b) { return b.length <= a.length && b.every((w, i) => a[i] === w); }
+function endsWithWords(a, b) { const k = a.length - b.length; return k >= 0 && b.every((w, i) => a[k + i] === w); }
+export function joinSegments(segs) {
   const out = [];
   for (const raw of segs) {
     const s = String(raw || '').trim();
     if (!s) continue;
     const prev = out[out.length - 1];
-    if (prev && s.toLowerCase().startsWith(prev.toLowerCase())) out[out.length - 1] = s;
-    else if (prev && prev.toLowerCase().endsWith(s.toLowerCase())) continue;
-    else out.push(s);
+    if (prev) {
+      const pw = wordsOf(prev), sw = wordsOf(s);
+      if (pw.length && startsWithWords(sw, pw)) { out[out.length - 1] = s; continue; }
+      if (sw.length >= 2 && endsWithWords(pw, sw)) continue;
+    }
+    out.push(s);
   }
   return out.join(' ');
 }
 
+// Errors that end recognition for this take. Per take only: the next take tries again.
 const FATAL = new Set(['not-allowed', 'service-not-allowed', 'audio-capture', 'network', 'language-not-supported']);
 
 const EMPTY = () => ({ transcript: '', durationSec: 0, audioUrl: null });
@@ -166,13 +227,32 @@ function killStream(s) {
   try { if (s && s.getTracks) s.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } }); } catch { /* ignore */ }
 }
 
+
 /**
- * One practice take. onDevice: 'auto' (local when ready, else browser service),
- * 'on' (local only, never the cloud), 'off' (browser service).
+ * One practice take. onDevice: 'auto' (local when the cached probe says ready, else browser service;
+ * never probes inside a take), 'on' (local only, never the cloud), 'off' (browser service).
+ * Options (all optional):
+ *   record        MediaRecorder for playback (in memory only).
+ *   recognize     default true. false = the "record to listen" take: mic + recorder, no transcript.
+ *   exclusiveMic  default platform().mobile. With recognition, never open getUserMedia: no recorder,
+ *                 no level meter. Recognition alone owns the mic.
+ *   ios           default platform().ios. Non-continuous recognition with restarts.
+ *   audioCtx      an AudioContext created and resumed inside the tap (iOS and Safari need that). Used
+ *                 for the level meter and closed when the take ends.
+ *   onReady()     the take really listens now: recognition onstart, or the recorder started when there is
+ *                 no recognition. Start the countdown here, not at the tap.
+ *   onPermission('prompt'|'granted')  a mic permission prompt is open / was answered.
+ *   onActivity(kind)  kind: 'start'|'sound'|'speech'|'result'|'soundend'|'speechend'. Recognition events,
+ *                 so the UI can animate a level without a mic stream.
+ *   onInterim(text), onFinal(text, segment), onLevel(0..1), onError(code)
+ * Error codes, all per take: not-allowed (permission denied), audio-capture, network, no-speech,
+ *   unsupported, ondevice-unavailable, dictation-off (iOS: Siri and Dictation off), service-off,
+ *   mic-timeout (no mic stream 6 s after permission was granted), rec-failed (recognition kept ending at
+ *   once, gave up for this take). The browser permission prompt never counts toward a timeout.
  * No public method throws. start() never rejects; problems go to onError(code).
  * stop(), cancel() and discard() are idempotent and safe in any order, even before start() resolves.
  * The page going hidden while recording stops the take gracefully (Android cuts the mic in background).
- * micTimeoutMs / probeTimeoutMs are for tests.
+ * micTimeoutMs / promptTimeoutMs / probeTimeoutMs are for tests.
  */
 export function createSession(opts = {}) {
   try {
@@ -190,20 +270,24 @@ export function createSession(opts = {}) {
 }
 
 function makeSession({
-  lang = 'en-US', onDevice = 'auto', record = true,
-  onInterim, onFinal, onLevel, onError,
-  micTimeoutMs = MIC_TIMEOUT_MS, probeTimeoutMs = PROBE_TIMEOUT_MS,
+  lang = 'en-US', onDevice = 'auto', record = true, recognize = true, exclusiveMic, ios, audioCtx: givenCtx = null,
+  onInterim, onFinal, onLevel, onError, onReady, onPermission, onActivity,
+  micTimeoutMs = MIC_TIMEOUT_MS, promptTimeoutMs = PROMPT_TIMEOUT_MS, probeTimeoutMs = PROBE_TIMEOUT_MS,
 }) {
-  const SR = getSR();
+  const plat = platform();
+  const exclusive = exclusiveMic == null ? plat.mobile : !!exclusiveMic;
+  const isIOS = ios == null ? plat.ios : !!ios;
+  const SR = recognize ? getSR() : null;
   let state = 'idle'; // idle | starting | recording | stopping | done
-  let stream = null, audioCtx = null, levelTimer = null;
+  let stream = null, audioCtx = givenCtx, levelTimer = null;
   let recorder = null, chunks = [], audioUrl = null, mime = '';
   let rec = null, local = false, recActive = false, recDisabled = false;
-  let committed = []; // finals from earlier recognition runs
+  let committed = []; // finals (and last interim words) from earlier recognition runs
   let runFinals = []; // finals of the current run, by result index
   let interim = '';
-  let t0 = 0, t1 = 0;
-  let restarts = [];
+  let t0 = 0, tStart = 0, t1 = 0;
+  let ready = false;
+  let runStart = 0, runHadResult = false, fastRuns = 0;
   let sawNoSpeech = false;
   let endWaiters = [];
   let abortMic = null; // resolves a pending getUserMedia wait early
@@ -211,10 +295,20 @@ function makeSession({
   let cancelled = false;
   let visBound = false;
 
-  const emitErr = (code) => { try { onError && onError(code); } catch { /* ignore UI errors */ } };
+  const call = (f, ...a) => { try { if (typeof f === 'function') f(...a); } catch { /* ignore UI errors */ } };
+  const emitErr = (code) => call(onError, code);
+  const act = (kind) => call(onActivity, kind);
   const finalText = () => joinSegments([...committed, ...runFinals]);
   const runningText = () => joinSegments([...committed, ...runFinals, interim]);
-  const duration = () => (t0 && t1 ? Math.max(0, Math.round((t1 - t0) / 100) / 10) : 0);
+  const duration = () => { const a = t0 || tStart; return a && t1 ? Math.max(0, Math.round((t1 - a) / 100) / 10) : 0; };
+  const flushWaiters = () => { const w = endWaiters; endWaiters = []; w.forEach((f) => { try { f(); } catch { /* ignore */ } }); };
+
+  function markReady() {
+    if (ready || state !== 'recording') return;
+    ready = true;
+    t0 = now();
+    call(onReady);
+  }
 
   function stopTracks() {
     if (levelTimer) { try { clearInterval(levelTimer); } catch { /* ignore */ } levelTimer = null; }
@@ -222,12 +316,13 @@ function makeSession({
     if (audioCtx) { try { const p = audioCtx.close(); if (p && p.catch) p.catch(() => {}); } catch { /* ignore */ } audioCtx = null; }
   }
 
-  // Page visibility: when the page goes hidden mid-take, end it gracefully.
+  // Page visibility: when the page goes hidden mid-take, end it gracefully. While 'starting' only
+  // pagehide counts: the Android system permission dialog can hide the page for a moment.
   function onVisibility() {
     try {
       const d = g.document;
       const hidden = d && (d.hidden === true || d.visibilityState === 'hidden');
-      if (hidden && (state === 'recording' || state === 'starting')) doStop();
+      if (hidden && state === 'recording') doStop();
     } catch { /* ignore */ }
   }
   function onPageHide() {
@@ -255,9 +350,11 @@ function makeSession({
   function startLevel() {
     if (!stream || typeof onLevel !== 'function') return;
     try {
-      const AC = g.AudioContext || g.webkitAudioContext;
-      if (!AC) return;
-      audioCtx = new AC();
+      if (!audioCtx) {
+        const AC = g.AudioContext || g.webkitAudioContext;
+        if (!AC) return;
+        audioCtx = new AC();
+      }
       const src = audioCtx.createMediaStreamSource(stream);
       const an = audioCtx.createAnalyser();
       an.fftSize = 1024;
@@ -275,7 +372,7 @@ function makeSession({
           onLevel(Math.round(smooth * 100) / 100);
         } catch { /* ignore */ }
       }, 50); // about 20 fps
-      if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume().catch(() => {});
+      if (audioCtx.state === 'suspended' && audioCtx.resume) { const p = audioCtx.resume(); if (p && p.catch) p.catch(() => {}); }
     } catch { /* level meter is optional */ }
   }
 
@@ -299,71 +396,89 @@ function makeSession({
   function newRecognition() {
     const r = new SR();
     r.lang = lang;
-    r.continuous = true;
+    r.continuous = !isIOS; // iOS ends after a pause anyway; onend restarts it
     r.interimResults = true;
     r.maxAlternatives = 1;
     if (local) {
       if ('processLocally' in r) r.processLocally = true;
       else if ('mode' in r) r.mode = 'ondevice-only'; // older Chrome draft
     }
+    r.onstart = () => { if (rec !== r) return; runStart = now(); markReady(); act('start'); };
+    r.onaudiostart = () => { if (rec === r) markReady(); };
+    r.onsoundstart = () => { if (rec !== r) return; markReady(); act('sound'); };
+    r.onspeechstart = () => { if (rec !== r) return; markReady(); act('speech'); };
+    r.onsoundend = () => { if (rec === r) act('soundend'); };
+    r.onspeechend = () => { if (rec === r) act('speechend'); };
     r.onresult = (ev) => {
       try {
+        runHadResult = true;
+        markReady();
+        act('result');
         let inter = '';
         for (let i = ev.resultIndex; i < ev.results.length; i++) {
           const res = ev.results[i];
           const txt = res && res[0] ? res[0].transcript : '';
           if (res && res.isFinal) {
             runFinals[i] = txt;
-            try { onFinal && onFinal(finalText(), String(txt || '').trim()); } catch { /* ignore */ }
+            call(onFinal, finalText(), String(txt || '').trim());
           } else {
             inter += txt;
           }
         }
         runFinals = runFinals.filter((x) => x !== undefined);
         interim = inter.trim();
-        try { onInterim && onInterim(runningText()); } catch { /* ignore */ }
+        call(onInterim, runningText());
       } catch { /* ignore malformed events */ }
     };
     r.onerror = (ev) => {
       const code = ev && ev.error;
       if (code === 'no-speech') { sawNoSpeech = true; return; } // Android: restart quietly
-      if (code === 'aborted') return; // our own stop, or Android ending early: onend restarts
+      if (code === 'aborted') return; // our own stop, or Android ending early: onend counts it
       if (FATAL.has(code)) recDisabled = true;
-      emitErr(mapRecError(code, local));
+      emitErr(mapRecError(code, local, isIOS));
     };
     r.onend = () => {
       recActive = false;
-      // Keep finals of this run; drop the run-local index space.
+      // Keep the finals of this run, and the last interim words too: when Android ends a run itself
+      // (silence, network blip) no final may come. A repeat in the next run is merged by joinSegments.
       committed.push(...runFinals);
-      if (interim && state !== 'recording') committed.push(interim); // last words before stop
+      if (interim) committed.push(interim);
       runFinals = [];
       interim = '';
       if (state === 'recording' && !recDisabled) {
-        const t = now();
-        restarts = restarts.filter((x) => t - x < 5000);
-        restarts.push(t);
-        if (restarts.length > 8) { recDisabled = true; emitErr('aborted'); return; }
-        setTimeout(() => { if (state === 'recording' && !recDisabled) startRec(); }, restarts.length > 3 ? 400 : 50);
+        // A run that ended fast with no result is a failed run (Android: mic busy; each start beeps).
+        const fast = !runHadResult && now() - runStart < FAST_RUN_MS;
+        fastRuns = fast ? fastRuns + 1 : 0;
+        if (fastRuns >= MAX_FAST_RUNS) { recDisabled = true; emitErr('rec-failed'); flushWaiters(); return; }
+        setTimeout(() => { if (state === 'recording' && !recDisabled) startRec(); }, fastRuns ? 400 : 50);
         return;
       }
-      const w = endWaiters; endWaiters = []; w.forEach((f) => f());
+      flushWaiters();
     };
     return r;
   }
 
   function startRec() {
+    runHadResult = false;
+    runStart = now();
     try {
       rec = newRecognition();
-      rec.start();
       recActive = true;
+      rec.start();
     } catch {
       recActive = false;
+      recDisabled = true;
+      emitErr('rec-failed');
     }
   }
 
-  // Resolves { stream } | { error } | { timeout } | { aborted }. A stream that arrives
-  // after we gave up is stopped at once, so the mic is never left on.
-  function getMic() {
+  // Resolves { stream } | { error } | { timeout } | { aborted }. A stream that arrives after we gave
+  // up is stopped at once, so the mic is never left on. The timeout runs only once permission is
+  // granted: while the browser prompt is open we wait (the user may read it for a while).
+  async function getMic() {
+    const st = await permStatus(PERM_QUERY_MS);
+    if (state !== 'starting') return { aborted: true };
+    const perm = st && st.state;
     return new Promise((resolve) => {
       let settled = false, timer = null;
       const finish = (v) => {
@@ -371,9 +486,19 @@ function makeSession({
         settled = true;
         if (timer) clearTimeout(timer);
         abortMic = null;
+        try { if (st && perm === 'prompt') st.onchange = null; } catch { /* ignore */ }
         resolve(v);
       };
-      timer = setTimeout(() => finish({ timeout: true }), micTimeoutMs);
+      const arm = (ms) => { if (timer) clearTimeout(timer); timer = setTimeout(() => finish({ timeout: true }), ms); };
+      if (perm === 'granted') arm(micTimeoutMs);
+      else if (perm === 'prompt') {
+        call(onPermission, 'prompt');
+        try {
+          st.onchange = () => {
+            try { if (!settled && st.state === 'granted') { call(onPermission, 'granted'); arm(micTimeoutMs); } } catch { /* ignore */ }
+          };
+        } catch { /* ignore */ }
+      } else arm(promptTimeoutMs); // 'denied' rejects fast; unknown: a prompt may be open
       abortMic = () => finish({ aborted: true });
       let p;
       try {
@@ -382,7 +507,11 @@ function makeSession({
         });
       } catch (e) { finish({ error: e }); return; }
       Promise.resolve(p).then(
-        (s) => { if (settled) killStream(s); else finish({ stream: s }); },
+        (s) => {
+          if (settled) { killStream(s); return; }
+          if (perm === 'prompt') call(onPermission, 'granted');
+          finish({ stream: s });
+        },
         (e) => finish({ error: e }),
       );
     });
@@ -391,14 +520,16 @@ function makeSession({
   async function chooseLocal() {
     if (onDevice === 'off') return { use: false, ok: true };
     let status = cachedOnDevice(lang);
-    if (status == null) status = await probeOnDevice(lang, { timeoutMs: probeTimeoutMs });
     if (onDevice === 'on') {
-      // Local only. Without a working local model we never send audio to the cloud.
+      // Local only, chosen by the user. Probe here if no result is cached yet.
+      if (status == null) status = await probeOnDevice(lang, { timeoutMs: probeTimeoutMs });
+      // Without a working local model we never send audio to the cloud.
       let canSet = false;
       try { const probe = new SR(); canSet = 'processLocally' in probe || 'mode' in probe; } catch { canSet = false; }
       return status === 'yes' && canSet ? { use: true, ok: true } : { use: false, ok: false };
     }
-    return { use: status === 'yes', ok: true }; // auto: 'no' or 'unknown' means the browser service
+    // auto: only the cached probe result (Profile runs the probe on a tap). No probe inside a take.
+    return { use: status === 'yes', ok: true };
   }
 
   async function doStart() {
@@ -406,48 +537,60 @@ function makeSession({
     state = 'starting';
     bindVisibility();
     try {
-      // Microphone (for level meter and recording).
+      // Recognition choice first: it decides whether this take may open the mic itself.
+      let useRec = false;
+      if (recognize) {
+        if (!SR) emitErr('unsupported');
+        else {
+          const c = await chooseLocal();
+          if (state !== 'starting') { stopTracks(); return; }
+          if (!c.ok) emitErr('ondevice-unavailable');
+          else { local = c.use; useRec = true; }
+        }
+      }
+      recDisabled = !useRec;
+      const exclusiveTake = useRec && exclusive;
+
       const md = g.navigator && g.navigator.mediaDevices;
-      if (md && typeof md.getUserMedia === 'function' && (record || onLevel)) {
+      if (!exclusiveTake && md && typeof md.getUserMedia === 'function' && (record || onLevel || !recognize)) {
         const r = await getMic();
         if (r.stream) {
           if (state !== 'starting') { killStream(r.stream); return; } // stopped or cancelled meanwhile
           stream = r.stream;
         } else if (r.timeout) {
-          // getUserMedia hung (seen in headless Chrome). Give up on this take.
+          // No stream 6 s after permission (seen in headless Chrome). Give up on this take only.
+          if (state !== 'starting') return;
           stopTracks();
           state = 'done';
           unbindVisibility();
-          emitErr('audio-capture');
+          emitErr('mic-timeout');
           return;
         } else if (r.aborted) {
           return;
         } else if (r.error) {
           if (state !== 'starting') return;
-          emitErr(mapMediaError(r.error));
+          const code = mapMediaError(r.error);
+          if (code === 'not-allowed') recDisabled = true;
+          emitErr(code);
         }
+      } else if (exclusiveTake) {
+        // Recognition owns the mic: rely on its own start and errors. Only hint at an open prompt.
+        permStatus(PERM_QUERY_MS).then((st) => {
+          try { if (st && st.state === 'prompt' && !ready && (state === 'starting' || state === 'recording')) call(onPermission, 'prompt'); } catch { /* ignore */ }
+        });
       }
       if (state !== 'starting') { stopTracks(); return; } // cancelled meanwhile
 
-      // Recognition.
-      if (!SR) {
-        recDisabled = true;
-        emitErr('unsupported');
-      } else {
-        const c = await chooseLocal();
-        if (state !== 'starting') { stopTracks(); return; }
-        if (!c.ok) { recDisabled = true; emitErr('ondevice-unavailable'); } else local = c.use;
-      }
-      if (state !== 'starting') { stopTracks(); return; }
-
       startLevel();
       startRecorder();
-      t0 = now();
       state = 'recording';
+      tStart = now();
       if (!recDisabled) startRec();
+      if (recDisabled) markReady(); // no recognition: listening starts with the recorder
     } catch {
       if (state === 'starting') state = 'recording';
-      t0 = t0 || now();
+      tStart = tStart || now();
+      markReady();
     }
   }
 
@@ -472,7 +615,7 @@ function makeSession({
     try {
       if (rec && recActive) { try { rec.stop(); } catch { /* ignore */ } }
       await Promise.all([waitRecEnd(1500), stopRecorder(1500)]);
-      if (interim) { committed.push(...runFinals, interim); runFinals = []; interim = ''; }
+      if (interim || runFinals.length) { committed.push(...runFinals); if (interim) committed.push(interim); runFinals = []; interim = ''; }
       if (!cancelled && recorder && chunks.length && typeof g.Blob === 'function' && g.URL && g.URL.createObjectURL) {
         const type = (recorder.mimeType) || mime || (chunks[0] && chunks[0].type) || 'audio/webm';
         audioUrl = g.URL.createObjectURL(new g.Blob(chunks, { type }));
@@ -496,7 +639,7 @@ function makeSession({
       state = 'done';
       unbindVisibility();
       stopTracks();
-      return Promise.resolve(cancelled || !t0 ? EMPTY() : { transcript: finalText(), durationSec: duration(), audioUrl });
+      return Promise.resolve(cancelled || !(t0 || tStart) ? EMPTY() : { transcript: finalText(), durationSec: duration(), audioUrl });
     }
     const wasStarting = state === 'starting';
     state = 'stopping';
@@ -520,7 +663,7 @@ function makeSession({
     cancelled = true;
     state = 'done';
     try { abortMic && abortMic(); } catch { /* ignore */ }
-    try { if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.abort(); } } catch { /* ignore */ }
+    try { if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.onstart = null; rec.abort(); } } catch { /* ignore */ }
     recActive = false;
     try { if (recorder && recorder.state !== 'inactive') { recorder.ondataavailable = null; recorder.stop(); } } catch { /* ignore */ }
     recorder = null;
@@ -529,7 +672,7 @@ function makeSession({
     stopTracks();
     unbindVisibility();
     doDiscard();
-    const w = endWaiters; endWaiters = []; w.forEach((f) => { try { f(); } catch { /* ignore */ } });
+    flushWaiters();
     return was;
   }
 

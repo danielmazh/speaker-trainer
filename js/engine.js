@@ -1,7 +1,9 @@
 // Speaker Trainer - game engine.
 // Pure functions. Storage is injected. Content (ITEMS, BADGES, LEVEL_TITLES_HE)
 // can be passed as parameters; when it is not, the engine falls back to
-// js/content.js, loaded lazily and safely (a missing or broken file is ignored).
+// js/content.js (static import: no top-level await, so the app module graph
+// stays synchronous and the service worker registers on time).
+import * as CONTENT_MOD from './content.js';
 
 export const STORE_KEY = 'speakerTrainer.v1';
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,12 +23,7 @@ const KIND_TO_TYPE = { warmup: 'shadow', fix: 'fix', choice: 'choice', speak: 's
 
 // ---------- content fallback ----------
 
-let CONTENT = {};
-try {
-  CONTENT = await import('./content.js');
-} catch {
-  CONTENT = {};
-}
+let CONTENT = { ...CONTENT_MOD };
 
 // Lets the app (or tests) set content explicitly. Any key left out keeps its current value.
 export function configure({ ITEMS, BADGES, LEVEL_TITLES_HE, TRACKS } = {}) {
@@ -280,6 +277,12 @@ function validateShape(s) {
   ) {
     s.daily = defaultState().daily;
   } else {
+    if (d.repeatXp !== undefined) {
+      const rx = isPlainObject(d.repeatXp) && isDateStr(d.repeatXp.date) ? { date: d.repeatXp.date } : null;
+      if (rx) for (const [k, v] of Object.entries(d.repeatXp)) if (k !== 'date' && isSafeKey(k) && strOk(k, 80)) rx[k] = finite(v, 0, 1000);
+      if (rx) s.daily.repeatXp = rx;
+      else delete s.daily.repeatXp;
+    }
     s.daily.tasks = d.tasks.map((t) => ({
       ...t,
       xp: finite(t.xp, 0, 1000),
@@ -669,6 +672,13 @@ export function generateDaily(state, ITEMS, dateStr = todayStr()) {
 export function ensureDaily(state, ITEMS, dateStr = todayStr()) {
   const s = normalize(state);
   if (s.daily.date === dateStr && s.daily.tasks.length) return s;
+  // Clock moved back (flying west, or a manual change): keep the newer mission, so a
+  // finished day is never replayed for XP. More than one day back is a broken clock
+  // in the stored date, so a fresh mission is generated then.
+  if (isDateStr(s.daily.date) && isDateStr(dateStr) && s.daily.tasks.length) {
+    const back = dayDiff(dateStr, s.daily.date);
+    if (back > 0 && back <= 1) return s;
+  }
   const d = generateDaily(s, ITEMS, dateStr);
   s.daily = { date: d.date, tasks: d.tasks, done: [], bonus: false };
   return s;
@@ -687,6 +697,21 @@ function updateStreak(streak, day) {
   return { streak: s, up: true };
 }
 
+// The streak is alive only when the last practice day is today or yesterday.
+// A clock that moved back (last day in the future) keeps it alive.
+export function streakAlive(state, now = Date.now()) {
+  const last = state && state.streak && state.streak.last;
+  if (!isDateStr(last)) return false;
+  const gap = dayDiff(last, todayStr(new Date(now)));
+  return gap <= 1;
+}
+
+// The streak number to show: the stored count while alive, else 0.
+export function currentStreak(state, now = Date.now()) {
+  if (!streakAlive(state, now)) return 0;
+  return Math.max(0, Number(state.streak.count) || 0);
+}
+
 // Keep only known numeric metrics. Never transcript text, never audio.
 export function cleanMetrics(m) {
   if (!isPlainObject(m)) return {};
@@ -696,6 +721,7 @@ export function cleanMetrics(m) {
     return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : undefined;
   };
   if (typeof m.fromMic === 'boolean') out.fromMic = m.fromMic;
+  if (m.selfRated === true) out.selfRated = true;
   const caps = { words: 100000, wpm: 1000, durationSec: 7200, fillerTotal: 10000, fillersPerMin: 1000 };
   for (const [k, max] of Object.entries(caps)) {
     const v = num(m[k], max);
@@ -722,13 +748,20 @@ export function cleanMetrics(m) {
   return out;
 }
 
+// A self-rating counts less than a measured take: 5 stars = 80, not 100.
+export const SELF_RATED_FACTOR = 0.8;
+export function resultScore(r) {
+  const raw = Math.max(0, Math.min(100, Number(r && r.score) || 0));
+  return r && isPlainObject(r.metrics) && r.metrics.selfRated === true ? Math.round(raw * SELF_RATED_FACTOR) : raw;
+}
+
 // Grade items, write history and counters for one finished session. Mutates s.
 function recordResults(s, list, { taskId, taskKind, now, itemsById }) {
   const day = todayStr(new Date(now));
   const c = s.counters;
   for (const r of list) {
-    const score = Math.max(0, Math.min(100, Number(r.score) || 0));
     const metrics = cleanMetrics(r.metrics);
+    const score = resultScore(r);
     const prev = s.items[r.itemId];
     s.items[r.itemId] = grade(prev, scoreToQuality(score), now);
     s.items[r.itemId].best = Math.max(Number(prev?.best) || 0, score);
@@ -740,7 +773,7 @@ function recordResults(s, list, { taskId, taskKind, now, itemsById }) {
     s.history.push(entry);
     c.graded += 1;
     if (cat) c.cats[cat] = (c.cats[cat] || 0) + 1;
-    if (score >= 95) c.perfect += 1;
+    if (score >= 95 && !metrics.selfRated) c.perfect += 1;
     if ((taskKind === 'speak' || itemType === 'speak') && metrics.fillerTotal === 0) c.fillerFree += 1;
     if (metrics.fromMic === true) c.mic += 1;
     if (Number(metrics.words) > 0) c.words = (Number(c.words) || 0) + Math.round(metrics.words);
@@ -764,26 +797,60 @@ function badgeCtx(opts) {
   return { items: opts.items, tracks: opts.tracks };
 }
 
+// A daily task id is '<YYYY-MM-DD>-<n>', n = 1..5 in TASK_KINDS order.
+const DAILY_ID_RE = /^(\d{4}-\d{2}-\d{2})-([1-9])$/;
+
+// A task from an older mission (the app stayed open past midnight). Accepted only for
+// yesterday or today, so results are saved instead of silently dropped.
+function staleDailyTask(s, taskId, now, opts) {
+  const m = typeof taskId === 'string' ? DAILY_ID_RE.exec(taskId) : null;
+  if (!m) return null;
+  const age = dayDiff(m[1], todayStr(new Date(now)));
+  if (age < 0 || age > 1) return null;
+  const given = isPlainObject(opts.task) && opts.task.id === taskId ? opts.task : null;
+  const kind = given && TASK_KINDS.includes(given.kind) ? given.kind : TASK_KINDS[Number(m[2]) - 1];
+  if (!kind) return null;
+  const xp = given && Number.isFinite(Number(given.xp)) && Number(given.xp) > 0 ? Math.min(1000, Number(given.xp)) : TASK_XP[kind];
+  const done = s.history.some((e) => e.taskId === taskId);
+  return { task: { id: taskId, kind, xp }, done };
+}
+
+// Repeat XP after the first completion: at most REPEAT_XP_CAP per task per day.
+export const REPEAT_XP_CAP = 5;
+
 export function completeTask(state, taskId, results = [], now = Date.now(), opts = {}) {
   const s = normalize(state);
-  const task = (s.daily.tasks || []).find((t) => t.id === taskId);
-  if (!task) return { state: s, xpGained: 0, newBadges: [], streakUp: false };
+  let task = (s.daily.tasks || []).find((t) => t.id === taskId);
+  let stale = null;
+  if (!task) {
+    stale = staleDailyTask(s, taskId, now, opts);
+    if (!stale) return { state: s, xpGained: 0, newBadges: [], streakUp: false };
+    task = stale.task;
+  }
 
   const itemsById = new Map(contentItems(opts.items).map((it) => [it.id, it]));
   const list = Array.isArray(results) ? results.filter((r) => r && typeof r.itemId === 'string' && isSafeKey(r.itemId)) : [];
-  const repeat = s.daily.done.includes(taskId);
+  const repeat = stale ? stale.done : s.daily.done.includes(taskId);
 
   // XP
   let xp = Number(task.xp) || TASK_XP[task.kind] || 0;
-  if (list.length && list.every((r) => Number(r.score) >= 80)) xp = Math.round(xp * 1.2);
-  if (repeat) xp = Math.round(xp / 2);
+  if (list.length && list.every((r) => resultScore(r) >= 80)) xp = Math.round(xp * 1.2);
+  if (repeat) {
+    // "Again" is for practice, not for farming: a small amount once per task per day.
+    const day = todayStr(new Date(now));
+    const rx = isPlainObject(s.daily.repeatXp) && s.daily.repeatXp.date === day ? { ...s.daily.repeatXp } : { date: day };
+    const given = Number(rx[taskId]) || 0;
+    xp = Math.max(0, Math.min(Math.round(xp / 2), REPEAT_XP_CAP - given));
+    rx[taskId] = given + xp;
+    if (!stale) s.daily.repeatXp = rx;
+  }
 
   recordResults(s, list, { taskId, taskKind: task.kind, now, itemsById });
   if (task.kind === 'boss' && !repeat) s.counters.boss += 1;
 
-  // daily mission
-  if (!repeat) s.daily.done.push(taskId);
-  const allDone = s.daily.tasks.length > 0 && s.daily.tasks.every((t) => s.daily.done.includes(t.id));
+  // daily mission (an old mission's task never touches today's mission)
+  if (!repeat && !stale) s.daily.done.push(taskId);
+  const allDone = !stale && s.daily.tasks.length > 0 && s.daily.tasks.every((t) => s.daily.done.includes(t.id));
   if (allDone && !s.daily.bonus) {
     s.daily.bonus = true;
     s.missions += 1;
@@ -895,17 +962,17 @@ export function completePractice(state, sessionId, results = [], now = Date.now(
   const taskKind = isUnit ? 'unit' : 'practice';
 
   let xp = 0;
-  for (const r of list) if (Number(r.score) >= 60) xp += PRACTICE_ITEM_XP;
+  for (const r of list) if (resultScore(r) >= 60) xp += PRACTICE_ITEM_XP;
   recordResults(s, list, { taskId: id, taskKind, now, itemsById });
 
   let bossPassed = false;
   let unitDone = false;
   if (unit && isSafeKey(unit.id)) {
     const tr = (s.tracks[unit.id] = { bossPassed: false, bestScore: 0, ...(isPlainObject(s.tracks[unit.id]) ? s.tracks[unit.id] : {}) });
-    const avg = Math.round(list.reduce((a, r) => a + Math.max(0, Math.min(100, Number(r.score) || 0)), 0) / list.length);
+    const avg = Math.round(list.reduce((a, r) => a + resultScore(r), 0) / list.length);
     tr.bestScore = Math.max(Number(tr.bestScore) || 0, avg);
     const boss = unit.bossId ? list.find((r) => r.itemId === unit.bossId) : null;
-    if (boss && Number(boss.score) >= PASS_SCORE) {
+    if (boss && resultScore(boss) >= PASS_SCORE) {
       bossPassed = true;
       if (!tr.bossPassed) {
         tr.bossPassed = true;

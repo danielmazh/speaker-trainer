@@ -6,8 +6,8 @@ import { KIND, KIND_SUB } from './shell.js';
 const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 // Node centers in % of the path width (left edge), from the design.
 const XS = [75, 29, 69, 26, 66];
-const STEP = 104; // px between node rows
-const TOP = 48;
+const STEP = 80; // px between node rows
+const TOP = 40;
 
 export function render(root, ctx) {
   const d = ctx.state.daily;
@@ -38,16 +38,15 @@ export function render(root, ctx) {
   }
 
   root.innerHTML = `<section class="screen no-nav mission" data-testid="mission">
-    <header class="band">
+    <header class="band compact">
       <div class="band-title">
         <a class="icon-btn" href="#home" aria-label="חזרה">${icon('arrowR')}</a>
-        <div class="grow"><h1>המשימה של היום</h1><p class="sub">יום ${day} - ${total} שלבים, <bdi>${mins}</bdi> דק'</p></div>
-        ${xpLeft ? `<span class="band-pill"><bdi>+${xpLeft} XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>` : `<span class="band-pill"><span class="gold-ic">${icon('trophy')}</span></span>`}
+        <div class="grow"><h1>המשימה של היום</h1>
+          <div class="row nowrap prog-row"><div class="bar on-band thin grow"><i style="--p:${total ? Math.round((done / total) * 100) : 0}%"></i></div><bdi class="en-num tiny bold">${done}/${total}</bdi></div>
+        </div>
+        ${xpLeft ? `<span class="band-pill"><bdi>+${xpLeft} XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>` : `<span class="band-pill" aria-label="הושלם"><span class="gold-ic">${icon('trophy')}</span></span>`}
       </div>
-      <div class="row nowrap prog-row">
-        <div class="bar on-band grow"><i style="--p:${total ? Math.round((done / total) * 100) : 0}%"></i></div>
-        <bdi class="en-num bold">${done}/${total}</bdi>
-      </div>
+      <p class="sub">יום ${day} · ${total} שלבים · <span class="nowrap-num"><bdi>${mins}</bdi> דק'</span></p>
     </header>
 
     <div class="body">
@@ -73,11 +72,11 @@ export function render(root, ctx) {
         }).join('')}
       </ol>
 
-      ${allDone
-        ? `<div class="card finish-card" data-testid="mission-finished"><span class="ico gold">${icon('trophy')}</span><div class="grow"><div class="bold">המשימה הושלמה!</div><div class="small muted">קיבלת בונוס של 50 XP. נתראה מחר.</div></div></div>
-           <a class="btn block big" href="#home">${icon('home')} הביתה</a>`
-        : `<button class="btn block big" data-next data-testid="mission-start">${done ? `המשך לשלב ${nextIdx + 1}` : 'מתחילים משלב 1'} ${icon('arrowL')}</button>`}
+      ${allDone ? `<div class="card finish-card" data-testid="mission-finished"><span class="ico gold">${icon('trophy')}</span><div class="grow"><div class="bold">המשימה הושלמה!</div><div class="small muted">קיבלת בונוס של 50 XP. נתראה מחר.</div></div></div>` : ''}
       <p class="tiny muted center">שלב שכבר עשית אפשר לשחק שוב, בחצי XP.</p>
+      <div class="action-bar">${allDone
+        ? `<a class="btn block big" href="#home">${icon('home')} הביתה</a>`
+        : `<button class="btn block big" data-next data-testid="mission-start">${done ? `המשך לשלב ${nextIdx + 1}` : 'מתחילים משלב 1'} ${icon('arrowL')}</button>`}</div>
     </div>
   </section>`;
 

@@ -345,7 +345,7 @@ hr.soft { border: 0; height: 1px; background: var(--line); margin: 4px 0; }
 .heat rect.today { stroke: var(--flame); stroke-width: 2.5; }
 .heat-key { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .heat-key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-.sm-seg button { min-height: 40px; font-size: .82rem; }
+.sm-seg button { min-height: 44px; font-size: .82rem; }
 .tline { width: 100%; height: auto; display: block; overflow: visible; }
 .tline .t-band { fill: var(--good-50); }
 .tline .t-goal { stroke: var(--good); stroke-width: 1.5; stroke-dasharray: 4 4; }
@@ -372,3 +372,92 @@ hr.soft { border: 0; height: 1px; background: var(--line); margin: 4px 0; }
 }
 /* Hebrew lines that may start with English: keep punctuation at the true end, stay right aligned. */
 .track .zz-sub, .track-desc, .unit-sheet p, .cont-card .bold { unicode-bidi: plaintext; text-align: right; }
+
+/* ================= ux overhaul: screens ================= */
+
+/* ---------- home: about one screen ---------- */
+.home-band { padding: calc(max(8px, var(--sat)) + 10px) var(--gutter) 16px; gap: 10px; border-radius: 0 0 28px 28px; }
+.greet-row { gap: 12px; }
+.home-band .avatar { width: 44px; height: 44px; flex-basis: 44px; font-size: 1.1rem; }
+.home-band .greet { font-size: 1.2rem; }
+.level-line { display: flex; flex-direction: column; gap: 6px; color: #fff; text-decoration: none; padding: 8px 12px; border-radius: 16px; background: var(--on-band-12); min-height: 44px; }
+.level-line .lv-title { font-size: .85rem; }
+.home .body { gap: 12px; padding-top: 14px; }
+.hero { position: relative; padding: 16px; gap: 10px; }
+.hero-link { position: absolute; inset: 0; border-radius: inherit; z-index: 1; }
+.hero .go-btn { position: relative; z-index: 2; }
+.hero-title { font-size: 1.15rem; font-weight: 800; text-align: start; direction: rtl; unicode-bidi: normal; }
+.hero-meta { flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.hero-segs { padding: 0; margin: 0; }
+.hero-foot { align-items: center; }
+.hero-foot svg { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; }
+.cont-card { padding: 12px 14px; }
+.mini { min-height: 64px; padding: 10px 12px; }
+.goal-tile .ring-pct { font-size: .85rem; }
+
+/* ---------- path ---------- */
+.path .body { gap: 12px; padding-top: 14px; }
+.track-card { padding: 10px 12px; gap: 10px; border-radius: 18px; min-height: 60px; }
+.tracks { gap: 8px; }
+.track-ico { width: 40px; height: 40px; flex-basis: 40px; }
+.track-card .ring-pct { font-size: .7rem; }
+.topics-hint { margin: 0 0 8px; }
+.skills { gap: 10px; margin-top: 0; }
+.skill { min-height: 104px; padding: 12px; gap: 8px; }
+.band .band-pill + .band-pill { margin-inline-start: -4px; }
+
+/* ---------- mission and track maps: tighter zigzag ---------- */
+.mission .body, .track .body { gap: 10px; padding-top: 12px; }
+.mission .zz-node, .track .zz-node { height: 56px; }
+.mission .zz-dot, .track .zz-dot { width: 56px; height: 56px; margin-left: 4px; }
+.mission .zz-dot svg, .track .zz-dot svg { width: 22px; height: 22px; }
+.mission .zz-node.now .zz-dot { box-shadow: 0 0 0 6px var(--primary-100), var(--sh-cta); }
+.zz-label { top: 0; }
+.track .zz-label { max-width: calc(100% - 110px); }
+.boss-line { font-size: .66rem; }
+
+/* ---------- stats ---------- */
+.stats .body { gap: 12px; padding-top: 14px; }
+.stats .band .stat-tiles { margin-top: 2px; }
+.weak-pin { --c: var(--primary); display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.weak-pin .btn { flex: 0 0 auto; padding-inline: 14px; }
+.weak-pin .btn svg { width: 16px; height: 16px; }
+.more-card { padding: 0 16px; }
+.more-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 56px; }
+.more-card > summary::-webkit-details-marker { display: none; }
+.more-card > summary .chev { color: var(--muted); display: grid; transition: transform .25s; }
+.more-card > summary .chev svg { width: 18px; height: 18px; }
+.more-card[open] > summary .chev { transform: rotate(180deg); }
+.more-card[open] { padding-bottom: 16px; }
+.heat { max-height: 96px; }
+
+/* ---------- profile ---------- */
+.profile .body, .coach .body { gap: 12px; padding-top: 14px; }
+.pick-acc summary { min-height: 48px; padding: 10px 2px; }
+.acc.plain summary { min-height: 44px; padding: 8px 0; }
+.profile .card h2 { font-size: 1rem; }
+
+/* ---------- coach ---------- */
+.coach .aud-seg { margin-top: 2px; }
+.coach .aud-seg button { min-height: 44px; }
+
+/* ---------- onboarding ---------- */
+.skip-btn { min-width: 64px; justify-content: center; }
+@media (max-height: 640px) {
+  .ob-art { height: 240px; }
+  .ob-art > svg { width: 220px; height: 220px; }
+  .q-body { padding-top: 16px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .ob-art, .q-ico { display: none; }
+  .ob-slide { justify-content: center; }
+  .ob-foot { padding-top: 8px; padding-bottom: calc(12px + var(--sab)); }
+  .q-body { padding-top: 8px; gap: 8px; }
+  /* Two columns of cards on the wide screens. */
+  .home .body, .stats .body, .path [data-panel="tracks"] .tracks { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .home .body > *, .stats .body > * { min-width: 0; }
+  .stats .body > .more-card, .home .body > .row-link { grid-column: 1 / -1; }
+  .path .skills { grid-template-columns: repeat(4, 1fr); }
+  .band, .home-band { padding-top: calc(max(4px, var(--sat)) + 6px); padding-bottom: 10px; }
+  .home-band .level-line { padding: 6px 10px; }
+}

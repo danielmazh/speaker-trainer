@@ -1,8 +1,9 @@
-// Shadow: see the word and a Hebrew hint, listen, then say the sentence. Mic checks the words.
+// Shadow: one card with the word, a Hebrew hint, listen buttons and the sentence. The mic sits in the sticky dock.
+// Words light up in the sentence while the user speaks.
 import { esc } from './dom.js';
 import { icon } from './icons.js';
 import { micPanel, takeScore } from './mic.js';
-import { listenBtn, bindListen, ttsOk } from './tts.js';
+import { bindListen, ttsOk } from './tts.js';
 
 export function mount(el, item, { ctx, finish }) {
   const { A } = ctx;
@@ -18,22 +19,21 @@ export function mount(el, item, { ctx, finish }) {
     pos = t.end;
   });
   parts.push(esc(item.sentence_en.slice(pos)));
+  const tts = ttsOk();
 
   el.innerHTML = `<div class="stack">
     <div class="card word-card">
-      <div class="en word-big" dir="ltr" lang="en">${esc(item.word)}</div>
-      <p class="hint">${icon('volume')} <span>${esc(item.hint_he)}</span></p>
-      ${ttsOk() ? `<div class="row" style="justify-content:center">
-        <button class="btn ghost sm" data-say data-text="${esc(item.word)}" data-slow="1">${icon('volume')} המילה, לאט</button>
-        ${listenBtn('כל המשפט')}
-      </div>` : ''}
-    </div>
-    <div class="card">
-      <div class="tiny muted" style="margin-bottom:6px">אמור בקול:</div>
+      <div class="word-row">
+        <div class="en word-big" dir="ltr" lang="en">${esc(item.word)}</div>
+        ${tts ? `<button class="icon-btn light" data-say data-text="${esc(item.word)}" data-slow="1" aria-label="הקשב למילה, לאט">${icon('volume')}</button>` : ''}
+      </div>
+      <p class="hint">${esc(item.hint_he)}</p>
+      <hr class="soft">
+      <div class="spread"><span class="tiny muted bold">אמור בקול:</span>${tts ? `<button class="btn ghost sm" data-say>${icon('volume')} כל המשפט</button>` : ''}</div>
       <p class="en en-lg sentence" dir="ltr" lang="en">${parts.join('')}</p>
       ${item.why_he ? `<p class="why small muted">${icon('bulb')} ${esc(item.why_he)}</p>` : ''}
     </div>
-    <div data-mic></div>
+    <div class="play-dock" data-mic></div>
   </div>`;
   bindListen(el, item.sentence_en);
 
@@ -45,6 +45,8 @@ export function mount(el, item, { ctx, finish }) {
 
   micPanel(el.querySelector('[data-mic]'), ctx, {
     target: item.sentence_en,
+    compact: true,
+    size: 88,
     label: 'הקלט את המשפט',
     onLive: (_a, text) => light(text),
     onDone: (take) => {

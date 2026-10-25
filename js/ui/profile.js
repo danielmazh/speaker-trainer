@@ -1,9 +1,10 @@
-// Profile: profile fields, look, feedback, privacy and mic settings, your data (export, import), reset.
+// Profile: three tabs (profile and look, mic and privacy, data). Every change saves at once.
 import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { band, ic, ROLES, GOALS, DAILY_MIN, profileOf } from './shell.js';
 
 const OD_HE = { yes: 'מוכן במכשיר', no: 'לא זמין במכשיר', unknown: 'לא ידוע' };
+let tab = 'me';
 
 export function render(root, ctx) {
   const st = ctx.state;
@@ -14,73 +15,96 @@ export function render(root, ctx) {
   const aud = ctx.C.AUDIENCES || [];
   const chip = (id, he, on) => `<button class="chip q-chip" data-v="${esc(id)}" aria-pressed="${on}">${on ? icon('check') : ''}<bdi>${esc(he)}</bdi></button>`;
 
+  const sel = (arr) => arr.length ? `<bdi>${arr.length}</bdi> נבחרו` : 'לא נבחר';
+  const acc = (key, label, opts, cur) => `<details class="acc pick-acc" data-acc="${key}">
+      <summary><span class="grow acc-title">${label}</span><span class="tiny muted" data-count="${key}">${sel(cur)}</span><span class="chev">${icon('chevDown')}</span></summary>
+      <div class="pick" data-pick="${key}">${opts.map(([id, he]) => chip(id, he, cur.includes(id))).join('')}</div>
+    </details>`;
+
   root.innerHTML = `<section class="screen profile">
-    ${band({ title: 'פרופיל והגדרות', sub: 'הכול נשמר רק בדפדפן הזה.', back: '#home' })}
+    ${band({ title: 'פרופיל והגדרות', sub: 'שינוי נשמר מיד, רק בדפדפן הזה.' }).replace('class="band"', 'class="band compact"')}
     <div class="body">
+      <div class="seg tabs" role="group" aria-label="חלקי הפרופיל">
+        <button data-ptab="me" aria-pressed="${tab === 'me'}">פרופיל</button>
+        <button data-ptab="mic" aria-pressed="${tab === 'mic'}">מיקרופון ופרטיות</button>
+        <button data-ptab="data" aria-pressed="${tab === 'data'}">נתונים</button>
+      </div>
+
+      <div class="stack" data-ppanel="me" ${tab === 'me' ? '' : 'hidden'}>
       <div class="card stack-sm" data-testid="profile-form">
-        <h2>${icon('user', 'h-ic')} הפרופיל שלך</h2>
         <label class="field"><span class="lbl">השם שלך</span>
           <input class="input" id="pf-name" value="${esc(pf.name || '')}" maxlength="24" autocomplete="given-name">
         </label>
         <div class="field"><span class="lbl">תפקיד</span>
           <div class="pick" data-pick="role" data-one>${ROLES.map(([id, he]) => chip(id, he, pf.role === id)).join('')}</div></div>
-        <div class="field"><span class="lbl">בשביל מה אתה מתאמן</span>
-          <div class="pick" data-pick="goals">${GOALS.map(([id, he]) => chip(id, he, pf.goals.includes(id))).join('')}</div></div>
-        ${tracks.length ? `<div class="field"><span class="lbl">מסלולים בפוקוס</span>
-          <div class="pick" data-pick="focusTracks">${tracks.map((t) => chip(t.id, t.title_he, pf.focusTracks.includes(t.id))).join('')}</div></div>` : ''}
-        ${aud.length ? `<div class="field"><span class="lbl">מול מי אתה מדבר</span>
-          <div class="pick" data-pick="audiences">${aud.map((a) => chip(a.id, a.name_he, pf.audiences.includes(a.id))).join('')}</div></div>` : ''}
+        <div class="field"><span class="lbl">יעד יומי</span>
+          <div class="seg" role="group" aria-label="יעד יומי בדקות">${DAILY_MIN.map((m) => `<button data-min="${m}" aria-pressed="${pf.dailyGoalMin === m}"><bdi class="en-num">${m}</bdi> דק'</button>`).join('')}</div></div>
         <label class="field"><span class="lbl">ההרצאה הבאה</span>
           <input class="input" type="date" id="pf-date" value="${esc(/^\d{4}-\d{2}-\d{2}$/.test(pf.nextTalkDate || '') ? pf.nextTalkDate : '')}">
         </label>
-        <div class="field"><span class="lbl">יעד יומי</span>
-          <div class="seg" role="group" aria-label="יעד יומי בדקות">${DAILY_MIN.map((m) => `<button data-min="${m}" aria-pressed="${pf.dailyGoalMin === m}"><bdi class="en-num">${m}</bdi> דק'</button>`).join('')}</div></div>
-        <button class="btn block" data-saveprofile>${icon('check')} שמור פרופיל</button>
+        <div class="acc-group">
+          ${acc('goals', 'בשביל מה אתה מתאמן', GOALS, pf.goals)}
+          ${tracks.length ? acc('focusTracks', 'מסלולים בפוקוס', tracks.map((t) => [t.id, t.title_he]), pf.focusTracks) : ''}
+          ${aud.length ? acc('audiences', 'מול מי אתה מדבר', aud.map((a) => [a.id, a.name_he]), pf.audiences) : ''}
+        </div>
       </div>
 
       <div class="card stack-sm">
         <h2>${icon('sun', 'h-ic')} מראה ותחושה</h2>
-        <div class="lbl small">ערכת צבעים</div>
         <div class="seg" role="group" aria-label="ערכת צבעים">
           ${[['system', 'אוטומטי'], ['light', 'בהיר'], ['dark', 'כהה']].map(([v, l]) => `<button data-theme="${v}" aria-pressed="${set.theme === v}">${l}</button>`).join('')}
         </div>
         <div class="switch-row"><span>רטט בתשובות</span><button class="switch" role="switch" aria-checked="${!!set.haptics}" data-toggle="haptics" aria-label="רטט בתשובות"></button></div>
         <div class="switch-row"><span>צלילים</span><button class="switch" role="switch" aria-checked="${!!set.sound}" data-toggle="sound" aria-label="צלילים"></button></div>
       </div>
+      </div>
 
+      <div class="stack" data-ppanel="mic" ${tab === 'mic' ? '' : 'hidden'}>
       <div class="card stack-sm">
-        <h2>${icon('shield', 'h-ic')} פרטיות ומיקרופון</h2>
         <div class="note">${icon('shield')}<span>האפליקציה <b>אף פעם</b> לא שומרת ולא מעלה את הקול שלך. ההקלטה נמצאת רק בזיכרון של הדף, ונמחקת כשאתה עוזב את המסך.</span></div>
-        <p class="small">המרת דיבור לטקסט נעשית על ידי הדפדפן. במצב <b>על המכשיר</b> הכול קורה בטלפון. בלי מצב הזה, שירות הדיבור של הדפדפן (ב-Chrome זה Google) מקבל את הקול כדי להפוך אותו לטקסט. זה השירות של הדפדפן, לא שלנו.</p>
-        <div class="status-grid small">
-          <span>זיהוי דיבור</span><b class="${sup.recognition ? 'ok' : 'no'}">${sup.recognition ? 'נתמך' : 'לא נתמך'}</b>
-          <span>על המכשיר</span><b data-od class="${sup.onDevice === 'yes' ? 'ok' : sup.onDevice === 'no' ? 'no' : ''}">${OD_HE[sup.onDevice]}</b>
-          <span>הקלטה</span><b class="${sup.recorder ? 'ok' : 'no'}">${sup.recorder ? 'נתמכת' : 'לא נתמכת'}</b>
-          <span>חיבור מאובטח</span><b class="${sup.secure ? 'ok' : 'no'}">${sup.secure ? 'כן' : 'לא (המיקרופון צריך https)'}</b>
-        </div>
-        <div class="lbl small">זיהוי על המכשיר</div>
+        <div class="lbl small">זיהוי דיבור</div>
         <div class="seg" role="group" aria-label="זיהוי על המכשיר">
           ${[['auto', 'אוטומטי'], ['on', 'רק במכשיר'], ['off', 'שירות הדפדפן']].map(([v, l]) => `<button data-od-set="${v}" aria-pressed="${set.onDevice === v}">${l}</button>`).join('')}
         </div>
         <p class="tiny muted" data-od-help></p>
         <button class="btn ghost sm" data-probe hidden>${icon('sparkles')} בדוק זיהוי על המכשיר</button>
         <button class="btn ghost sm" data-install hidden>${icon('sparkles')} הורד מודל דיבור למכשיר</button>
+        <details class="acc plain">
+          <summary><span class="grow acc-title">פרטים: מה הדפדפן תומך</span><span class="chev">${icon('chevDown')}</span></summary>
+          <p class="small">המרת דיבור לטקסט נעשית על ידי הדפדפן. במצב <b>על המכשיר</b> הכול קורה בטלפון. בלי מצב הזה, שירות הדיבור של הדפדפן (ב-Chrome זה Google) מקבל את הקול כדי להפוך אותו לטקסט. זה השירות של הדפדפן, לא שלנו.</p>
+          <div class="status-grid small">
+            <span>זיהוי דיבור</span><b class="${sup.recognition ? 'ok' : 'no'}">${sup.recognition ? 'נתמך' : 'לא נתמך'}</b>
+            <span>על המכשיר</span><b data-od class="${sup.onDevice === 'yes' ? 'ok' : sup.onDevice === 'no' ? 'no' : ''}">${OD_HE[sup.onDevice]}</b>
+            <span>הקלטה</span><b class="${sup.recorder ? 'ok' : 'no'}">${sup.recorder ? 'נתמכת' : 'לא נתמכת'}</b>
+            <span>חיבור מאובטח</span><b class="${sup.secure ? 'ok' : 'no'}">${sup.secure ? 'כן' : 'לא (המיקרופון צריך https)'}</b>
+          </div>
+        </details>
+      </div>
       </div>
 
+      <div class="stack" data-ppanel="data" ${tab === 'data' ? '' : 'hidden'}>
       <div class="card stack-sm" data-testid="data-card">
-        <h2>${ic('download', '', 'h-ic')} הנתונים שלך</h2>
-        <p class="small muted">גיבוי של ההתקדמות כטקסט. שמור אותו, או העבר אותו לטלפון אחר. ההקלטות לא נכללות, הן אף פעם לא נשמרות.</p>
+        <h2>${ic('download', '', 'h-ic')} גיבוי</h2>
+        <p class="small muted">שמור קובץ גיבוי, או טען אותו בטלפון אחר. הקלטות לא נכללות, הן אף פעם לא נשמרות.</p>
         <div class="btn-row">
-          <button class="btn line sm" data-export>${ic('download')} ייצוא</button>
-          <button class="btn line sm" data-copy hidden>${ic('copy')} העתק</button>
+          <button class="btn line sm" data-save-file data-testid="save-file">${ic('download')} שמור קובץ</button>
+          <label class="btn line sm file-btn">${ic('upload')} טען מקובץ<input type="file" accept="application/json,.json" data-load-file class="sr-only" aria-label="טען גיבוי מקובץ"></label>
         </div>
-        <textarea class="textarea mono" id="pf-export" readonly hidden dir="ltr" aria-label="הגיבוי שלך, טקסט JSON" rows="6"></textarea>
-        <hr class="soft">
-        <label class="field"><span class="lbl">ייבוא מגיבוי</span>
-          <textarea class="textarea mono" id="pf-import" dir="ltr" rows="4" placeholder='{"app":"speaker-trainer", ...}' spellcheck="false"></textarea>
-        </label>
+        <details class="acc plain">
+          <summary><span class="grow acc-title">העתקה והדבקה של טקסט</span><span class="chev">${icon('chevDown')}</span></summary>
+          <div class="stack-sm">
+            <div class="btn-row">
+              <button class="btn ghost sm" data-export>${ic('copy')} הצג טקסט</button>
+              <button class="btn ghost sm" data-copy hidden>${ic('copy')} העתק</button>
+            </div>
+            <textarea class="textarea mono" id="pf-export" readonly hidden dir="ltr" aria-label="הגיבוי שלך, טקסט JSON" rows="5"></textarea>
+            <label class="field"><span class="lbl">הדבק גיבוי</span>
+              <textarea class="textarea mono" id="pf-import" dir="ltr" rows="3" placeholder='{"app":"speaker-trainer", ...}' spellcheck="false"></textarea>
+            </label>
+            <button class="btn ghost sm" data-import>${ic('upload')} ייבא והחלף את הנתונים</button>
+          </div>
+        </details>
         <p class="note warn" data-import-err role="alert" hidden></p>
-        <button class="btn ghost sm" data-import>${ic('upload')} ייבא והחלף את הנתונים</button>
       </div>
 
       <div class="card stack-sm">
@@ -88,10 +112,17 @@ export function render(root, ctx) {
         <p class="small muted">מוחק נקודות, רצף, תגים והיסטוריה. אי אפשר לבטל.</p>
         <button class="btn line" data-reset style="color:var(--bad);border-color:var(--bad-50)">${icon('trash')} אפס את ההתקדמות</button>
       </div>
-
       <p class="tiny muted center">Speaker Trainer · בלי חשבון, בלי פרסומות, בלי מעקב.</p>
+      </div>
     </div>
   </section>`;
+
+  on(root, '[data-ptab]', 'click', (e, b) => {
+    tab = b.dataset.ptab;
+    root.querySelectorAll('[data-ptab]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    root.querySelectorAll('[data-ppanel]').forEach((p) => { p.hidden = p.dataset.ppanel !== tab; });
+    ctx.haptic(8);
+  });
 
   const help = root.querySelector('[data-od-help]');
   const odHelp = (v) => {
@@ -134,8 +165,15 @@ export function render(root, ctx) {
     else { installBtn.disabled = false; installBtn.innerHTML = `${icon('sparkles')} הורד מודל דיבור למכשיר`; }
   });
 
-  // Profile form: chips toggle locally, saved with one button.
+  // One save model: every change saves at once (the name after a short pause) and shows a small "נשמר".
   const draft = { role: pf.role, goals: [...pf.goals], focusTracks: [...pf.focusTracks], audiences: [...pf.audiences], dailyGoalMin: pf.dailyGoalMin };
+  let lastToast = 0;
+  const saved = () => {
+    const now = Date.now();
+    if (now - lastToast > 1500) ctx.toast('נשמר', { kind: 'success', iconName: 'check', ms: 1200 });
+    lastToast = now;
+  };
+  const save = (patch) => { ctx.saveProfile(patch); saved(); };
   on(root, '.pick [data-v]', 'click', (e, b) => {
     const box = b.closest('[data-pick]');
     const key = box.dataset.pick;
@@ -147,20 +185,34 @@ export function render(root, ctx) {
       x.setAttribute('aria-pressed', String(onNow));
       x.innerHTML = `${onNow ? icon('check') : ''}<bdi>${x.querySelector('bdi').innerHTML}</bdi>`;
     });
+    const cnt = root.querySelector(`[data-count="${key}"]`);
+    if (cnt) cnt.innerHTML = sel(draft[key]);
     ctx.haptic(8);
+    save({ [key]: draft[key] });
   });
   on(root, '[data-min]', 'click', (e, b) => {
     draft.dailyGoalMin = Number(b.dataset.min);
     root.querySelectorAll('[data-min]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    save({ dailyGoalMin: draft.dailyGoalMin });
   });
-  const saveProfile = () => {
-    const name = root.querySelector('#pf-name').value.trim().slice(0, 24);
-    const date = root.querySelector('#pf-date').value || null;
-    ctx.saveProfile({ ...draft, ...(name ? { name } : {}), nextTalkDate: date });
-    ctx.toast(name ? `נשמר. נעים מאוד, ${name}` : 'הפרופיל נשמר', { kind: 'success', iconName: 'smile' });
+  const nameEl = root.querySelector('#pf-name');
+  let nameT = 0;
+  let nameDirty = false;
+  const saveName = () => {
+    clearTimeout(nameT);
+    if (!nameDirty) return;
+    nameDirty = false;
+    const name = nameEl.value.trim().slice(0, 24);
+    ctx.saveProfile({ name });
+    ctx.set({ name });
+    saved();
   };
-  on(root, '[data-saveprofile]', 'click', saveProfile);
-  root.querySelector('#pf-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveProfile(); });
+  nameEl.addEventListener('input', () => { nameDirty = true; clearTimeout(nameT); nameT = setTimeout(saveName, 600); });
+  nameEl.addEventListener('blur', saveName);
+  nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
+  root.querySelector('#pf-date').addEventListener('change', (e) => save({ nextTalkDate: e.target.value || null }));
+  // Leaving the screen never drops an edit.
+  ctx.onLeave(saveName);
 
   // Export and import.
   const out = root.querySelector('#pf-export');
@@ -180,11 +232,26 @@ export function render(root, ctx) {
     ctx.toast(ok ? 'הגיבוי הועתק. שמור אותו במקום בטוח.' : 'לא הצלחתי להעתיק. סמן את הטקסט והעתק ידנית.', { kind: ok ? 'success' : 'warn' });
   });
   const err = root.querySelector('[data-import-err]');
-  on(root, '[data-import]', 'click', async () => {
-    const text = root.querySelector('#pf-import').value;
+  on(root, '[data-save-file]', 'click', () => {
+    try {
+      const blob = new Blob([ctx.exportData()], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `speaker-trainer-backup-${ctx.E.todayStr()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      ctx.toast('קובץ הגיבוי נשמר בהורדות.', { kind: 'success' });
+    } catch {
+      ctx.toast('לא הצלחתי לשמור קובץ. נסה העתקה והדבקה.', { kind: 'warn' });
+    }
+  });
+  const importText = async (text) => {
     err.hidden = true;
     if (!text.trim()) { err.textContent = 'הדבק קודם את טקסט הגיבוי.'; err.hidden = false; return; }
-    try { JSON.parse(text); } catch { err.textContent = 'זה לא טקסט גיבוי תקין. בדוק שהעתקת את הכול, מהסוגר הראשון עד האחרון.'; err.hidden = false; return; }
+    try { JSON.parse(text); } catch { err.textContent = 'זה לא גיבוי תקין. בדוק שבחרת את הקובץ הנכון, או שהעתקת את כל הטקסט.'; err.hidden = false; return; }
     const ok = await ctx.confirm({ title: 'להחליף את הנתונים?', text: 'הגיבוי יחליף את כל ההתקדמות בדפדפן הזה.', ok: 'כן, ייבא', cancel: 'ביטול', danger: true });
     if (!ok) return;
     try {
@@ -196,11 +263,20 @@ export function render(root, ctx) {
     }
     ctx.toast('הנתונים יובאו. ברוך שובך!', { kind: 'success' });
     ctx.go('home');
+  };
+  root.querySelector('[data-load-file]').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { err.textContent = 'הקובץ גדול מדי לגיבוי.'; err.hidden = false; return; }
+    importText(await f.text());
   });
+  on(root, '[data-import]', 'click', () => importText(root.querySelector('#pf-import').value));
 
   on(root, '[data-theme]', 'click', (e, b) => {
     ctx.set({ settings: { theme: b.dataset.theme } });
     root.querySelectorAll('[data-theme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    saved();
   });
   on(root, '[data-toggle]', 'click', (e, b) => {
     const k = b.dataset.toggle;
@@ -209,6 +285,7 @@ export function render(root, ctx) {
     b.setAttribute('aria-checked', String(v));
     if (v && k === 'haptics') ctx.haptic(20);
     if (v && k === 'sound') ctx.sound('good');
+    saved();
   });
   on(root, '[data-od-set]', 'click', (e, b) => {
     const v = b.dataset.odSet;
@@ -216,6 +293,7 @@ export function render(root, ctx) {
     ctx.session.micIssue = null;
     root.querySelectorAll('[data-od-set]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     odHelp(v);
+    saved();
   });
   on(root, '[data-reset]', 'click', async () => {
     const ok = await ctx.confirm({ title: 'לאפס הכול?', text: 'כל הנקודות, הרצף, התגים וההיסטוריה יימחקו מהדפדפן הזה.', ok: 'כן, אפס', cancel: 'ביטול', danger: true });

@@ -55,6 +55,34 @@ export function toast(text, { kind = 'info', iconName = '', title = '', ms = 260
   }, ms);
 }
 
+// Toast with one action button that stays until tapped or dismissed.
+// actionToast(text, { label, onClick, title, iconName }) -> { close }
+export function actionToast(text, { label, onClick, title = '', iconName = 'sparkles', kind = 'info' } = {}) {
+  const box = document.getElementById('toasts');
+  if (!box) return { close() {} };
+  const el = document.createElement('div');
+  el.className = `toast ${kind} has-action`;
+  el.setAttribute('role', 'alert');
+  el.innerHTML = `<span class="ticon">${icon(iconName)}</span><div class="grow">${title ? `<div>${esc(title)}</div><div class="tsub">${esc(text)}</div>` : esc(text)}</div><button class="btn small toast-action" type="button" style="min-height:44px;min-width:44px;pointer-events:auto">${esc(label || 'OK')}</button>`;
+  el.style.pointerEvents = 'auto';
+  box.appendChild(el);
+  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 320); };
+  el.querySelector('.toast-action').addEventListener('click', () => { try { onClick && onClick(); } finally { close(); } });
+  return { close, el };
+}
+
+// Every open modal or sheet, so a route change can close them all.
+const open = new Set();
+
+// Close every open modal and bottom sheet. Pending confirms resolve false.
+export function closeAll() {
+  for (const close of [...open]) { try { close(); } catch { /* ignore */ } }
+  open.clear();
+}
+
+// A route change (back button, link, hash edit) never leaves a dialog on the next screen.
+if (typeof window !== 'undefined') window.addEventListener('hashchange', closeAll);
+
 // Generic modal. Returns { el, close }. Esc and scrim tap close it unless sticky.
 // innerHtml is trusted HTML: callers must esc() every value that comes from state or content.
 export function modal(innerHtml, { sheet = false, sticky = false, label = '', onClose } = {}) {
@@ -69,6 +97,7 @@ export function modal(innerHtml, { sheet = false, sticky = false, label = '', on
   const close = () => {
     if (closed) return;
     closed = true;
+    open.delete(close);
     document.removeEventListener('keydown', onKey);
     scrim.remove();
     try { prev && prev.focus && prev.focus(); } catch { /* ignore */ }
@@ -84,6 +113,7 @@ export function modal(innerHtml, { sheet = false, sticky = false, label = '', on
       else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
     }
   };
+  open.add(close);
   document.addEventListener('keydown', onKey);
   scrim.addEventListener('click', (e) => { if (e.target === scrim && !sticky) close(); });
   setTimeout(() => (box.querySelector('[autofocus]') || box.querySelector('button') || box).focus(), 30);

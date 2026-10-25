@@ -23,22 +23,35 @@ function fakeStream() {
 }
 
 // getUserMedia that never resolves on its own; the test can resolve it late.
-function hangingMic() {
+// perm: 'granted' | 'prompt' | 'denied' | null (no Permissions API). ua: user agent string.
+function permApi(perm) {
+  if (!perm) return undefined;
+  const status = { state: perm, onchange: null };
+  return { status, query: async ({ name }) => { if (name !== 'microphone') throw new TypeError('bad'); return status; } };
+}
+function hangingMic({ perm = 'granted', ua = '' } = {}) {
   const m = { calls: 0, resolve: null };
-  setG('navigator', { mediaDevices: { getUserMedia() { m.calls++; return new Promise((r) => { m.resolve = r; }); } } });
+  const permissions = permApi(perm);
+  m.perm = permissions && permissions.status;
+  setG('navigator', { userAgent: ua, permissions, mediaDevices: { getUserMedia() { m.calls++; return new Promise((r) => { m.resolve = r; }); } } });
   return m;
 }
-function workingMic() {
-  const m = { streams: [] };
-  setG('navigator', { mediaDevices: { getUserMedia() { const s = fakeStream(); m.streams.push(s); return Promise.resolve(s); } } });
+function workingMic({ perm = 'granted', ua = '', uad } = {}) {
+  const m = { streams: [], calls: 0 };
+  setG('navigator', { userAgent: ua, userAgentData: uad, permissions: permApi(perm), mediaDevices: { getUserMedia() { m.calls++; const s = fakeStream(); m.streams.push(s); return Promise.resolve(s); } } });
   return m;
 }
+const ANDROID_UA = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36';
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+const DESKTOP_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36';
+const final = (t) => Object.assign([{ transcript: t }], { isFinal: true });
+const inter = (t) => Object.assign([{ transcript: t }], { isFinal: false });
 
 function fakeSR({ available } = {}) {
   const made = [];
   class SR {
     constructor() { this.started = 0; this.stopped = 0; this.aborted = 0; this.processLocally = false; made.push(this); }
-    start() { this.started++; }
+    start() { this.started++; if (SR.autoStart) setTimeout(() => this.onstart && this.onstart(), 0); if (SR.endAtOnce) setTimeout(() => this.onend && this.onend(), 0); }
     stop() { this.stopped++; setTimeout(() => this.onend && this.onend(), 1); }
     abort() { this.aborted++; }
   }
@@ -49,16 +62,16 @@ function fakeSR({ available } = {}) {
   return SR;
 }
 
-// 1. getUserMedia timeout
+// 1. getUserMedia timeout (only after permission is granted)
 
-test('hanging getUserMedia: start() resolves, onError audio-capture, late stream is stopped', async () => {
+test('hanging getUserMedia after permission granted: start() resolves, onError mic-timeout, late stream is stopped', async () => {
   const mic = hangingMic();
   const SR = fakeSR();
   const { createSession } = await load();
   const errs = [];
   const s = createSession({ onError: (c) => errs.push(c), micTimeoutMs: 30, onDevice: 'off' });
   await s.start();
-  assert.deepEqual(errs, ['audio-capture']);
+  assert.deepEqual(errs, ['mic-timeout'], 'a soft per-take code, not audio-capture');
   assert.equal(SR.made.length, 0, 'recognition not started after mic timeout');
   const late = fakeStream();
   mic.resolve(late);
@@ -129,14 +142,14 @@ test('probeOnDevice: sync throw and hang both give unknown', async () => {
   assert.ok(Date.now() - t < 1000);
 });
 
-test('auto: unknown probe falls back to the browser service', async () => {
+test('auto: no probe inside a take (no cached result) and the browser service is used', async () => {
   const SR = fakeSR({ available: () => new Promise(() => {}) });
   workingMic();
   const { createSession } = await load();
   const errs = [];
   const s = createSession({ onDevice: 'auto', record: false, onLevel: () => {}, probeTimeoutMs: 20, onError: (c) => errs.push(c) });
   await s.start();
-  assert.equal(SR.availableCalls, 1);
+  assert.equal(SR.availableCalls, 0, 'the first tap must not run the on-device probe in auto');
   assert.equal(SR.made.length, 1);
   assert.equal(SR.made[0].started, 1);
   assert.equal(SR.made[0].processLocally, false);
@@ -277,4 +290,273 @@ test('MediaRecorder mime is feature-detected (Safari: audio/mp4, else default)',
   await s.start();
   assert.equal(made[1].opts, undefined);
   await s.stop();
+});
+
+// 6. slow permission prompt: no timeout while the prompt is open
+
+test('permission prompt: waits past the mic timeout, reports prompt then granted, then records', async () => {
+  const mic = hangingMic({ perm: 'prompt' });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [], perms = [];
+  const s = createSession({ onDevice: 'off', exclusiveMic: false, micTimeoutMs: 20, onError: (c) => errs.push(c), onPermission: (p) => perms.push(p) });
+  const started = s.start();
+  await tick(80); // far past micTimeoutMs: the user is still reading the prompt
+  assert.deepEqual(errs, []);
+  assert.deepEqual(perms, ['prompt']);
+  mic.resolve(fakeStream());
+  await started;
+  assert.deepEqual(perms, ['prompt', 'granted']);
+  assert.equal(SR.made.length, 1, 'recognition starts after Allow');
+  await s.stop();
+});
+
+test('permission prompt: the timeout starts only once permission changes to granted', async () => {
+  const mic = hangingMic({ perm: 'prompt' });
+  fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', exclusiveMic: false, micTimeoutMs: 20, onError: (c) => errs.push(c) });
+  const started = s.start();
+  await tick(50);
+  assert.deepEqual(errs, []);
+  mic.perm.state = 'granted';
+  mic.perm.onchange();
+  await started;
+  assert.deepEqual(errs, ['mic-timeout']);
+});
+
+test('no Permissions API: the long prompt timeout applies, not the 6 s mic timeout', async () => {
+  hangingMic({ perm: null });
+  fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', exclusiveMic: false, micTimeoutMs: 10, promptTimeoutMs: 60, onError: (c) => errs.push(c) });
+  const started = s.start();
+  await tick(30);
+  assert.deepEqual(errs, [], 'not yet: a prompt may be open');
+  await started;
+  assert.deepEqual(errs, ['mic-timeout']);
+});
+
+test('denied permission gives not-allowed and no recognition', async () => {
+  setG('navigator', { userAgent: DESKTOP_UA, permissions: permApi('denied'), mediaDevices: { getUserMedia: async () => { const e = new Error('no'); e.name = 'NotAllowedError'; throw e; } } });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  assert.deepEqual(errs, ['not-allowed']);
+  assert.equal(SR.made.length, 0);
+  await s.stop();
+});
+
+// 7. platform and mobile mic ownership
+
+test('platform(): Android, iPhone, iPadOS, userAgentData.mobile, desktop', async () => {
+  const S = await load();
+  setG('navigator', { userAgent: ANDROID_UA });
+  assert.deepEqual(S.platform(), { mobile: true, ios: false, android: true });
+  setG('navigator', { userAgent: IPHONE_UA });
+  assert.deepEqual(S.platform(), { mobile: true, ios: true, android: false });
+  setG('navigator', { userAgent: DESKTOP_UA.replace('Chrome/129.0 ', ''), maxTouchPoints: 5 });
+  assert.equal(S.platform().ios, true, 'iPadOS reports a Mac UA');
+  setG('navigator', { userAgent: 'x', userAgentData: { mobile: true } });
+  assert.equal(S.platform().mobile, true);
+  setG('navigator', { userAgent: DESKTOP_UA, userAgentData: { mobile: false } });
+  assert.deepEqual(S.platform(), { mobile: false, ios: false, android: false });
+});
+
+test('Android: recognition take never opens getUserMedia, no recorder, no level meter', async () => {
+  const mic = workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const recs = [];
+  setG('MediaRecorder', class { constructor() { recs.push(this); } start() {} stop() {} });
+  const { createSession } = await load();
+  let levels = 0;
+  const acts = [];
+  const s = createSession({ onDevice: 'off', record: true, onLevel: () => levels++, onActivity: (k) => acts.push(k) });
+  await s.start();
+  assert.equal(mic.calls, 0, 'recognition alone owns the mic');
+  assert.equal(recs.length, 0);
+  assert.equal(SR.made.length, 1);
+  const r = SR.made[0];
+  r.onstart(); r.onsoundstart(); r.onspeechstart();
+  r.onresult({ resultIndex: 0, results: [final('hello')] });
+  assert.deepEqual(acts, ['start', 'sound', 'speech', 'result']);
+  const res = await s.stop();
+  assert.equal(res.transcript, 'hello');
+  assert.equal(res.audioUrl, null);
+  assert.equal(levels, 0);
+});
+
+test('iPhone: recognition take is exclusive and non-continuous', async () => {
+  const mic = workingMic({ ua: IPHONE_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const s = createSession({ onDevice: 'off' });
+  await s.start();
+  assert.equal(mic.calls, 0);
+  assert.equal(SR.made[0].continuous, false);
+  await s.stop();
+});
+
+test('mobile record-only take (recognize:false) opens the mic and records, no recognition', async () => {
+  const mic = workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const recs = [];
+  setG('MediaRecorder', class { constructor() { this.state = 'inactive'; recs.push(this); } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => this.onstop && this.onstop(), 1); } });
+  const { createSession } = await load();
+  const errs = [];
+  let ready = 0;
+  const s = createSession({ onDevice: 'off', recognize: false, onReady: () => ready++, onError: (c) => errs.push(c) });
+  await s.start();
+  assert.equal(mic.calls, 1);
+  assert.equal(recs.length, 1);
+  assert.equal(SR.made.length, 0);
+  assert.equal(ready, 1, 'ready when the recorder starts');
+  assert.deepEqual(errs, []);
+  await s.stop();
+  assert.equal(mic.streams[0].track.stopped, 1);
+});
+
+test('desktop: record and recognition run together; a given AudioContext is used and closed', async () => {
+  const mic = workingMic({ ua: DESKTOP_UA });
+  const SR = fakeSR();
+  const recs = [];
+  setG('MediaRecorder', class { constructor() { this.state = 'inactive'; recs.push(this); } start() { this.state = 'recording'; } stop() { this.state = 'inactive'; setTimeout(() => this.onstop && this.onstop(), 1); } });
+  const ac = { state: 'running', closed: 0, createMediaStreamSource: () => ({ connect() {} }), createAnalyser: () => ({ fftSize: 0, getByteTimeDomainData() {} }), close() { this.closed++; return Promise.resolve(); } };
+  setG('AudioContext', class { constructor() { throw new Error('must use the given one'); } });
+  const { createSession } = await load();
+  const s = createSession({ onDevice: 'off', audioCtx: ac, onLevel: () => {} });
+  await s.start();
+  assert.equal(mic.calls, 1);
+  assert.equal(recs.length, 1);
+  assert.equal(SR.made.length, 1);
+  await s.stop();
+  assert.equal(ac.closed, 1);
+});
+
+// 8. listening starts at recognition onstart
+
+test('onReady fires at recognition onstart, not at start()', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  let ready = 0;
+  const s = createSession({ onDevice: 'off', onReady: () => ready++ });
+  await s.start();
+  assert.equal(ready, 0, 'not listening yet');
+  SR.made[0].onstart();
+  assert.equal(ready, 1);
+  SR.made[0].onstart();
+  assert.equal(ready, 1, 'once per take');
+  await s.stop();
+});
+
+// 9. recognition gives up with a clear code
+
+test('recognizer that ends at once: 3 runs, then rec-failed (no silent fallback, no 9 beeps)', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  SR.endAtOnce = true;
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  await tick(1200);
+  assert.equal(SR.made.length, 3);
+  assert.deepEqual(errs, ['rec-failed']);
+  await s.stop();
+});
+
+test('runs with results restart without counting as failures', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  for (let k = 0; k < 5; k++) {
+    const r = SR.made.at(-1);
+    r.onresult({ resultIndex: 0, results: [final(`word${k} more`)] });
+    r.onend();
+    await tick(80);
+  }
+  assert.equal(SR.made.length, 6);
+  assert.deepEqual(errs, []);
+  const res = await s.stop();
+  assert.equal(res.transcript, 'word0 more word1 more word2 more word3 more word4 more');
+});
+
+test('iOS service-not-allowed means Dictation is off', async () => {
+  workingMic({ ua: IPHONE_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  SR.made[0].onerror({ error: 'service-not-allowed' });
+  assert.deepEqual(errs, ['dictation-off']);
+  await s.stop();
+});
+
+// 10. merge
+
+test('joinSegments compares whole words', async () => {
+  const { joinSegments } = await load();
+  assert.equal(joinSegments(['I', 'It works']), 'I It works');
+  assert.equal(joinSegments(['deploy now', 'now']), 'deploy now now');
+  assert.equal(joinSegments(['unknown', 'own']), 'unknown own');
+  assert.equal(joinSegments(['we are', 'we are going']), 'we are going');
+  assert.equal(joinSegments(['we are going to', 'going to']), 'we are going to', 'a 2-word repeat is dropped');
+  assert.equal(joinSegments(['We are.', 'we are going']), 'we are going');
+});
+
+test('end-of-run interim words are kept when Android ends a run itself', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const s = createSession({ onDevice: 'off' });
+  await s.start();
+  const r = SR.made[0];
+  r.onresult({ resultIndex: 0, results: [final('the cache'), inter('is warm now')] });
+  r.onend(); // no final for the interim words
+  await tick(80);
+  assert.equal(SR.made.length, 2, 'restarted');
+  const res = await s.stop();
+  assert.equal(res.transcript, 'the cache is warm now');
+});
+
+test("onDevice 'on' with no cached result probes inside the take (explicit setting)", async () => {
+  const SR = fakeSR({ available: async () => 'available' });
+  workingMic({ ua: DESKTOP_UA });
+  const { createSession } = await load();
+  const s = createSession({ onDevice: 'on', record: false });
+  await s.start();
+  assert.equal(SR.availableCalls, 1);
+  assert.equal(SR.made.at(-1).processLocally, true);
+  await s.stop();
+});
+
+// 11. mic.js error policy: one error must not poison the session
+
+test('mic errorPolicy: only not-allowed is sticky; mobile takes end on any recognition error', async () => {
+  const { errorPolicy, noticeMode } = await import('../js/ui/mic.js');
+  assert.equal(errorPolicy('not-allowed').sticky, true);
+  for (const c of ['network', 'no-speech', 'audio-capture', 'aborted', 'rec-failed', 'mic-timeout', 'dictation-off']) {
+    assert.equal(errorPolicy(c).sticky, false, `${c} is per take`);
+  }
+  assert.equal(errorPolicy('network', 'both').endsTake, false, 'desktop keeps recording');
+  assert.equal(errorPolicy('network', 'rec-only').endsTake, true, 'mobile: nothing left in the take');
+  assert.equal(errorPolicy('rec-failed', 'rec-only').endsTake, true);
+  assert.equal(errorPolicy('mic-timeout', 'both').endsTake, true);
+  assert.equal(errorPolicy('no-speech', 'rec-only').show, false);
+  assert.ok(/[֐-׿]/.test(errorPolicy('rec-failed').message), 'Hebrew message for give-up');
+  assert.ok(/[֐-׿]/.test(errorPolicy('dictation-off').message));
+  const session = {};
+  assert.equal(noticeMode(session, 'unsupported'), 'full');
+  assert.equal(noticeMode(session, 'unsupported'), 'chip');
+  assert.equal(noticeMode(session, 'not-allowed'), 'full');
+  assert.equal(noticeMode(session, null), null);
 });

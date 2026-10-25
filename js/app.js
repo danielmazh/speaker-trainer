@@ -17,8 +17,13 @@ import * as statsScreen from './ui/stats.js';
 import * as profile from './ui/profile.js';
 import * as pathScreen from './ui/path.js';
 import * as trackScreen from './ui/track.js';
-import { profileOf } from './ui/shell.js';
+import { profileOf, navHtml, navActive } from './ui/shell.js';
 
+// Fonts: index.html preloads the Google Fonts CSS; switch it on here (no inline handler under the CSP).
+(() => {
+  const l = document.getElementById('font-css');
+  if (l && l.rel !== 'stylesheet') l.rel = 'stylesheet';
+})();
 
 const ROUTES = {
   onboarding: { mod: onboarding, nav: false },
@@ -32,13 +37,26 @@ const ROUTES = {
   profile: { mod: profile, nav: true },
 };
 
-const NAV = [
-  { r: 'home', label: 'בית', ic: 'home' },
-  { r: 'path', label: 'המסלול', ic: 'map' },
-  { r: 'play', label: 'שחק', ic: 'play', center: true },
-  { r: 'stats', label: 'התקדמות', ic: 'chart' },
-  { r: 'profile', label: 'פרופיל', ic: 'user' },
-];
+// Top-level tabs: switching between them replaces the history entry (no pile-up).
+// Everything else (mission, play, track, coach) pushes, so Back returns to where you were.
+const TABS = new Set(['home', 'path', 'stats', 'profile']);
+
+// sessionStorage: survives a reload of this tab, never shared, never sent anywhere.
+const SS_TASK = 'speakerTrainer.ui.task'; // the session on #play (resume after reload)
+const SS_LAST = 'speakerTrainer.ui.lastDone'; // where a finished or left session returns to
+const ss = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k) || 'null'); } catch { return null; } },
+  set(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
+};
+// Task descriptor only: ids and flags, never results, transcripts or audio.
+function taskDescriptor(t) {
+  if (!t || typeof t.id !== 'string') return null;
+  const keep = ['id', 'kind', 'title_he', 'itemIds', 'xp', 'minutes', 'practice', 'unit', 'trackId', 'unitId', 'bossId', 'back'];
+  const out = {};
+  for (const k of keep) if (t[k] !== undefined) out[k] = t[k];
+  return out;
+}
+const backOf = (t) => (t && (t.unit || t.back === 'track') ? 'track' : t && t.practice ? 'home' : 'mission');
 
 try { E.configure({ ITEMS: C.ITEMS, BADGES: C.BADGES, LEVEL_TITLES_HE: C.LEVEL_TITLES_HE, TRACKS: C.TRACKS }); } catch { /* engine falls back to content itself */ }
 
@@ -49,6 +67,8 @@ const catMap = new Map((C.CATEGORIES || []).map((c) => [c.id, c]));
 const TRACKS = buildTracks();
 let cleanups = [];
 let current = null;
+let playing = null; // the task shown on #play in this render
+let leaveGuard = null; // set by a screen: () => Promise<boolean>
 
 function ensureToday() {
   const cur = store.get();
@@ -71,11 +91,10 @@ const ctx = {
   item: (id) => itemMap.get(id) || null,
   cat: (id) => catMap.get(id) || null,
   level: () => E.levelFromXp(store.get().xp, C.LEVEL_TITLES_HE),
-  go(route) {
-    const h = `#${route}`;
-    if (location.hash === h) render();
-    else location.hash = h;
-  },
+  // go(route, { replace, force }): push by default, replace between tabs; force skips the leave guard.
+  go(route, opts = {}) { return navigate(route, opts); },
+  // A screen with unsaved work sets fn: () => Promise<boolean> (true = leave). Cleared on every route change.
+  setLeaveGuard(fn) { leaveGuard = typeof fn === 'function' ? fn : null; },
   onLeave(fn) { cleanups.push(fn); },
   toast: fx.toast,
   haptic: fx.haptic,
@@ -89,7 +108,18 @@ const ctx = {
     return (d.tasks || []).find((t) => !d.done.includes(t.id)) || null;
   },
   startTask(task) {
-    ctx.session.task = task;
+    ensureToday();
+    let t = task;
+    // Past midnight the old mission is gone: start today's next step instead.
+    if (t && !t.practice) {
+      const d = store.get().daily;
+      if (!(d.tasks || []).some((x) => x.id === t.id)) {
+        const n = ctx.nextTask();
+        if (n) { t = n; fx.toast('יום חדש, משימה חדשה.', { kind: 'info' }); }
+      }
+    }
+    ctx.session.task = t;
+    ss.set(SS_TASK, taskDescriptor(t));
     ctx.go('play');
   },
   // Free practice outside the daily mission (from skill cards and coach).
@@ -97,6 +127,7 @@ const ctx = {
     const ids = (itemIds || []).filter((id) => itemMap.has(id));
     if (!ids.length) { fx.toast('אין עדיין תרגילים כאן.', { kind: 'warn' }); return; }
     ctx.session.task = { id: `practice:${Date.now()}`, kind, title_he, itemIds: ids, xp: 0, practice: true };
+    ss.set(SS_TASK, taskDescriptor(ctx.session.task));
     ctx.go('play');
   },
   // Pick up to n items of a category: due and weak first, then new.
@@ -121,14 +152,14 @@ const ctx = {
     if (task.practice) {
       out = E.completePractice(before, task.id, results, Date.now(), { items: C.ITEMS, badges: C.BADGES, tracks: TRACKS });
     } else {
-      out = E.completeTask(before, task.id, results, Date.now(), { items: C.ITEMS, badges: C.BADGES });
+      out = E.completeTask(before, task.id, results, Date.now(), { items: C.ITEMS, badges: C.BADGES, task });
     }
     store.set(() => out.state);
+    // Done: a reload or Forward now goes back to the map or track, never into a new task.
+    ss.set(SS_TASK, null);
+    ss.set(SS_LAST, { back: backOf(task) });
     const after = store.get();
-    // Unit news (result.js does not know about units): a short toast after the score shows.
-    if (task.unit && (out.unitDone || out.bossPassed)) {
-      setTimeout(() => fx.toast(out.unitDone ? 'פתחת את היחידה הבאה במסלול.' : 'ניצחת את הבוס של היחידה.', { kind: 'badge', title: out.unitDone ? 'יחידה הושלמה!' : 'בוס הובס!', iconName: out.unitDone ? 'trophy' : 'crown', ms: 3800 }), 2200);
-    }
+    // 2026-10-25: unit-done toast removed, result.js shows the unit card itself.
     const lv = E.levelFromXp(after.xp, C.LEVEL_TITLES_HE);
     const missionDone = !task.practice && after.daily.bonus && !before.daily.bonus;
     return {
@@ -147,7 +178,7 @@ const ctx = {
       const b = (C.BADGES || []).find((x) => x.id === id);
       if (!b) return;
       setTimeout(() => {
-        fx.toast(b.desc_he, { kind: 'badge', title: `תג חדש: ${b.title_he}`, iconName: b.icon || 'medal', ms: 4200 });
+        fx.toast(b.desc_he, { kind: 'badge', title: `תג חדש: ${b.title_he}`, iconName: b.icon || 'medal', ms: 2500 });
         fx.haptic([20, 40, 20]);
       }, 600 + k * 900);
     });
@@ -166,6 +197,7 @@ const ctx = {
     if (!play.length) { fx.toast('היחידה הזאת עוד ריקה.', { kind: 'warn' }); return; }
     ctx.session.task = { ...sess, kind: 'unit', itemIds: play, practice: true, unit: true, trackId: track.id, unitId: unit.id, back: 'track' };
     ctx.session.lastUnit = { trackId: track.id, unitId: unit.id };
+    ss.set(SS_TASK, taskDescriptor(ctx.session.task));
     ctx.go('play');
   },
   profile: () => profileOf(store.get()),
@@ -214,10 +246,26 @@ function buildTracks() {
 fx.bindSettings(() => store.get().settings);
 
 // ---------- router ----------
+// Bare-hash routes. Every history entry carries { idx, prev } in history.state:
+// idx = position in this tab's history, prev = the route of the entry before it.
+// Internal moves use pushState/replaceState and render directly; Back, Forward and
+// typed hashes arrive as hashchange.
+
+let navIdx = 0;
+let bypass = 0; // hashchange events we caused ourselves (history.back after a guard said yes)
 
 function routeName() {
   const h = (location.hash || '').replace(/^#/, '');
   return ROUTES[h] ? h : null;
+}
+
+function stamp(extra = {}) {
+  try { history.replaceState({ ...(history.state || {}), idx: navIdx, ...extra }, ''); } catch { /* ignore */ }
+}
+
+// Replace the current entry's hash without a hashchange event.
+function replaceHash(route) {
+  try { history.replaceState({ ...(history.state || {}), idx: navIdx }, '', `#${route}`); } catch { location.replace(`#${route}`); }
 }
 
 function renderNav(name) {
@@ -225,10 +273,9 @@ function renderNav(name) {
   const show = ROUTES[name]?.nav;
   nav.hidden = !show;
   if (!show) return;
+  // 2026-10-25: nav styles moved to css/components.css, no runtime injection.
   if (!nav.dataset.ready) {
-    nav.innerHTML = NAV.map((n) => n.center
-      ? `<span class="slot-center"><a href="#play" class="center" data-r="play" aria-label="שחק: המשימה של היום"><span class="pulse" aria-hidden="true"></span><span class="core">${icon(n.ic)}</span></a></span>`
-      : `<a href="#${n.r}" data-r="${n.r}" aria-label="${esc(n.label)}">${icon(n.ic)}</a>`).join('');
+    nav.innerHTML = navHtml();
     nav.dataset.ready = '1';
     nav.querySelector('.center').addEventListener('click', (e) => {
       e.preventDefault();
@@ -237,9 +284,8 @@ function renderNav(name) {
       if (t) ctx.startTask(t);
       else ctx.go('mission');
     });
-    nav.querySelector('.center').title = 'המשימה של היום';
   }
-  const active = name === 'mission' ? 'home' : name === 'coach' || name === 'track' ? 'path' : name;
+  const active = navActive(name);
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.r === active) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -248,14 +294,148 @@ function renderNav(name) {
   if (pulse) pulse.hidden = !ctx.nextTask();
 }
 
+async function askLeave() {
+  const fn = leaveGuard;
+  if (!fn) return true;
+  try { return !!(await fn()); } catch { return true; }
+}
+
+// Move to a route. Tabs replace each other; a move back to the previous entry's route
+// reuses that entry (history.back), so Back never walks through screens twice.
+async function navigate(route, { replace, force = false } = {}) {
+  if (!ROUTES[route]) route = 'home';
+  if (!force && leaveGuard && route !== current) {
+    if (!(await askLeave())) return;
+  }
+  leaveGuard = null;
+  const h = `#${route}`;
+  if (location.hash === h) { render(); return; }
+  const rep = replace ?? ((TABS.has(current) && TABS.has(route)) || current === 'onboarding' || current === null);
+  const st = history.state || {};
+  if (!rep && navIdx > 0 && st.prev === route) {
+    bypass++;
+    history.back();
+    return;
+  }
+  if (rep) {
+    history.replaceState({ ...st, idx: navIdx }, '', h);
+  } else {
+    const prev = current;
+    navIdx += 1;
+    history.pushState({ idx: navIdx, prev }, '', h);
+  }
+  render();
+}
+
+// Back, Forward, a typed hash, or a link we did not catch.
+async function onHashChange() {
+  const st = history.state;
+  const known = st && typeof st.idx === 'number';
+  if (bypass > 0) {
+    bypass--;
+    if (known) navIdx = st.idx;
+    render();
+    return;
+  }
+  const target = routeName() || 'home';
+  if (leaveGuard && current && target !== current) {
+    // Put the screen's hash back at once (no render), then ask.
+    if (known) {
+      navIdx = st.idx + 1;
+      history.pushState({ idx: navIdx, prev: target }, '', `#${current}`);
+      if (await askLeave()) { leaveGuard = null; bypass++; history.back(); }
+    } else {
+      navIdx += 1;
+      history.replaceState({ idx: navIdx, prev: current }, '', `#${current}`);
+      if (await askLeave()) { leaveGuard = null; navigate(target, { replace: true, force: true }); }
+    }
+    return;
+  }
+  if (known) navIdx = st.idx;
+  else { navIdx += 1; stamp({ prev: current }); }
+  render();
+}
+
+// Onboarding: js/ui/onboarding.js pushes its own same-hash entries for the questions
+// ({ obq }) and handles them on popstate. The slides are added here ({ obs: slide }),
+// so Back on slide 3 shows slide 2 instead of leaving the app.
+const obSlideNow = () => {
+  const dots = [...document.querySelectorAll('#view .onboarding:not(.questions) .dots i')];
+  return dots.length ? Math.max(0, dots.findIndex((d) => d.classList.contains('on'))) : -1;
+};
+const obSlideKey = (key) => {
+  const track = document.querySelector('#view .ob-track');
+  if (track) track.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+};
+// Capture phase: runs before onboarding.js moves the slide, so the current slide is still known.
+document.getElementById('view').addEventListener('click', (e) => {
+  if (current !== 'onboarding' || !e.target.closest('[data-next]')) return;
+  const cur = obSlideNow();
+  const last = document.querySelectorAll('#view .ob-slide').length - 1;
+  if (cur < 0 || cur >= last) return; // last slide: onboarding.js pushes the first question
+  navIdx += 1;
+  history.pushState({ idx: navIdx, prev: 'onboarding', obs: cur + 1 }, '', '#onboarding');
+}, true);
+window.addEventListener('popstate', (e) => {
+  if (current !== 'onboarding' || routeName() !== 'onboarding') return;
+  const st = e.state || {};
+  if (typeof st.idx === 'number') navIdx = st.idx;
+  if (typeof st.obq === 'number') return;
+  const want = Number(st.obs) || 0;
+  // After onboarding.js has drawn the slides again.
+  setTimeout(() => {
+    let cur = obSlideNow();
+    for (let i = 0; i < 4 && cur >= 0 && cur !== want; i++) {
+      obSlideKey(cur < want ? 'ArrowLeft' : 'ArrowRight');
+      cur = obSlideNow();
+    }
+  }, 0);
+});
+
+// ---------- render ----------
+
+// Resolve what #play shows: the live session, a saved one (reload), or not a stale replay.
+function resolvePlay() {
+  if (ctx.session.task) return 'play';
+  const saved = ss.get(SS_TASK);
+  if (saved && saved.id && Array.isArray(saved.itemIds)) {
+    let t = saved;
+    if (!t.practice && !store.get().daily.tasks.some((x) => x.id === t.id)) t = ctx.nextTask() || t; // reload after midnight
+    ctx.session.task = t;
+    if (t.trackId) ctx.session.trackId = t.trackId;
+    return 'play';
+  }
+  // No session: Forward after a result, or a reload on the result screen.
+  const last = ss.get(SS_LAST);
+  if (last && ROUTES[last.back] && last.back !== 'play') return last.back;
+  return 'play'; // a fresh open of #play (shortcut): play.js starts the next step
+}
+
 function render() {
-  for (const fn of cleanups.splice(0)) { try { fn(); } catch { /* ignore */ } }
   ensureToday();
   let name = routeName();
   const st = store.get();
-  if (!st.onboarded && name !== 'onboarding') { location.replace('#onboarding'); name = 'onboarding'; }
-  if (!name) { location.replace('#home'); name = 'home'; }
-  if (name === 'onboarding' && st.onboarded && current === null && location.hash !== '#onboarding') name = 'home';
+  if (!st.onboarded && name !== 'onboarding') { replaceHash('onboarding'); name = 'onboarding'; }
+  if (!name) { replaceHash('home'); name = 'home'; }
+  if (name === 'onboarding' && st.onboarded) { replaceHash('home'); name = 'home'; }
+  if (name === 'play') {
+    const to = resolvePlay();
+    if (to !== 'play') { replaceHash(to); name = to; }
+  }
+  renderRoute(name);
+}
+
+function renderRoute(name) {
+  for (const fn of cleanups.splice(0)) { try { fn(); } catch { /* ignore */ } }
+  fx.closeAll();
+  leaveGuard = null;
+  ensureToday();
+  // Leaving #play without finishing: the session is over, a reload must not restart it.
+  if (current === 'play' && name !== 'play' && playing) {
+    ss.set(SS_TASK, null);
+    ss.set(SS_LAST, { back: backOf(playing) });
+  }
+  playing = name === 'play' ? ctx.session.task || null : null;
   current = name;
   const view = document.getElementById('view');
   view.innerHTML = '';
@@ -276,17 +456,68 @@ function render() {
   if (h) { h.setAttribute('tabindex', '-1'); try { h.focus({ preventScroll: true }); } catch { /* ignore */ } }
 }
 
-window.addEventListener('hashchange', render);
+// In-app links: route through navigate() so tabs replace and deeper screens push.
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!a || a.target) return;
+  const r = a.getAttribute('href').slice(1);
+  if (!ROUTES[r]) return; // e.g. the skip link to #view
+  e.preventDefault();
+  ctx.go(r);
+});
+
+window.addEventListener('hashchange', onHashChange);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && store.get().daily.date !== E.todayStr() && current !== 'play') render();
 });
 
+{
+  const st = history.state;
+  if (st && typeof st.idx === 'number') navIdx = st.idx;
+  else stamp({ prev: null });
+}
 applyTheme();
 render();
 
-// ---------- service worker ----------
-if ('serviceWorker' in navigator && !/[?&]nosw\b/.test(location.search)) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
+// ---------- service worker: register on time, offer updates ----------
+function setupServiceWorker() {
+  if (!('serviceWorker' in navigator) || /[?&]nosw\b/.test(location.search)) return;
+  const sw = navigator.serviceWorker;
+  let wantReload = false;
+  let offered = false;
+  const offer = (onTap) => {
+    if (offered) return;
+    offered = true;
+    fx.actionToast('לחץ כדי לטעון אותה עכשיו.', { title: 'גרסה חדשה מוכנה', label: 'רענן', iconName: 'sparkles', onClick: onTap });
+  };
+  // A new worker finished installing and waits: ask before switching.
+  const offerWaiting = (reg) => {
+    const w = reg.waiting;
+    if (!w || !sw.controller) return;
+    offer(() => { wantReload = true; w.postMessage({ type: 'SKIP_WAITING' }); });
+  };
+  sw.addEventListener('controllerchange', () => {
+    if (!wantReload) return;
+    wantReload = false;
+    location.reload();
   });
+  // Same worker, but the server has newer app files (cache revalidation): a plain reload is enough.
+  sw.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'ASSETS_UPDATED') offer(() => location.reload());
+  });
+  const register = () => sw.register('sw.js').then((reg) => {
+    offerWaiting(reg);
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing;
+      if (nw) nw.addEventListener('statechange', () => { if (nw.state === 'installed') offerWaiting(reg); });
+    });
+    const check = () => { reg.update().catch(() => { /* offline */ }); };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(() => { /* offline support is optional */ });
+  // The module graph may finish after 'load' already fired: register at once then.
+  if (document.readyState === 'complete') register();
+  else window.addEventListener('load', register, { once: true });
 }
+setupServiceWorker();

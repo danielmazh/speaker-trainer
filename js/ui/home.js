@@ -1,9 +1,8 @@
-// Home: greeting band with streak and level card, today's mission card, category chips, skills.
+// Home: one screen. Greeting row with level and streak, the mission hero card (one clear start button),
+// one "continue your path" row, the daily goal and the coach. Topics live on the Path screen.
 import { esc, ringSvg, on } from './dom.js';
 import { icon } from './icons.js';
-import { catMastery, greeting, catColor, ic, rememberTrack, profileOf, daysUntil } from './shell.js';
-
-let filter = 'all';
+import { greeting, catColor, ic, rememberTrack, profileOf, daysUntil } from './shell.js';
 
 // Stored state is untrusted: numbers only.
 function num(v, dflt = 0) { const n = Number(v); return Number.isFinite(n) ? n : dflt; }
@@ -20,16 +19,15 @@ export function render(root, ctx) {
   const minutes = d.tasks.reduce((a, t) => a + num(t.minutes, 2), 0);
   const xpLeft = d.tasks.filter((t) => !d.done.includes(t.id)).reduce((a, t) => a + num(t.xp), 0) + (d.bonus ? 0 : 50);
   const name = String(st.name || '').trim();
-  const streak = num(st.streak.count);
-  const streakAlive = st.streak.last === ctx.E.todayStr();
-  const cats = ctx.C.CATEGORIES || [];
-  const items = ctx.C.ITEMS || [];
+  const today = ctx.E.todayStr();
+  const streak = ctx.E.currentStreak(st);
+  const streakAlive = st.streak.last === today;
   const prof = profileOf(st);
   const sx = ctx.stats();
   const todayMin = Math.round(Number(sx.todayMin) || 0);
   const goal = prof.dailyGoalMin;
   const goalPct = Math.min(100, Number.isFinite(sx.goalPct) ? sx.goalPct : Math.round((todayMin / goal) * 100));
-  const talkIn = daysUntil(prof.nextTalkDate, ctx.E.todayStr());
+  const talkIn = daysUntil(prof.nextTalkDate, today);
 
   // Continue your path: first focus track with an open unit, else the track with most progress.
   const tracks = ctx.tracks();
@@ -38,63 +36,58 @@ export function render(root, ctx) {
   const focus = open.filter((t) => prof.focusTracks.includes(t.id));
   const cont = focus[0] || [...open].sort((a, b) => (tp[b.id].pct || 0) - (tp[a.id].pct || 0))[0] || null;
   const contUnit = cont ? (cont.units || []).find((u) => u.id === tp[cont.id].currentUnitId) : null;
+  const contNo = cont && contUnit ? (cont.units || []).indexOf(contUnit) + 1 : 0;
 
   root.innerHTML = `<section class="screen home">
-    <header class="band">
-      <div class="spread">
-        <div class="row nowrap">
-          <a class="avatar" href="#profile" aria-label="פרופיל והגדרות">${name ? esc(name[0].toUpperCase()) : icon('user')}</a>
-          <div class="grow">
-            <h1 class="greet" data-testid="greet">${name ? `היי, <bdi>${esc(name)}</bdi>` : 'היי!'}</h1>
-            <p class="sub">${esc(greeting())}</p>
-          </div>
+    <header class="band home-band">
+      <div class="row nowrap greet-row">
+        <a class="avatar" href="#profile" aria-label="פרופיל והגדרות">${name ? esc(name[0].toUpperCase()) : icon('user')}</a>
+        <div class="grow">
+          <h1 class="greet" data-testid="greet">${name ? `היי, <bdi>${esc(name)}</bdi>` : 'היי!'}</h1>
+          <p class="sub">${esc(greeting())}</p>
         </div>
         <a class="band-pill ${streakAlive ? 'alive' : ''}" href="#stats" aria-label="רצף: ${streak} ימים"><span class="flame-ic">${icon('flameLine')}</span><span class="en-num">${streak}</span></a>
       </div>
-      <a class="level-card" href="#stats" aria-label="רמה ${lv.level}, ${lv.cur} מתוך ${lv.next} XP">
-        ${ringSvg(lv.pct, { size: 56, stroke: 9, cls: 'on-band', label: `<b class="lv-n en-num">${lv.level}</b>` })}
-        <div class="grow">
-          <div class="spread"><span class="lv-title">רמה ${lv.level} - ${esc(lv.title_he)}</span><bdi class="xp-num en-num">${lv.cur} / ${lv.next} XP</bdi></div>
-          <div class="bar on-band"><i style="--p:${lv.pct}%"></i></div>
-          <div class="lv-hint">עוד <bdi>${lv.next - lv.cur} XP</bdi> לרמה ${lv.level + 1}</div>
-        </div>
+      <a class="level-line" href="#stats" aria-label="רמה ${lv.level}, ${lv.cur} מתוך ${lv.next} XP">
+        <span class="spread"><span class="lv-title">רמה <bdi>${lv.level}</bdi> - ${esc(lv.title_he)}</span><bdi class="xp-num en-num">${lv.cur} / ${lv.next} XP</bdi></span>
+        <span class="bar on-band thin"><i style="--p:${lv.pct}%"></i></span>
       </a>
     </header>
 
     <div class="body">
-      <article class="card hero ${allDone ? 'done' : ''}">
+      <article class="card hero ${allDone ? 'done' : ''}" data-testid="mission-hero">
+        <a class="hero-link" href="#mission" aria-label="מפת המשימה: ${done} מתוך ${total} הושלמו"></a>
         <div class="hero-top">
           <div class="grow stack-xs">
-            <span class="tag">${icon('calendar')} המשימה של היום</span>
-            <h2 class="en hero-title">${allDone ? 'Mission complete!' : "Today's mission"}</h2>
-            <div class="hero-meta"><span>${icon('listChecks')} ${total} שלבים</span><span>${icon('timer')} <bdi>${minutes}</bdi> דק'</span></div>
+            <h2 class="hero-title">${allDone ? 'המשימה הושלמה!' : 'המשימה של היום'}</h2>
+            <div class="hero-meta"><span>${icon('listChecks')} ${total} שלבים</span><span>${icon('timer')} <bdi>${minutes}</bdi> דק'</span>${allDone ? '' : `<bdi class="xp-gold en-num">+${xpLeft} XP</bdi>`}</div>
           </div>
           ${allDone
-            ? `<a class="go-btn done" href="#mission" aria-label="המשימה הושלמה. למפה">${icon('check')}</a>`
-            : `<button class="go-btn" data-start aria-label="${done ? 'המשך את המשימה' : 'התחל את המשימה'}">${icon('play')}</button>`}
+            ? `<span class="go-btn done" aria-hidden="true">${icon('check')}</span>`
+            : `<button class="go-btn" data-start data-testid="hero-start" aria-label="${done ? 'המשך את המשימה' : 'התחל את המשימה'}">${icon('play')}</button>`}
         </div>
-        <a class="hero-segs" href="#mission" aria-label="מפת המשימה: ${done} מתוך ${total} הושלמו">
+        <div class="hero-segs" aria-hidden="true">
           ${d.tasks.map((t) => `<i class="${d.done.includes(t.id) ? 'done' : next && next.id === t.id ? 'now' : ''}"></i>`).join('')}
-        </a>
+        </div>
         <div class="spread hero-foot">
           <span>${done} מתוך ${total} הושלמו</span>
-          ${allDone ? '<span class="good-ink">נתראה מחר</span>' : `<bdi class="xp-gold en-num">+${xpLeft} XP</bdi>`}
+          <span class="${allDone ? 'good-ink' : 'muted'}">${allDone ? 'נתראה מחר' : `למפה ${icon('chevL')}`}</span>
         </div>
       </article>
 
       ${cont && contUnit ? `<button class="card cont-card" data-cont="${esc(cont.id)}" style="--c:${esc(catColor(cont))}" data-testid="continue-path">
         <span class="track-ico">${ic(cont.icon, cont.id.replace(/^t-/, ''))}</span>
         <span class="grow stack-xs">
-          <span class="tiny muted">${tp[cont.id].unitsDone ? 'המשך במסלול' : 'התחל מסלול'} - ${esc(cont.title_he)}</span>
-          <span class="bold">${esc(contUnit.title_he)}</span>
+          <span class="tiny muted">${tp[cont.id].unitsDone ? 'המשך במסלול' : 'התחל מסלול'}: ${esc(cont.title_he)}</span>
+          <span class="bold small">יחידה <bdi>${contNo}</bdi> - ${esc(contUnit.title_he)}</span>
           <span class="bar thin"><i style="--p:${Math.max(tp[cont.id].pct, 3)}%"></i></span>
         </span>
-        <span class="go-btn sm" aria-hidden="true">${icon('play')}</span>
+        <span class="chev-l">${icon('chevL')}</span>
       </button>` : ''}
 
       <div class="mini-grid">
         <a class="card mini goal-tile" href="#stats" aria-label="יעד יומי: ${todayMin} מתוך ${goal} דקות" data-testid="goal-ring">
-          ${ringSvg(goalPct, { size: 52, stroke: 7, color: goalPct >= 100 ? 'var(--good)' : '', label: goalPct >= 100 ? `<span class="good-ink">${icon('check')}</span>` : `<b class="en-num ring-pct">${todayMin}</b>` })}
+          ${ringSvg(goalPct, { size: 44, stroke: 6, color: goalPct >= 100 ? 'var(--good)' : '', label: goalPct >= 100 ? `<span class="good-ink">${icon('check')}</span>` : `<b class="en-num ring-pct">${todayMin}</b>` })}
           <span class="stack-xs grow"><span class="bold small">יעד יומי</span><span class="tiny muted"><bdi>${todayMin}/${goal}</bdi> דק'</span></span>
         </a>
         <a class="card mini" href="#coach" data-testid="coach-tile">
@@ -103,38 +96,14 @@ export function render(root, ctx) {
         </a>
       </div>
 
-      <div class="chips" role="group" aria-label="סינון לפי קטגוריה">
-        <button class="chip" aria-pressed="${filter === 'all'}" data-f="all">הכל</button>
-        ${cats.map((c) => `<button class="chip" aria-pressed="${filter === c.id}" data-f="${esc(c.id)}"><bdi>${esc(c.label_he)}</bdi></button>`).join('')}
-      </div>
-
-      <div>
-        <div class="section-head"><h2>הכישורים שלך</h2><a href="#stats">הכל</a></div>
-        <div class="skills" id="skills"></div>
-      </div>
+      <a class="card row-link" href="#path" data-topics data-testid="all-topics">
+        <span class="ico">${icon('book')}</span>
+        <span class="grow"><span class="bold small d-block">כל הנושאים</span><span class="tiny muted">תרגול חופשי לפי נושא</span></span>
+        <span class="chev-l">${icon('chevL')}</span>
+      </a>
     </div>
   </section>`;
 
-  const drawSkills = () => {
-    const list = filter === 'all' ? cats : cats.filter((c) => c.id === filter);
-    root.querySelector('#skills').innerHTML = list.map((c) => {
-      const m = catMastery(st, items, c.id);
-      const col = catColor(c);
-      return `<button class="skill" data-cat="${esc(c.id)}" style="--c:${esc(col)}" aria-label="${esc(`תרגל ${c.label_he}. נשלט ${m.pct}%`)}">
-        <span class="skill-top"><span class="skill-ico">${ic(c.icon, c.id)}</span><bdi class="skill-count en-num">${m.seen}/${m.count}</bdi></span>
-        <span class="skill-name"><bdi>${esc(c.label_he)}</bdi></span>
-        <span class="bar thin"><i style="--p:${Math.max(m.pct, m.seen ? 4 : 0)}%"></i></span>
-      </button>`;
-    }).join('');
-  };
-  drawSkills();
-
-  on(root, '[data-f]', 'click', (e, b) => {
-    filter = b.dataset.f;
-    root.querySelectorAll('[data-f]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    ctx.haptic(8);
-    drawSkills();
-  });
   on(root, '[data-start]', 'click', () => {
     const t = ctx.nextTask();
     if (t) ctx.startTask(t);
@@ -144,8 +113,5 @@ export function render(root, ctx) {
     ctx.session.trackId = b.dataset.cont;
     ctx.go('track');
   });
-  on(root, '[data-cat]', 'click', (e, b) => {
-    const c = ctx.cat(b.dataset.cat);
-    ctx.startPractice({ title_he: `תרגול: ${c ? c.label_he : ''}`, itemIds: ctx.pickForCat(b.dataset.cat, 4) });
-  });
+  on(root, '[data-topics]', 'click', () => { ctx.session.pathTab = 'topics'; });
 }

@@ -48,12 +48,13 @@ a { color: var(--primary); }
 #view:focus { outline: none; }
 
 .screen {
-  padding-bottom: calc(120px + var(--sab));
-  animation: screenIn .35s var(--ease-out) both;
+  padding-bottom: calc(112px + var(--sab));
+  animation: screenIn .2s var(--ease-out) both;
 }
-.screen.no-nav { padding-bottom: calc(24px + var(--sab)); }
+.screen.no-nav { padding-bottom: calc(16px + var(--sab)); }
+/* One short enter motion for every screen (reduced motion turns it off below). */
 @keyframes screenIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -100,3 +101,16 @@ a { color: var(--primary); }
 }
 /* Headings get focus on route change for screen readers; no ring for that. */
 h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible { outline: none; }
+
+/* Pressed state on every tappable thing (buttons already have their own). */
+a.card:active, button.card:active, .row-link:active, .band-pill[href]:active, .seg button:active, .link-btn:active,
+.opt:not(:disabled):active, .zz-dot:active, .skill:active, .track-card:active, summary:active { transform: scale(.98); }
+.seg button, .link-btn, summary, .band-pill { transition: transform .12s var(--ease-out), background .2s, color .2s; }
+
+/* Landscape phones: wider column so screens use the width, not the height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  #app { max-width: 920px; }
+}
+/* Play keeps a fixed feedback sheet inside the screen: a transform there would move the sheet, so fade only. */
+.screen.play { animation-name: screenFade; }
+@keyframes screenFade { from { opacity: 0; } to { opacity: 1; } }

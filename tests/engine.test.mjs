@@ -29,6 +29,11 @@ import {
   completePractice,
   cleanMetrics,
   entryMinutes,
+  streakAlive,
+  currentStreak,
+  resultScore,
+  REPEAT_XP_CAP,
+  configure,
 } from '../js/engine.js';
 
 // ---------- fixture in CONTRACT shape ----------
@@ -237,12 +242,12 @@ test('completeTask: XP, +20% bonus, items graded, daily done', () => {
   assert.deepEqual(s.daily.done, []);
 });
 
-test('completeTask: repeat gives half XP, unknown task is a no-op', () => {
+test('completeTask: repeat gives at most 5 XP, unknown task is a no-op', () => {
   const s = withDaily(defaultState(), '2026-10-21');
   const fix = task(s, 'fix');
   const r1 = completeTask(s, fix.id, res(fix, 70), at(2026, 10, 21));
   const r2 = completeTask(r1.state, fix.id, res(fix, 70), at(2026, 10, 21));
-  assert.equal(r2.xpGained, 15);
+  assert.equal(r2.xpGained, 5);
   assert.equal(r2.state.daily.done.filter((id) => id === fix.id).length, 1);
   const r3 = completeTask(r1.state, 'nope', [], at(2026, 10, 21));
   assert.equal(r3.xpGained, 0);
@@ -262,7 +267,7 @@ test('completeTask: full mission +50 once per day', () => {
   assert.equal(total, 20 + 30 + 30 + 50 + 70 + 50);
   assert.equal(s.missions, 1);
   const again = completeTask(s, s.daily.tasks[0].id, res(s.daily.tasks[0], 50), now);
-  assert.equal(again.xpGained, 10);
+  assert.equal(again.xpGained, 5);
   assert.equal(again.state.missions, 1);
 });
 
@@ -936,4 +941,113 @@ test('default state has no personal name; migration keeps a stored name', () => 
   const st = createStore(mem(JSON.stringify({ v: 1, onboarded: true, name: 'Noa' })));
   assert.equal(st.get().name, 'Noa');
   assert.equal(st.get().profile.name, 'Noa');
+});
+
+// ---------- 2026-10-25 fixes: midnight, Again farming, self-rating, streak, clock back ----------
+
+test('engine module loads content without top-level await', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../js/engine.js', import.meta.url), 'utf8');
+  // Top-level statements start at column 0; an await there makes the module graph async.
+  assert.ok(!/^[^\s/*].*\bawait\b/m.test(src), 'no top-level await');
+  assert.equal(typeof configure, 'function');
+  // generateDaily works with the real content when no ITEMS are passed
+  const d = generateDaily(defaultState(), undefined, '2026-10-21');
+  assert.equal(d.tasks.length, 5);
+});
+
+test('completeTask: a task from yesterday still saves results and XP after midnight', () => {
+  const y = withDaily(defaultState(), '2026-10-21');
+  const oldFix = task(y, 'fix');
+  // The app regenerated today's mission before the user finished yesterday's step.
+  const s = withDaily(y, '2026-10-22');
+  assert.equal(s.daily.date, '2026-10-22');
+  const r = completeTask(s, oldFix.id, res(oldFix, 70), at(2026, 10, 22, 0), { task: oldFix });
+  assert.equal(r.xpGained, 30);
+  assert.equal(r.state.xp, 30);
+  assert.equal(r.state.history.length, oldFix.itemIds.length);
+  assert.equal(r.state.history[0].taskKind, 'fix');
+  // today's mission is untouched
+  assert.deepEqual(r.state.daily.done, []);
+  assert.equal(r.state.daily.bonus, false);
+  // without the task object, the kind comes from the id
+  const r2 = completeTask(s, oldFix.id, res(oldFix, 70), at(2026, 10, 22, 0));
+  assert.equal(r2.xpGained, 30);
+  // a second finish of the same old task is a repeat
+  const r3 = completeTask(r.state, oldFix.id, res(oldFix, 70), at(2026, 10, 22, 0));
+  assert.equal(r3.xpGained, 5);
+  // older than yesterday: still a no-op
+  const r4 = completeTask(s, '2026-10-19-2', res(oldFix, 70), at(2026, 10, 22, 0));
+  assert.equal(r4.xpGained, 0);
+  assert.equal(r4.state.history.length, 0);
+});
+
+test('completeTask: Again gives at most 5 XP per task per day, then 0', () => {
+  let s = withDaily(defaultState(), '2026-10-21');
+  const fix = task(s, 'fix');
+  const now = at(2026, 10, 21);
+  s = completeTask(s, fix.id, res(fix, 100), now).state;
+  const gains = [];
+  for (let i = 0; i < 4; i++) {
+    const r = completeTask(s, fix.id, res(fix, 100), now + i);
+    gains.push(r.xpGained);
+    s = r.state;
+  }
+  assert.deepEqual(gains, [REPEAT_XP_CAP, 0, 0, 0]);
+  // results are still graded and saved on repeats
+  assert.equal(s.history.length, fix.itemIds.length * 5);
+  // the cap survives a store round trip (validateShape keeps repeatXp)
+  const mem = new Map();
+  const store = createStore({ getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v), removeItem: (k) => mem.delete(k) });
+  store.set(() => s);
+  assert.equal(completeTask(store.get(), fix.id, res(fix, 100), now).xpGained, 0);
+});
+
+test('self-rating 5 stars counts as 80, not 100', () => {
+  assert.equal(resultScore({ score: 100, metrics: { selfRated: true } }), 80);
+  assert.equal(resultScore({ score: 100, metrics: {} }), 100);
+  assert.equal(resultScore({ score: 60, metrics: { selfRated: true } }), 48);
+  const s = withDaily(defaultState(), '2026-10-21');
+  const fix = task(s, 'fix');
+  const r = completeTask(s, fix.id, res(fix, 100, { selfRated: true }), at(2026, 10, 21));
+  assert.equal(r.state.history[0].score, 80);
+  assert.equal(r.state.history[0].metrics.selfRated, true);
+  assert.equal(r.state.counters.perfect, 0);
+  assert.equal(r.xpGained, 36); // 80 still earns the 1.2 bonus
+  const p = completePractice(defaultState(), 'practice:x', [{ itemId: 'fx-0', score: 100, metrics: { selfRated: true } }], at(2026, 10, 21), { items: ITEMS });
+  assert.equal(p.state.history[0].score, 80);
+});
+
+test('streakAlive and currentStreak: alive only when the last day is today or yesterday', () => {
+  const s = defaultState();
+  assert.equal(streakAlive(s, at(2026, 10, 25)), false);
+  s.streak = { count: 12, last: '2026-10-25', best: 12 };
+  assert.equal(streakAlive(s, at(2026, 10, 25)), true);
+  assert.equal(currentStreak(s, at(2026, 10, 25)), 12);
+  assert.equal(streakAlive(s, at(2026, 10, 26, 23)), true);
+  assert.equal(streakAlive(s, at(2026, 10, 27, 0)), false);
+  assert.equal(currentStreak(s, at(2026, 10, 27)), 0);
+  s.streak.last = '2026-10-01';
+  assert.equal(currentStreak(s, at(2026, 10, 25)), 0);
+});
+
+test('clock moved back one day (flying west): the newer mission is kept, not replayed', () => {
+  let s = withDaily(defaultState(), '2026-10-22');
+  const now = at(2026, 10, 22);
+  for (const t of s.daily.tasks) s = completeTask(s, t.id, res(t, 70), now).state;
+  const xp = s.xp;
+  assert.equal(s.daily.bonus, true);
+  const back = ensureDaily(s, ITEMS, '2026-10-21');
+  assert.equal(back.daily.date, '2026-10-22');
+  assert.equal(back.daily.done.length, 5);
+  // finishing a step again on the earlier local date is only a repeat
+  const t0 = back.daily.tasks[0];
+  const r = completeTask(back, t0.id, res(t0, 70), at(2026, 10, 21, 20));
+  assert.equal(r.xpGained, 5);
+  assert.equal(r.state.missions, 1);
+  assert.ok(r.state.xp - xp <= 5);
+  // a stored date far in the future (broken clock) does not lock the user out
+  const far = ensureDaily(s, ITEMS, '2026-10-10');
+  assert.equal(far.daily.date, '2026-10-10');
+  assert.deepEqual(far.daily.done, []);
 });

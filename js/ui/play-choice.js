@@ -1,32 +1,37 @@
 // Choice: pick the natural English. Instant feedback and haptics.
+// Options are shuffled on every render; data-k keeps the original index, so the right answer maps correctly.
 import { esc } from './dom.js';
 import { icon } from './icons.js';
 import { listenBtn, bindListen } from './tts.js';
 
+const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
+
 export function mount(el, item, { ctx, finish }) {
   const opts = (item.options || []).map((t, k) => ({ t, k }));
-  // Stable shuffle per item so the right answer is not always first.
-  let h = 0;
-  for (const c of item.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  for (let i = opts.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [opts[i], opts[j]] = [opts[j], opts[i]]; }
+  for (let i = opts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [opts[i], opts[j]] = [opts[j], opts[i]]; }
 
   // Word stress items put the word itself in `wrong`: show it neutral, not as a mistake.
   const stress = item.cat === 'stress';
+  // Never quote an option word for word: the task would become "do not pick the quoted one".
+  const quoteIsOption = !stress && item.wrong && (item.options || []).some((o) => norm(o) === norm(item.wrong));
+  const showQuote = item.wrong && (stress || !quoteIsOption);
   el.innerHTML = `<div class="stack">
-    <div class="card stack-sm">
+    ${showQuote || item.why_he ? `<div class="card stack-sm">
       ${stress
         ? `<div class="tiny muted bold">איפה הדגש?</div>
-      ${item.wrong ? `<p class="en quote-neutral" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</p>` : ''}`
-        : `<div class="tiny muted bold">טעות נפוצה:</div>
-      ${item.wrong ? `<blockquote class="en quote-bad italic" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</blockquote>` : ''}`}
+      <p class="en quote-neutral" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</p>`
+        : showQuote ? `<div class="tiny muted bold">טעות נפוצה:</div>
+      <blockquote class="en quote-bad italic" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</blockquote>` : ''}
       ${item.why_he ? `<p class="small muted">${esc(item.why_he)}</p>` : ''}
-    </div>
+    </div>` : ''}
     <div class="options" role="group" aria-label="אפשרויות">
       ${opts.map((o, n) => `<button class="opt" dir="ltr" lang="en" data-k="${o.k}"><span class="opt-l">${'ABCD'[n] || n + 1}</span><span class="opt-t">${esc(o.t)}</span></button>`).join('')}
     </div>
   </div>`;
 
   const right = item.options[item.correct];
+  let tmr = 0;
+  ctx.onLeave(() => clearTimeout(tmr));
   el.querySelector('.options').addEventListener('click', (e) => {
     const b = e.target.closest('.opt');
     if (!b || el.querySelector('.opt.picked')) return;
@@ -45,7 +50,7 @@ export function mount(el, item, { ctx, finish }) {
       ${item.note_he ? `<p class="small">${icon('bulb')} ${esc(item.note_he)}</p>` : ''}
       <div class="row">${listenBtn('הקשב')}<span class="tiny muted">עכשיו אמור את זה בקול פעם אחת.</span></div>
     </div>`;
-    setTimeout(() => {
+    tmr = setTimeout(() => {
       finish({
         score: ok ? 100 : 0, mode: 'tap', silent: true,
         title: ok ? 'נכון, כל הכבוד!' : 'לא בדיוק. ככה זה נשמע טבעי:',
