@@ -65,7 +65,7 @@ export function render(root, ctx) {
             </button>
             <div class="zz-label ${right ? 'to-left' : 'to-right'}" style="${right ? `right:calc(${100 - x}% + 44px)` : `left:calc(${x}% + 44px)`}">
               <span class="zz-name">${esc(kind.he)}${s === 'now' ? ' <span class="now-pill">עכשיו</span>' : ''}</span>
-              <span class="zz-sub">${esc(t.title_he || KIND_SUB[t.kind] || '')}</span>
+              <span class="zz-sub"><bdi dir="rtl">${esc(t.title_he || KIND_SUB[t.kind] || '')}</bdi></span>
               ${xpLine}
             </div>
           </li>`;

@@ -26,7 +26,20 @@ const TITLE = {
 const TASK_KEY = 'speakerTrainer.ui.task';
 function saveTask(t) { try { sessionStorage.setItem(TASK_KEY, JSON.stringify(t)); } catch { /* private mode */ } }
 function loadTask() { try { return JSON.parse(sessionStorage.getItem(TASK_KEY) || 'null'); } catch { return null; } }
-export function clearSavedTask() { try { sessionStorage.removeItem(TASK_KEY); } catch { /* ignore */ } }
+export function clearSavedTask() { try { sessionStorage.removeItem(TASK_KEY); sessionStorage.removeItem(PROG_KEY); } catch { /* ignore */ } }
+// Progress inside the task (item index and per-item scores and metrics, never transcripts or audio),
+// so a reload or a killed tab resumes at the same item instead of item 1.
+const PROG_KEY = 'speakerTrainer.ui.taskProgress';
+function saveProgress(p) { try { sessionStorage.setItem(PROG_KEY, JSON.stringify(p)); } catch { /* private mode */ } }
+function loadProgress(task) {
+  try {
+    const p = JSON.parse(sessionStorage.getItem(PROG_KEY) || 'null');
+    if (!p || p.taskId !== task.id || !Array.isArray(p.results) || p.itemIds !== (task.itemIds || []).join(',')) return null;
+    const results = p.results.filter((r) => r && typeof r.itemId === 'string' && Number.isFinite(Number(r.score)))
+      .map((r) => ({ itemId: r.itemId, score: Math.max(0, Math.min(100, Math.round(Number(r.score)))), metrics: r.metrics && typeof r.metrics === 'object' ? r.metrics : { mode: 'tap', fromMic: false, words: 0, wpm: 0 } }));
+    return results.length ? results : null;
+  } catch { return null; }
+}
 
 // Restore only a plain task shape with string ids.
 function validTask(t) {
@@ -76,9 +89,22 @@ export function render(root, ctx) {
   const stepsMode = !task.practice && stepNo > 0 && daily.length > 1;
   // Where the close button leads: a track unit goes back to its track, free practice home, the mission to the map.
   const backTo = task.unit || task.back === 'track' ? 'track' : task.practice ? 'home' : 'mission';
+  const unitTitle = task.title_he
+    || ((ctx.track?.(task.trackId)?.units || []).find((u) => u.id === task.unitId) || {}).title_he || '';
   const results = [];
   let idx = 0;
   let busy = false;
+  // Resume after a reload: same task, same items, the answers so far.
+  const resumed = loadProgress(task);
+  if (resumed && resumed.length < items.length && resumed.every((r, k) => items[k] && items[k].id === r.itemId)) {
+    for (const r of resumed) results.push({ ...r, _take: null, _type: items[results.length].type, _choice: null });
+    idx = results.length;
+    ctx.toast('ממשיכים מאיפה שעצרת.', { kind: 'info', iconName: 'rotate', ms: 2200 });
+  }
+  const keepProgress = () => saveProgress({
+    taskId: task.id, itemIds: (task.itemIds || []).join(','),
+    results: results.map(({ itemId, score, metrics }) => ({ itemId, score, metrics })),
+  });
 
   root.innerHTML = `<section class="screen no-nav play" data-testid="play">
     <header class="band task-band">
@@ -110,7 +136,7 @@ export function render(root, ctx) {
   // Leave guard: the router asks before it leaves #play (system back, nav). Nothing to lose: leave at once.
   const dirty = () => results.length > 0 || !!stage.querySelector('.mic[data-state="listening"], .mic[data-state="processing"]');
   const askLeave = () => (dirty()
-    ? ctx.confirm({ title: 'לצאת מהשלב?', text: 'מה שעשית בשלב הזה לא יישמר. ההקלטות נמחקות.', ok: 'לצאת', cancel: 'להישאר' })
+    ? ctx.confirm({ title: task.unit ? 'לצאת מהיחידה?' : 'לצאת מהשלב?', text: 'מה שעשית בשלב הזה לא יישמר. ההקלטות נמחקות.', ok: 'לצאת', cancel: 'להישאר' })
     : Promise.resolve(true));
   ctx.setLeaveGuard?.(askLeave);
   ctx.onLeave(() => ctx.setLeaveGuard?.(null));
@@ -163,9 +189,12 @@ export function render(root, ctx) {
     document.querySelectorAll('#toasts .toast.badge').forEach((t) => t.remove());
     paintSegs(idx);
     root.querySelector('.segs').setAttribute('aria-valuenow', String(idx));
-    const where = task.practice ? (task.unit ? 'יחידה' : 'תרגול') : `שלב ${stepNo} מתוך ${daily.length}`;
     const secs = it.type === 'speak' && Number(it.seconds) > 0 ? ` - ${Math.round(Number(it.seconds))} שניות` : '';
-    root.querySelector('[data-kicker]').textContent = `${kind.he}${secs} - ${where}${items.length > 1 ? ` - ${idx + 1}/${items.length}` : ''}`;
+    const count = items.length > 1 ? ` - <bdi>${idx + 1}/${items.length}</bdi>` : '';
+    // A track unit names the unit ("המילים של הסטטוס - 2/7"); the title may be English, so it is forced RTL.
+    root.querySelector('[data-kicker]').innerHTML = task.unit
+      ? `<bdi dir="rtl">${esc(unitTitle || 'יחידה')}</bdi>${secs}${count}`
+      : `${esc(kind.he)}${secs} - ${task.practice ? 'תרגול' : `שלב ${stepNo} מתוך ${daily.length}`}${count}`;
     root.querySelector('[data-title]').textContent = TITLE[it.type] || task.title_he;
     root.querySelector('[data-extra]').innerHTML = '';
     pill.innerHTML = xpPill;
@@ -192,8 +221,11 @@ export function render(root, ctx) {
       itemId: it.id, score,
       metrics: take ? takeMetrics(take) : { mode: r.mode || 'tap', fromMic: false, words: 0, wpm: 0 },
       _take: take, _type: it.type,
+      _choice: r.choice && typeof r.choice.picked === 'string' ? { picked: r.choice.picked, right: String(r.choice.right || '') } : null,
     });
     paintSegs(idx + 1);
+    // A speak / Q&A countdown must not stay frozen in the band behind the feedback.
+    pill.innerHTML = xpPill;
     const good = score >= 80, ok = score >= 50;
     if (!r.silent) { ctx.sound(good ? 'good' : ok ? 'tap' : 'bad'); ctx.haptic(good ? 20 : [30, 40, 30]); }
     const a = take && take.analysis;
@@ -219,7 +251,7 @@ export function render(root, ctx) {
           <span class="tag ${good ? 'good' : ok ? 'warn' : 'bad'}">${icon(good ? 'check' : 'target')} <bdi>${score}%</bdi></span>
         </div>
         ${r.rule ? `<p class="en fb-rule" dir="ltr" lang="en">${esc(r.rule)}</p>` : ''}
-        ${showDiff ? `<div class="tiny muted">מה אמרת מול המשפט</div>${diffHtml(a.diff, 36)}` : said ? `<div class="tiny muted">מה אמרת</div>${said}` : ''}
+        ${showDiff ? `<div class="tiny muted">מה אמרת מול המשפט</div>${diffHtml(result.displayDiff(a.diff), 36)}` : said ? `<div class="tiny muted">מה אמרת</div>${said}` : ''}
         ${a && a.beDrops && a.beDrops.length ? `<div class="small">תיקון: <span class="en fix-pair"><s>${esc(a.beDrops[0].text)}</s> ${icon('arrowR')} <b>${esc(a.beDrops[0].fix)}</b></span></div>` : ''}
         ${tip && !good ? `<p class="small fb-tip">${icon('bulb')} ${esc(tip)}</p>` : ''}
         ${reveal}
@@ -247,6 +279,7 @@ export function render(root, ctx) {
   }
 
   function next() {
+    keepProgress();
     idx++;
     if (idx < items.length) { show(); return; }
     closeSheet();

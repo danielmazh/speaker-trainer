@@ -50,7 +50,7 @@ export function render(root, ctx) {
         ? `<span class="xp-line xp-gold">${up.pct ? `<bdi>${up.pct}%</bdi> - ` : ''}<bdi>${(u.itemIds || []).length}</bdi> תרגילים${boss ? ' + בוס' : ''}</span>`
         : '';
     return `<div class="zz-label ${cls}" style="${side}">
-      <span class="zz-name">${esc(u.title_he)}${n.s === 'open' ? ' <span class="now-pill">עכשיו</span>' : ''}</span>
+      <span class="zz-name"><bdi dir="rtl">${esc(u.title_he)}</bdi>${n.s === 'open' ? ' <span class="now-pill">עכשיו</span>' : ''}</span>
       ${meta}
       ${boss && n.s !== 'locked' ? `<span class="boss-line ${bossOk ? 'ok' : ''}">${icon('crown')} בוס: ${esc(TYPE_HE[boss.type] || '')}${bossOk ? ' - עבר' : ''}</span>` : ''}
     </div>`;
@@ -61,8 +61,8 @@ export function render(root, ctx) {
   root.innerHTML = `<section class="screen mission track" data-testid="track" style="--c:${esc(col)}">
     <header class="band compact">
       <div class="band-title">
-        <a class="icon-btn" href="#path" aria-label="חזרה למסלולים">${icon('arrowR')}</a>
-        <div class="grow"><h1>${esc(track.title_he)}</h1>
+        <button class="icon-btn" data-back data-testid="track-back" aria-label="חזרה">${icon('arrowR')}</button>
+        <div class="grow"><h1><bdi dir="rtl">${esc(track.title_he)}</bdi></h1>
           <div class="row nowrap prog-row"><div class="bar on-band thin grow"><i style="--p:${p.pct}%"></i></div><bdi class="en-num tiny bold">${p.unitsDone}/${p.unitsTotal}</bdi></div>
         </div>
         <span class="band-ico" aria-hidden="true">${ic(track.icon, track.id.replace(/^t-/, ''))}</span>
@@ -102,7 +102,7 @@ export function render(root, ctx) {
     const m = ctx.modal(`
       <div class="unit-sheet">
         <span class="ico big-ico" style="--c:${esc(col)}">${ic(track.icon, track.id.replace(/^t-/, ''))}</span>
-        <h2>${esc(u.title_he)}</h2>
+        <h2><bdi dir="rtl">${esc(u.title_he)}</bdi></h2>
         ${u.goal_he ? `<p class="muted small">${esc(u.goal_he)}</p>` : ''}
         <div class="unit-types">${Object.entries(types).map(([t, n]) => `<span class="tag">${icon(t)} ${esc(TYPE_HE[t] || t)} <bdi>${n}</bdi></span>`).join('')}
           ${boss ? `<span class="tag gold">${icon('crown')} בוס: ${esc(TYPE_HE[boss.type] || '')}</span>` : ''}</div>
@@ -114,6 +114,12 @@ export function render(root, ctx) {
     m.el.querySelector('[data-cancel]').addEventListener('click', m.close);
     m.el.querySelector('[data-start]').focus();
   };
+
+  // Back goes where the user came from (Home card, Path, Stats); Path when there is no such screen.
+  on(root, '[data-back]', 'click', () => {
+    const prev = history.state && history.state.prev;
+    ctx.go(prev && !['track', 'play', 'onboarding'].includes(prev) ? prev : 'path');
+  });
 
   on(root, '[data-unit]', 'click', (e, b) => {
     const u = units.find((x) => x.id === b.dataset.unit);

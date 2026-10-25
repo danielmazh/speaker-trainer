@@ -29,7 +29,10 @@
 .band-pill svg { width: 18px; height: 18px; }
 .band-pill .gold-ic { color: var(--gold); }
 .band-pill .flame-ic { color: var(--flame); }
-.kicker { color: var(--gold); font-size: .75rem; font-weight: 600; }
+/* Small text on the purple band: gold #FFB020 is only 3.1:1 there. Warm cream #FFF8E5 is >= 4.5:1 on the
+   lightest band color (#7B4DFF). */
+.kicker { color: #FFF8E5; font-size: .75rem; font-weight: 700; }
+.band .xp-num, .band .xp-gold { color: #FFF8E5; }
 
 .icon-btn {
   width: 44px; height: 44px; flex: 0 0 44px;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenize, analyze, highlight } from '../js/analyze.js';
+import { tokenize, analyze, highlight, fixWordSets } from '../js/analyze.js';
 
 const drops = (t) => analyze(t, 10).beDrops.map((d) => d.text.toLowerCase());
 
@@ -325,4 +325,34 @@ test('content: choice answers are balanced and the quote is never an option', as
     assert.ok(!i.options.some((o) => n(o) === n(i.wrong)), `${i.id} quote equals an option`);
   }
   for (const c of dist) assert.ok(Math.abs(c - ch.length / 3) <= 2, `distribution ${dist}`);
+});
+
+test('fix drill: with the play-fix must/banned lists, the right sentence scores >= 95 and the wrong one <= 30 (all items)', async () => {
+  const { ITEMS } = await import('../js/content.js');
+  const dur = (t) => Math.max(1, (t.split(/\s+/).length / 130) * 60);
+  const fixes = ITEMS.filter((i) => i.type === 'fix');
+  assert.ok(fixes.length > 100);
+  for (const it of fixes) {
+    const { must, banned } = fixWordSets(it.right, it.wrong);
+    const opts = { target: it.right, avoid: it.wrong, must, banned };
+    const ok = analyze(it.right, dur(it.right), opts);
+    const bad = analyze(it.wrong, dur(it.wrong), opts);
+    assert.ok(ok.score >= 95, `${it.id} right "${it.right}" ${ok.score}`);
+    assert.ok(bad.score <= 30, `${it.id} wrong "${it.wrong}" ${bad.score}`);
+  }
+  // The reported cases: contractions and number words.
+  const st7 = fixWordSets("We're on track.", 'We are on the track.');
+  assert.ok(!st7.banned.includes('we') && !st7.banned.includes('are'));
+  assert.equal(analyze("We're on track.", 2, { target: "We're on track.", avoid: 'We are on the track.', ...st7 }).score, 100);
+});
+
+test('fillers that are part of the target text cost nothing; short answers are not rate-punished', () => {
+  const target = 'He said it was "basically done" and kind of ready.';
+  const r = analyze(target, 4, { target });
+  assert.equal(r.fillerTotal, 0);
+  assert.equal(r.score, 100);
+  // A filler added on top of the target still counts.
+  assert.equal(analyze('so ' + target, 4, { target }).fillers.so, 1);
+  // One "so" in a 4-word answer: fluency is not 0.
+  assert.ok(analyze('so we fixed it', 2).score >= 85);
 });

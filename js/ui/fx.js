@@ -39,12 +39,23 @@ export function sound(kind = 'good') {
   } catch { /* sound is optional */ }
 }
 
+// Toasts sit at the top. On a task screen they go just under the task header band,
+// so the kicker, title and timer stay visible (2026-10-25, audit 2).
+function placeToasts(box) {
+  try {
+    const band = document.querySelector('#view .task-band');
+    const r = band && band.getBoundingClientRect();
+    box.style.top = r && r.bottom > 0 && r.top < window.innerHeight ? `${Math.round(r.bottom + 8)}px` : '';
+  } catch { /* layout only */ }
+}
+
 const KIND_IC = { success: 'circleCheck', warn: 'info', error: 'circleAlert', badge: 'medal', info: 'sparkles' };
 
 // toast(text, { kind:'success'|'warn'|'error'|'badge'|'info', title, iconName, ms })
 export function toast(text, { kind = 'info', iconName = '', title = '', ms = 2600 } = {}) {
   const box = document.getElementById('toasts');
   if (!box) return;
+  placeToasts(box);
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
   el.innerHTML = `<span class="ticon">${icon(iconName || KIND_IC[kind] || 'sparkles')}</span><div>${title ? `<div>${esc(title)}</div><div class="tsub">${esc(text)}</div>` : esc(text)}</div>`;
@@ -60,15 +71,17 @@ export function toast(text, { kind = 'info', iconName = '', title = '', ms = 260
 export function actionToast(text, { label, onClick, title = '', iconName = 'sparkles', kind = 'info' } = {}) {
   const box = document.getElementById('toasts');
   if (!box) return { close() {} };
+  placeToasts(box);
   const el = document.createElement('div');
   el.className = `toast ${kind} has-action`;
   el.setAttribute('role', 'alert');
   el.innerHTML = `<span class="ticon">${icon(iconName)}</span><div class="grow">${title ? `<div>${esc(title)}</div><div class="tsub">${esc(text)}</div>` : esc(text)}</div><button class="btn small toast-action" type="button" style="min-height:44px;min-width:44px;pointer-events:auto">${esc(label || 'OK')}</button>`;
   el.style.pointerEvents = 'auto';
   box.appendChild(el);
-  const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 320); };
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; el.classList.add('out'); setTimeout(() => el.remove(), 320); };
   el.querySelector('.toast-action').addEventListener('click', () => { try { onClick && onClick(); } finally { close(); } });
-  return { close, el };
+  return { close, el, get closed() { return closed; } };
 }
 
 // Every open modal or sheet, so a route change can close them all.
@@ -83,9 +96,34 @@ export function closeAll() {
 // A route change (back button, link, hash edit) never leaves a dialog on the next screen.
 if (typeof window !== 'undefined') window.addEventListener('hashchange', closeAll);
 
+// Back closes a sheet or modal and stays on the screen (2026-10-25, audit 2).
+// Opening one pushes a same-hash history entry { ...state, modal: id }. System Back pops
+// it (popstate, no hashchange, so the router does nothing) and only the dialog closes.
+// Closing by tap removes the entry again with history.back(), unless the router already
+// replaced it (js/app.js navigate() replaces a modal entry instead of pushing over it).
+// Confirms (the leave guard) do not push: the router owns Back while they are open.
+const histStack = []; // [{ id, close }] newest last
+let modalSeq = 0;
+const stateModal = () => { try { return history.state && history.state.modal; } catch { return undefined; } };
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    const now = stateModal();
+    // Close every history dialog whose entry is no longer the current one.
+    for (let i = histStack.length - 1; i >= 0; i--) {
+      const h = histStack[i];
+      if (h.id === now) break;
+      histStack.splice(i, 1);
+      h.fromPop = true;
+      try { h.close(); } catch { /* ignore */ }
+    }
+    // Forward onto a stale dialog entry (its dialog is gone): step back over it.
+    if (now && !histStack.some((h) => h.id === now)) { try { history.back(); } catch { /* ignore */ } }
+  });
+}
+
 // Generic modal. Returns { el, close }. Esc and scrim tap close it unless sticky.
 // innerHtml is trusted HTML: callers must esc() every value that comes from state or content.
-export function modal(innerHtml, { sheet = false, sticky = false, label = '', onClose } = {}) {
+export function modal(innerHtml, { sheet = false, sticky = false, label = '', onClose, history: useHistory = true } = {}) {
   const root = document.getElementById('overlay-root');
   const prev = document.activeElement;
   const scrim = document.createElement('div');
@@ -94,10 +132,20 @@ export function modal(innerHtml, { sheet = false, sticky = false, label = '', on
   root.appendChild(scrim);
   const box = scrim.firstElementChild;
   let closed = false;
+  let hist = null;
   const close = () => {
     if (closed) return;
     closed = true;
     open.delete(close);
+    if (hist) {
+      const i = histStack.indexOf(hist);
+      if (i >= 0) histStack.splice(i, 1);
+      // Closed by a tap or Esc: drop our entry, after any same-tick navigation had its turn.
+      if (!hist.fromPop) {
+        const id = hist.id;
+        setTimeout(() => { if (stateModal() === id) { try { history.back(); } catch { /* ignore */ } } }, 0);
+      }
+    }
     document.removeEventListener('keydown', onKey);
     scrim.remove();
     try { prev && prev.focus && prev.focus(); } catch { /* ignore */ }
@@ -114,6 +162,13 @@ export function modal(innerHtml, { sheet = false, sticky = false, label = '', on
     }
   };
   open.add(close);
+  if (useHistory && typeof history !== 'undefined' && history.pushState) {
+    try {
+      hist = { id: `m${Date.now().toString(36)}${++modalSeq}`, close };
+      history.pushState({ ...(history.state || {}), modal: hist.id }, '');
+      histStack.push(hist);
+    } catch { hist = null; }
+  }
   document.addEventListener('keydown', onKey);
   scrim.addEventListener('click', (e) => { if (e.target === scrim && !sticky) close(); });
   setTimeout(() => (box.querySelector('[autofocus]') || box.querySelector('button') || box).focus(), 30);
@@ -121,7 +176,10 @@ export function modal(innerHtml, { sheet = false, sticky = false, label = '', on
 }
 
 // In-page confirm. Resolves true/false.
-export function confirmBox({ title, text, ok = 'אישור', cancel = 'ביטול', danger = false }) {
+// primary: which button is the filled one. 'cancel' when leaving loses work (the leave
+// guard: "להישאר" filled, "לצאת" outline). Default: 'cancel' for "להישאר", else 'ok'.
+export function confirmBox({ title, text, ok = 'אישור', cancel = 'ביטול', danger = false, primary = '' }) {
+  const safeFirst = primary ? primary === 'cancel' : cancel === 'להישאר';
   return new Promise((resolve) => {
     let val = false;
     const m = modal(`
@@ -130,10 +188,13 @@ export function confirmBox({ title, text, ok = 'אישור', cancel = 'ביטו�
         <h2 style="font-size:1.25rem">${esc(title)}</h2>
         <p class="muted">${esc(text)}</p>
         <div class="btn-row">
-          <button class="btn line" data-a="no">${esc(cancel)}</button>
-          <button class="btn ${danger ? 'danger' : ''}" data-a="yes">${esc(ok)}</button>
+          ${safeFirst
+    ? `<button class="btn" data-a="no">${esc(cancel)}</button>
+          <button class="btn line${danger ? ' danger' : ''}" data-a="yes">${esc(ok)}</button>`
+    : `<button class="btn line" data-a="no">${esc(cancel)}</button>
+          <button class="btn ${danger ? 'danger' : ''}" data-a="yes">${esc(ok)}</button>`}
         </div>
-      </div>`, { label: title, onClose: () => resolve(val) });
+      </div>`, { label: title, onClose: () => resolve(val), history: false });
     m.el.querySelector('[data-a="no"]').focus();
     m.el.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]');
@@ -150,7 +211,7 @@ export function levelUpModal(lv, { xp = 0, badge = false } = {}) {
   return new Promise((resolve) => {
     const m = modal(`
       ${artStage(artTrophy(170))}
-      <span class="lvl-pill">LEVEL ${lv.level}</span>
+      <span class="lvl-pill">רמה <bdi>${esc(String(lv.level))}</bdi></span>
       <h2>עלית רמה!</h2>
       <p class="muted small">עכשיו אתה ${esc(lv.title_he || '')}. ההרצאה הבאה כבר פחות מפחידה.</p>
       <div class="rewards">

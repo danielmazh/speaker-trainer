@@ -2,7 +2,7 @@
 // one "continue your path" row, the daily goal and the coach. Topics live on the Path screen.
 import { esc, ringSvg, on } from './dom.js';
 import { icon } from './icons.js';
-import { greeting, catColor, ic, rememberTrack, profileOf, daysUntil } from './shell.js';
+import { greeting, catColor, ic, rememberTrack, rememberedTrack, profileOf, daysUntil } from './shell.js';
 
 // Stored state is untrusted: numbers only.
 function num(v, dflt = 0) { const n = Number(v); return Number.isFinite(n) ? n : dflt; }
@@ -29,12 +29,23 @@ export function render(root, ctx) {
   const goalPct = Math.min(100, Number.isFinite(sx.goalPct) ? sx.goalPct : Math.round((todayMin / goal) * 100));
   const talkIn = daysUntil(prof.nextTalkDate, today);
 
-  // Continue your path: first focus track with an open unit, else the track with most progress.
+  // Continue your path: the track of the unit played last, else the first focus track, else the track
+  // opened last, else the one with most progress. Never a track the user did not choose.
   const tracks = ctx.tracks();
   const tp = ctx.trackProgress();
   const open = tracks.filter((t) => tp[t.id] && tp[t.id].currentUnitId);
   const focus = open.filter((t) => prof.focusTracks.includes(t.id));
-  const cont = focus[0] || [...open].sort((a, b) => (tp[b.id].pct || 0) - (tp[a.id].pct || 0))[0] || null;
+  const hist = Array.isArray(st.history) ? st.history : [];
+  let played = null;
+  for (let k = hist.length - 1; k >= 0 && !played; k--) {
+    const tid = String((hist[k] && hist[k].taskId) || '');
+    if (!tid.startsWith('unit:')) continue;
+    const uid = tid.slice(5);
+    played = open.find((t) => (t.units || []).some((u) => u.id === uid)) || null;
+    if (!played) break; // last played track is finished: fall back below
+  }
+  const opened = open.find((t) => t.id === rememberedTrack()) || null;
+  const cont = played || focus[0] || opened || [...open].sort((a, b) => (tp[b.id].pct || 0) - (tp[a.id].pct || 0))[0] || null;
   const contUnit = cont ? (cont.units || []).find((u) => u.id === tp[cont.id].currentUnitId) : null;
   const contNo = cont && contUnit ? (cont.units || []).indexOf(contUnit) + 1 : 0;
 
@@ -46,10 +57,10 @@ export function render(root, ctx) {
           <h1 class="greet" data-testid="greet">${name ? `היי, <bdi>${esc(name)}</bdi>` : 'היי!'}</h1>
           <p class="sub">${esc(greeting())}</p>
         </div>
-        <a class="band-pill ${streakAlive ? 'alive' : ''}" href="#stats" aria-label="רצף: ${streak} ימים"><span class="flame-ic">${icon('flameLine')}</span><span class="en-num">${streak}</span></a>
+        <a class="band-pill ${streakAlive ? 'alive' : ''}" href="#stats" aria-label="רצף: ${streak === 1 ? 'יום אחד' : `${streak} ימים`}"><span class="flame-ic">${icon('flameLine')}</span><span class="en-num">${streak}</span></a>
       </div>
       <a class="level-line" href="#stats" aria-label="רמה ${lv.level}, ${lv.cur} מתוך ${lv.next} XP">
-        <span class="spread"><span class="lv-title">רמה <bdi>${lv.level}</bdi> - ${esc(lv.title_he)}</span><bdi class="xp-num en-num">${lv.cur} / ${lv.next} XP</bdi></span>
+        <span class="spread"><span class="lv-title">רמה <bdi>${lv.level}</bdi> - <bdi dir="rtl">${esc(lv.title_he)}</bdi></span><bdi class="xp-num en-num">${lv.cur} / ${lv.next} XP</bdi></span>
         <span class="bar on-band thin"><i style="--p:${lv.pct}%"></i></span>
       </a>
     </header>
@@ -78,8 +89,8 @@ export function render(root, ctx) {
       ${cont && contUnit ? `<button class="card cont-card" data-cont="${esc(cont.id)}" style="--c:${esc(catColor(cont))}" data-testid="continue-path">
         <span class="track-ico">${ic(cont.icon, cont.id.replace(/^t-/, ''))}</span>
         <span class="grow stack-xs">
-          <span class="tiny muted">${tp[cont.id].unitsDone ? 'המשך במסלול' : 'התחל מסלול'}: ${esc(cont.title_he)}</span>
-          <span class="bold small">יחידה <bdi>${contNo}</bdi> - ${esc(contUnit.title_he)}</span>
+          <span class="tiny muted">${tp[cont.id].unitsDone ? 'המשך במסלול' : 'התחל מסלול'}: <bdi dir="rtl">${esc(cont.title_he)}</bdi> · יחידה <bdi>${contNo}</bdi></span>
+          <span class="bold small"><bdi dir="rtl">${esc(contUnit.title_he)}</bdi></span>
           <span class="bar thin"><i style="--p:${Math.max(tp[cont.id].pct, 3)}%"></i></span>
         </span>
         <span class="chev-l">${icon('chevL')}</span>
@@ -92,7 +103,7 @@ export function render(root, ctx) {
         </a>
         <a class="card mini" href="#coach" data-testid="coach-tile">
           <span class="ico">${icon('sparkles')}</span>
-          <span class="stack-xs grow"><span class="bold small">המאמן</span><span class="tiny muted">${talkIn !== null && talkIn >= 0 ? (talkIn === 0 ? 'ההרצאה היום!' : `עוד <bdi>${talkIn}</bdi> ימים להרצאה`) : 'הכנה להרצאה'}</span></span>
+          <span class="stack-xs grow"><span class="bold small">המאמן</span><span class="tiny muted">${talkIn !== null && talkIn >= 0 ? (talkIn === 0 ? 'ההרצאה היום!' : talkIn === 1 ? 'ההרצאה מחר' : `עוד <bdi>${talkIn}</bdi> ימים להרצאה`) : 'הכנה להרצאה'}</span></span>
         </a>
       </div>
 

@@ -4,6 +4,10 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Hebrew day count: "יום אחד" for 1, "N ימים" otherwise. daysHtml wraps the number in <bdi>.
+export const daysText = (n) => (Number(n) === 1 ? 'יום אחד' : `${Math.round(Number(n) || 0)} ימים`);
+export const daysHtml = (n) => (Number(n) === 1 ? 'יום אחד' : `<bdi>${Math.round(Number(n) || 0)}</bdi> ימים`);
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 

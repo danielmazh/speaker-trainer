@@ -1,4 +1,4 @@
-// Profile: three tabs (profile and look, mic and privacy, data). Every change saves at once.
+// Profile: three tabs (profile, settings: look, mic and privacy, data). Every change saves at once.
 import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { band, ic, ROLES, GOALS, DAILY_MIN, profileOf } from './shell.js';
@@ -13,7 +13,7 @@ export function render(root, ctx) {
   const pf = profileOf(st);
   const tracks = ctx.tracks();
   const aud = ctx.C.AUDIENCES || [];
-  const chip = (id, he, on) => `<button class="chip q-chip" data-v="${esc(id)}" aria-pressed="${on}">${on ? icon('check') : ''}<bdi>${esc(he)}</bdi></button>`;
+  const chip = (id, he, on) => `<button class="chip q-chip" data-v="${esc(id)}" aria-pressed="${on}">${on ? icon('check') : ''}<bdi dir="rtl">${esc(he)}</bdi></button>`;
 
   const sel = (arr) => arr.length ? `<bdi>${arr.length}</bdi> נבחרו` : 'לא נבחר';
   const acc = (key, label, opts, cur) => `<details class="acc pick-acc" data-acc="${key}">
@@ -26,7 +26,7 @@ export function render(root, ctx) {
     <div class="body">
       <div class="seg tabs" role="group" aria-label="חלקי הפרופיל">
         <button data-ptab="me" aria-pressed="${tab === 'me'}">פרופיל</button>
-        <button data-ptab="mic" aria-pressed="${tab === 'mic'}">מיקרופון ופרטיות</button>
+        <button data-ptab="mic" aria-pressed="${tab === 'mic'}">הגדרות</button>
         <button data-ptab="data" aria-pressed="${tab === 'data'}">נתונים</button>
       </div>
 
@@ -49,17 +49,19 @@ export function render(root, ctx) {
         </div>
       </div>
 
-      <div class="card stack-sm">
-        <h2>${icon('sun', 'h-ic')} מראה ותחושה</h2>
-        <div class="seg" role="group" aria-label="ערכת צבעים">
-          ${[['system', 'אוטומטי'], ['light', 'בהיר'], ['dark', 'כהה']].map(([v, l]) => `<button data-theme="${v}" aria-pressed="${set.theme === v}">${l}</button>`).join('')}
-        </div>
-        <div class="switch-row"><span>רטט בתשובות</span><button class="switch" role="switch" aria-checked="${!!set.haptics}" data-toggle="haptics" aria-label="רטט בתשובות"></button></div>
-        <div class="switch-row"><span>צלילים</span><button class="switch" role="switch" aria-checked="${!!set.sound}" data-toggle="sound" aria-label="צלילים"></button></div>
-      </div>
       </div>
 
       <div class="stack" data-ppanel="mic" ${tab === 'mic' ? '' : 'hidden'}>
+      <div class="card stack-sm look-card">
+        <h2 class="sr-only">מראה ותחושה</h2>
+        <div class="seg" role="group" aria-label="ערכת צבעים">
+          ${[['system', 'אוטומטי'], ['light', 'בהיר'], ['dark', 'כהה']].map(([v, l]) => `<button data-theme="${v}" aria-pressed="${set.theme === v}">${l}</button>`).join('')}
+        </div>
+        <div class="switch-pair">
+          <div class="switch-row"><span>רטט</span><button class="switch" role="switch" aria-checked="${!!set.haptics}" data-toggle="haptics" aria-label="רטט בתשובות"></button></div>
+          <div class="switch-row"><span>צלילים</span><button class="switch" role="switch" aria-checked="${!!set.sound}" data-toggle="sound" aria-label="צלילים"></button></div>
+        </div>
+      </div>
       <div class="card stack-sm">
         <div class="note">${icon('shield')}<span>האפליקציה <b>אף פעם</b> לא שומרת ולא מעלה את הקול שלך. ההקלטה נמצאת רק בזיכרון של הדף, ונמחקת כשאתה עוזב את המסך.</span></div>
         <div class="lbl small">זיהוי דיבור</div>
@@ -183,7 +185,7 @@ export function render(root, ctx) {
     box.querySelectorAll('[data-v]').forEach((x) => {
       const onNow = box.hasAttribute('data-one') ? draft[key] === x.dataset.v : draft[key].includes(x.dataset.v);
       x.setAttribute('aria-pressed', String(onNow));
-      x.innerHTML = `${onNow ? icon('check') : ''}<bdi>${x.querySelector('bdi').innerHTML}</bdi>`;
+      x.innerHTML = `${onNow ? icon('check') : ''}<bdi dir="rtl">${x.querySelector('bdi').innerHTML}</bdi>`;
     });
     const cnt = root.querySelector(`[data-count="${key}"]`);
     if (cnt) cnt.innerHTML = sel(draft[key]);
@@ -211,8 +213,15 @@ export function render(root, ctx) {
   nameEl.addEventListener('blur', saveName);
   nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
   root.querySelector('#pf-date').addEventListener('change', (e) => save({ nextTalkDate: e.target.value || null }));
-  // Leaving the screen never drops an edit.
-  ctx.onLeave(saveName);
+  // Leaving the screen, closing the app or switching away never drops an edit.
+  const onVis = () => { if (document.visibilityState === 'hidden') saveName(); };
+  window.addEventListener('pagehide', saveName);
+  document.addEventListener('visibilitychange', onVis);
+  ctx.onLeave(() => {
+    window.removeEventListener('pagehide', saveName);
+    document.removeEventListener('visibilitychange', onVis);
+    saveName();
+  });
 
   // Export and import.
   const out = root.querySelector('#pf-export');

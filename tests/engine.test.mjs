@@ -743,6 +743,39 @@ test('completePractice: unit boss +40 once, unit done +60 once', () => {
   assert.deepEqual(r.state.tracks, {});
 });
 
+test('completePractice: Again on a done unit gives at most 5 item XP per unit per day', () => {
+  const day1 = at(2026, 10, 21, 12);
+  let s = defaultState();
+  const run = (st, t) => completePractice(st, 'unit:u1', [
+    { itemId: 'fx-0', score: 90 }, { itemId: 'fx-1', score: 90 }, { itemId: 'qa-0', score: 90 },
+  ], t, unitOpts);
+  // first full run: items + boss + unit done
+  let r = run(s, day1);
+  assert.equal(r.unitDone, true);
+  assert.equal(r.xpGained, 3 * 5 + 40 + 60);
+  s = r.state;
+  // replays the same day: 5, then 0, 0
+  const gains = [];
+  for (let i = 1; i <= 3; i++) { r = run(s, day1 + i * 1000); gains.push(r.xpGained); s = r.state; }
+  assert.deepEqual(gains, [REPEAT_XP_CAP, 0, 0]);
+  // results are still graded and saved
+  assert.equal(s.history.length, 3 * 4);
+  // the estimate on the start button follows the cap
+  assert.equal(buildUnitSession(s, U('u1'), ITEMS, day1).xp, 0);
+  // the cap survives a store round trip and a mission regenerate on the same day
+  const mem = new Map();
+  const store = createStore({ getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v), removeItem: (k) => mem.delete(k) });
+  store.set(() => s);
+  assert.equal(run(store.get(), day1 + 9000).xpGained, 0);
+  // a new day opens the cap again
+  r = run(s, at(2026, 10, 22, 12));
+  assert.equal(r.xpGained, REPEAT_XP_CAP);
+  assert.equal(buildUnitSession(r.state, U('u1'), ITEMS, at(2026, 10, 22, 13)).xp, 0);
+  assert.equal(buildUnitSession(s, U('u1'), ITEMS, at(2026, 10, 23, 12)).xp, REPEAT_XP_CAP);
+  // free practice is not capped (no unit), and other units keep their own cap
+  assert.equal(completePractice(s, 'practice:x', [{ itemId: 'fx-0', score: 90 }, { itemId: 'fx-1', score: 90 }], day1, unitOpts).xpGained, 10);
+});
+
 test('completePractice awards badges with new rule keys', () => {
   const BADGES = [
     { id: 'b-unit-1', rule: 'unit:1' },

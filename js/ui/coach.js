@@ -1,4 +1,4 @@
-// Coach: audience picker in the band, then three tabs: the plan for that audience, an icebreaker, tips.
+// Coach: audience picker in the band ("קהל:"), then three tabs: the plan for that audience, openers, tips.
 import { esc, on } from './dom.js';
 import { icon } from './icons.js';
 import { bindListen } from './tts.js';
@@ -19,14 +19,15 @@ export function render(root, ctx) {
         <button class="icon-btn" data-back aria-label="חזרה">${icon('arrowR')}</button>
         <div class="grow"><h1>המאמן</h1><p class="sub">הכנה מהירה לפני הרצאה</p></div>
       </div>
+      <div class="aud-row"><span class="aud-lbl" aria-hidden="true">קהל:</span>
       <div class="seg on-band aud-seg" data-testid="audiences" role="group" aria-label="מי בקהל?">
         ${AUDIENCES.map((a) => `<button data-aud="${esc(a.id)}" aria-pressed="${a.id === audId}">${esc(a.name_he)}</button>`).join('')}
-      </div>
+      </div></div>
     </header>
 
     <div class="body">
       <div class="seg tabs" role="group" aria-label="מה להציג">
-        <button data-ctab="plan" aria-pressed="${tab === 'plan'}">הקהל שלך</button>
+        <button data-ctab="plan" aria-pressed="${tab === 'plan'}">תוכנית</button>
         <button data-ctab="ice" aria-pressed="${tab === 'ice'}">פתיח</button>
         <button data-ctab="tips" aria-pressed="${tab === 'tips'}">טיפים</button>
       </div>
@@ -41,12 +42,13 @@ export function render(root, ctx) {
             <button class="icon-btn light" data-ice data-testid="new-icebreaker" aria-label="עוד אחד">${icon('shuffle')}</button>
           </div>
         </div>
+        <div data-audopen></div>
         <div data-iceout data-testid="icebreaker" aria-live="polite"></div>
       </div>
 
       <div class="card acc-card" data-cpanel="tips" ${tab === 'tips' ? '' : 'hidden'}>
         ${COACH.map((c, k) => `<details class="acc">
-          <summary><span class="ico">${icon(TIP_IC[k % TIP_IC.length])}</span><span class="grow acc-title">${esc(c.title_he)}</span><span class="chev">${icon('chevDown')}</span></summary>
+          <summary><span class="ico">${icon(TIP_IC[k % TIP_IC.length])}</span><span class="grow acc-title"><bdi dir="rtl">${esc(c.title_he)}</bdi></span><span class="chev">${icon('chevDown')}</span></summary>
           <div class="acc-body">
             ${c.body_he ? `<p class="small">${esc(c.body_he)}</p>` : ''}
             ${(c.bullets_he || []).length ? `<ul class="dots-list">${c.bullets_he.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}
@@ -83,13 +85,16 @@ export function render(root, ctx) {
     out.innerHTML = `<div class="card-head"><h2>מול ${esc(a.name_he)}</h2><span class="tag">${icon('users')} תוכנית</span></div>
       <ul class="checks">${(a.focus_he || []).map((f) => `<li>${icon('check')}<span>${esc(f)}</span></li>`).join('')}</ul>
       ${a.skip_he ? `<p class="small"><b>לדלג:</b> ${esc(a.skip_he)}</p>` : ''}
-      ${a.open_en ? `<div class="tiny muted bold">פתיחה</div><button class="example en" dir="ltr" lang="en" data-say data-text="${esc(a.open_en)}">"${esc(a.open_en)}"</button>` : ''}
       ${a.joke_en ? `<div class="tiny muted bold">בדיחה קטנה</div><button class="example en" dir="ltr" lang="en" data-say data-text="${esc(a.joke_en)}">"${esc(a.joke_en)}"</button>` : ''}`;
     bindListen(out, '');
+    // The opener for this audience lives in the "פתיח" tab, above the general icebreakers.
+    const op = root.querySelector('[data-audopen]');
+    op.innerHTML = a.open_en ? `<div class="tiny muted bold">פתיחה מול ${esc(a.name_he)}</div><button class="example en" dir="ltr" lang="en" data-say data-text="${esc(a.open_en)}">"${esc(a.open_en)}"</button><hr class="soft">` : '';
+    bindListen(op, '');
   };
   drawIce();
   drawAud();
-  bindListen(root.querySelector('.ice-card-wrap'), '');
+  bindListen(root.querySelector('.ice-card-wrap .card-head'), ''); // the audience opener binds itself in drawAud
   bindListen(root.querySelector('.acc-card'), '');
 
   on(root, '[data-aud]', 'click', (e, b) => {

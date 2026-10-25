@@ -32,7 +32,9 @@ const ROUTES = {
   play: { mod: play, nav: false },
   coach: { mod: coach, nav: true },
   path: { mod: pathScreen, nav: true },
-  track: { mod: trackScreen, nav: true },
+  // 2026-10-25: no nav on Track (like Mission): its sticky "התחל יחידה" sat right above
+  // the nav "אימון" button, which starts the daily mission instead. Track has a back arrow.
+  track: { mod: trackScreen, nav: false },
   stats: { mod: statsScreen, nav: true },
   profile: { mod: profile, nav: true },
 };
@@ -69,6 +71,8 @@ let cleanups = [];
 let current = null;
 let playing = null; // the task shown on #play in this render
 let leaveGuard = null; // set by a screen: () => Promise<boolean>
+let updateTap = null; // pending app update offer: () => void (applies the update)
+let updateToast = null; // the visible update toast, if any
 
 function ensureToday() {
   const cur = store.get();
@@ -94,7 +98,7 @@ const ctx = {
   // go(route, { replace, force }): push by default, replace between tabs; force skips the leave guard.
   go(route, opts = {}) { return navigate(route, opts); },
   // A screen with unsaved work sets fn: () => Promise<boolean> (true = leave). Cleared on every route change.
-  setLeaveGuard(fn) { leaveGuard = typeof fn === 'function' ? fn : null; },
+  setLeaveGuard(fn) { leaveGuard = typeof fn === 'function' ? fn : null; syncUpdateOffer(); },
   onLeave(fn) { cleanups.push(fn); },
   toast: fx.toast,
   haptic: fx.haptic,
@@ -259,13 +263,19 @@ function routeName() {
   return ROUTES[h] ? h : null;
 }
 
+// history.state without the `modal` marker that js/ui/fx.js puts on a dialog's entry.
+function baseState() {
+  const { modal: _m, ...rest } = history.state || {};
+  return rest;
+}
+
 function stamp(extra = {}) {
-  try { history.replaceState({ ...(history.state || {}), idx: navIdx, ...extra }, ''); } catch { /* ignore */ }
+  try { history.replaceState({ ...baseState(), idx: navIdx, ...extra }, ''); } catch { /* ignore */ }
 }
 
 // Replace the current entry's hash without a hashchange event.
 function replaceHash(route) {
-  try { history.replaceState({ ...(history.state || {}), idx: navIdx }, '', `#${route}`); } catch { location.replace(`#${route}`); }
+  try { history.replaceState({ ...baseState(), idx: navIdx }, '', `#${route}`); } catch { location.replace(`#${route}`); }
 }
 
 function renderNav(name) {
@@ -310,11 +320,23 @@ async function navigate(route, { replace, force = false } = {}) {
   leaveGuard = null;
   const h = `#${route}`;
   if (location.hash === h) { render(); return; }
-  const rep = replace ?? ((TABS.has(current) && TABS.has(route)) || current === 'onboarding' || current === null);
-  const st = history.state || {};
-  if (!rep && navIdx > 0 && st.prev === route) {
+  let rep = replace ?? ((TABS.has(current) && TABS.has(route)) || current === 'onboarding' || current === null);
+  const raw = history.state || {};
+  // A sheet or modal (js/ui/fx.js) is open on its own same-hash entry: that entry is
+  // reused for the move, so no dead entry is left behind for Back.
+  const overModal = !!raw.modal;
+  const st = baseState();
+  if (!rep && navIdx > 0 && st.prev === route && st.idx === navIdx) {
     bypass++;
-    history.back();
+    if (overModal) history.go(-2); // over the dialog entry and the screen entry
+    else history.back();
+    return;
+  }
+  if (overModal && !rep) {
+    // Replace the dialog entry with the new screen; it sits right after the screen entry.
+    navIdx = (typeof st.idx === 'number' ? st.idx : navIdx) + 1;
+    history.replaceState({ idx: navIdx, prev: current }, '', h);
+    render();
     return;
   }
   if (rep) {
@@ -345,14 +367,21 @@ async function onHashChange() {
       history.pushState({ idx: navIdx, prev: target }, '', `#${current}`);
       if (await askLeave()) { leaveGuard = null; bypass++; history.back(); }
     } else {
+      // An entry with no state (typed URL, or an entry from before this version). Its
+      // real predecessor is unknown, so prev stays null: a later move never treats it
+      // as "go back" (2026-10-25, audit 2 P2-D).
       navIdx += 1;
-      history.replaceState({ idx: navIdx, prev: current }, '', `#${current}`);
-      if (await askLeave()) { leaveGuard = null; navigate(target, { replace: true, force: true }); }
+      history.replaceState({ idx: navIdx, prev: null }, '', `#${current}`);
+      if (await askLeave()) {
+        leaveGuard = null;
+        history.replaceState({ idx: navIdx, prev: null }, '', `#${target}`);
+        render();
+      }
     }
     return;
   }
   if (known) navIdx = st.idx;
-  else { navIdx += 1; stamp({ prev: current }); }
+  else { navIdx += 1; stamp({ prev: null }); }
   render();
 }
 
@@ -420,7 +449,14 @@ function render() {
   if (name === 'onboarding' && st.onboarded) { replaceHash('home'); name = 'home'; }
   if (name === 'play') {
     const to = resolvePlay();
-    if (to !== 'play') { replaceHash(to); name = to; }
+    if (to !== 'play') {
+      // Forward onto a finished step: the entry before is already that screen, so step
+      // back to it instead of making a second copy of it (2026-10-25, audit 2 P2-E).
+      const hs = baseState();
+      if (hs.prev === to && navIdx > 0 && hs.idx === navIdx) { bypass++; history.back(); return; }
+      replaceHash(to);
+      name = to;
+    }
   }
   renderRoute(name);
 }
@@ -454,6 +490,7 @@ function renderRoute(name) {
   }
   const h = root.querySelector('h1');
   if (h) { h.setAttribute('tabindex', '-1'); try { h.focus({ preventScroll: true }); } catch { /* ignore */ } }
+  syncUpdateOffer();
 }
 
 // In-app links: route through navigate() so tabs replace and deeper screens push.
@@ -479,18 +516,39 @@ document.addEventListener('visibilitychange', () => {
 }
 applyTheme();
 render();
+// Reloaded on a dialog's entry (the dialog is gone): step back to the screen's own entry.
+if (history.state && history.state.modal) { try { history.back(); } catch { /* ignore */ } }
 
 // ---------- service worker: register on time, offer updates ----------
+// The update toast never shows during a task: while #play is on screen (task or its
+// result) or a leave guard is set, the offer waits and shows on the next screen.
+// "רענן" asks the leave guard first, so it never drops answers silently.
+function busyForUpdate() { return current === 'play' || current === 'onboarding' || !!leaveGuard; }
+function syncUpdateOffer() {
+  if (!updateTap) return;
+  if (busyForUpdate()) {
+    if (updateToast) { updateToast.close(); updateToast = null; }
+    return;
+  }
+  if (updateToast && !updateToast.closed) return;
+  const tap = updateTap;
+  updateToast = fx.actionToast('לחץ כדי לטעון אותה עכשיו.', {
+    title: 'גרסה חדשה מוכנה', label: 'רענן', iconName: 'sparkles',
+    onClick: async () => {
+      updateToast = null;
+      if (leaveGuard && !(await askLeave())) { syncUpdateOffer(); return; }
+      leaveGuard = null;
+      updateTap = null;
+      tap();
+    },
+  });
+}
+
 function setupServiceWorker() {
   if (!('serviceWorker' in navigator) || /[?&]nosw\b/.test(location.search)) return;
   const sw = navigator.serviceWorker;
   let wantReload = false;
-  let offered = false;
-  const offer = (onTap) => {
-    if (offered) return;
-    offered = true;
-    fx.actionToast('לחץ כדי לטעון אותה עכשיו.', { title: 'גרסה חדשה מוכנה', label: 'רענן', iconName: 'sparkles', onClick: onTap });
-  };
+  const offer = (onTap) => { updateTap = onTap; syncUpdateOffer(); };
   // A new worker finished installing and waits: ask before switching.
   const offerWaiting = (reg) => {
     const w = reg.waiting;
@@ -502,17 +560,20 @@ function setupServiceWorker() {
     wantReload = false;
     location.reload();
   });
-  // Same worker, but the server has newer app files (cache revalidation): a plain reload is enough.
+  // Same worker, newer app files on the server: sw.js has fetched the whole new set into
+  // a staging cache. A reload switches to it as one unit (sw.js promotes it on navigation).
   sw.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'ASSETS_UPDATED') offer(() => location.reload());
   });
+  const askWorker = () => { try { sw.controller && sw.controller.postMessage({ type: 'CHECK_UPDATE' }); } catch { /* ignore */ } };
   const register = () => sw.register('sw.js').then((reg) => {
     offerWaiting(reg);
+    askWorker();
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       if (nw) nw.addEventListener('statechange', () => { if (nw.state === 'installed') offerWaiting(reg); });
     });
-    const check = () => { reg.update().catch(() => { /* offline */ }); };
+    const check = () => { reg.update().catch(() => { /* offline */ }); askWorker(); };
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
     setInterval(check, 30 * 60 * 1000);
   }).catch(() => { /* offline support is optional */ });

@@ -460,4 +460,25 @@ hr.soft { border: 0; height: 1px; background: var(--line); margin: 4px 0; }
   .path .skills { grid-template-columns: repeat(4, 1fr); }
   .band, .home-band { padding-top: calc(max(4px, var(--sat)) + 6px); padding-bottom: 10px; }
   .home-band .level-line { padding: 6px 10px; }
+  /* Compact nav: icons only, 48px high, so lists and maps keep more of the 390px height. */
+  :root { --nav-h: 52px; }
+  body .nav { bottom: calc(6px + var(--sab)); }
+  body .nav .nav-lbl:not(.center-lbl) { display: none; }
+  body .nav .center-lbl { display: none; }
+  body .nav a.tab { min-height: 44px; padding: 2px 6px; }
+  body .nav a.center { width: 56px; height: 56px; top: -12px; }
+  body .nav a.center .core { width: 44px; height: 44px; }
+  .screen { padding-bottom: calc(72px + var(--sab)); }
+  .screen.no-nav { padding-bottom: calc(16px + var(--sab)); }
 }
+
+/* Track without the bottom nav (round 2): no room kept for the nav; the sticky CTA keeps the safe area. */
+body:has(#nav[hidden]) .screen.track { padding-bottom: calc(16px + var(--sab)); }
+/* Coach: the audience row is labelled, so it is not read as a second tab row. */
+.coach .aud-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.coach .aud-lbl { flex: 0 0 auto; font-size: .8rem; font-weight: 700; color: #fff; }
+.coach .aud-row .aud-seg { flex: 1 1 auto; min-width: 0; width: auto; }
+/* Profile "הגדרות": theme and the two switches in a short card (round 2: moved from the profile tab). */
+.look-card { gap: 4px; padding-block: 10px; }
+.look-card .switch-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.look-card .switch-pair .switch-row { min-height: 44px; padding: 0; }

@@ -7,8 +7,15 @@
 // Recording for playback is a separate take there: the "הקלט לשמיעה" button (no live transcript).
 // On desktop one take records and recognizes together.
 //
-// Errors are per take, with a retry. Only 'not-allowed' (permission denied) is kept for the session
-// (ctx.session.micIssue). The no-mic note shows once per session, then a small chip.
+// Errors are per take, with a retry. Only 'not-allowed' (permission denied) on the first start of a take
+// is kept for the session (ctx.session.micIssue). The no-mic note shows once per session, then a small
+// chip; never both at once.
+//
+// iOS: recognition is not restarted outside a user tap. When it ends on its own the take keeps what was
+// heard and the panel pauses: "המשך לדבר" starts a new take appended to the same answer, "סיים" submits.
+//
+// Typing: while the typed box is open the block gets class 'typing' (also on the panel), the note and
+// the mic row are hidden, and only a compact text box with send shows.
 import { esc, fmtTime } from './dom.js';
 import { icon } from './icons.js';
 
@@ -75,7 +82,7 @@ const BLOCK_CSS = `
 .mic-err svg{width:16px;height:16px;flex:0 0 16px}
 .mic-err .mic-err-t{max-width:34ch}
 .mic-retry{font-weight:700}
-.mic-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border:0;border-radius:999px;background:var(--warn-50);color:var(--warn-ink);font:inherit;font-size:.75rem;cursor:pointer}
+.mic-chip{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:2px 10px;border:0;border-radius:999px;background:var(--warn-50);color:var(--warn-ink);font:inherit;font-size:.75rem;cursor:pointer}
 .mic-chip svg{width:14px;height:14px}
 .mic-panel.compact .transcript-card{padding:8px 12px;gap:4px}
 .mic-panel.compact .transcript{max-height:calc(2 * 2em);font-size:1rem}
@@ -153,9 +160,12 @@ export function bindStars(root, onRate) {
  * opts: { target, must, banned, analyze (options for A.analyze, overrides target/must/banned), seconds,
  *         live=true, size (capped at 88), label, between (html between transcript and mic), noSelf,
  *         onLive(analysis, text, elapsed), onTick(secondsLeftOrElapsed), onStart() (at the tap),
- *         onReady() (listening really started), onDone(take) }
+ *         onReady() (listening really started), onDone(take),
+ *         onEnd({ done, reason }) (the take is over and the mic is idle again: after every empty or failed
+ *         take, and after onDone. Not while an iOS answer is paused. onStop is an alias) }
  * take: { mode:'speech'|'record'|'typed'|'self', transcript, durationSec, audioUrl, analysis, selfScore }
- * Returns { start, stop, recording, el (the compact mic block, one element to pin in a sticky dock), panel }.
+ * Returns { start, stop, recording (true while a take runs or an answer is paused), paused, typing,
+ *           onEnd(fn) (add a listener), el (the compact mic block, one element to pin in a sticky dock), panel }.
  */
 export function micPanel(host, ctx, opts = {}) {
   const { S, A } = ctx;
@@ -178,6 +188,10 @@ export function micPanel(host, ctx, opts = {}) {
   let sess = null, t0 = 0, timer = null, finished = false, state = 'idle', lastErr = null, lastText = '';
   let takeKind = 'both'; // 'both' (desktop: record + recognize), 'rec-only' (mobile), 'record' (no transcript)
   let pulseTimer = null;
+  let carry = null; // iOS: { text, dur } heard in earlier takes of this answer, while paused
+  let typing = false;
+  const endFns = [];
+  if (typeof (opts.onEnd || opts.onStop) === 'function') endFns.push(opts.onEnd || opts.onStop);
   const pulse = { speaking: false, sound: false, bump: 0, ph: 0 };
 
   const noteCode = !sup.recognition ? 'unsupported' : issue;
@@ -188,7 +202,7 @@ export function micPanel(host, ctx, opts = {}) {
   const selfAria = mobileRec ? 'הקלט לשמיעה, בלי תמלול' : 'דרג את עצמך';
 
   host.innerHTML = `<div class="mic-panel compact" data-testid="mic-panel">
-    ${noteCode ? `<div class="note warn mic-note" ${noteFull ? '' : 'hidden'}>${icon('micOff')}<span>${esc(ERR_HE[noteCode])}</span></div>` : ''}
+    ${noteCode ? `<div class="note warn mic-note" data-note ${noteFull ? '' : 'hidden'}>${icon('micOff')}<span>${esc(ERR_HE[noteCode])}</span></div>` : ''}
     ${live && canRec ? `<div class="card transcript-card">
       <div class="card-head"><span class="tiny muted bold">התמלול שלך</span><span class="live" hidden><i></i>בשידור</span></div>
       <p class="transcript en" dir="ltr" lang="en" aria-live="polite" data-testid="transcript"><span class="ph" dir="rtl" lang="he">המילים שלך יופיעו כאן</span></p>
@@ -196,6 +210,7 @@ export function micPanel(host, ctx, opts = {}) {
     ${opts.between || ''}
     <div class="mic-after" hidden></div>
     <div class="mic-block" data-testid="mic-block">
+      <div class="mic-typed" hidden></div>
       <div class="mic-row">
         <button class="mic-side" data-type data-testid="mic-type" aria-label="הקלד את התשובה">${icon('keyboard')}<span>הקלד</span></button>
         <div class="mic-area">
@@ -213,8 +228,9 @@ export function micPanel(host, ctx, opts = {}) {
         ${opts.noSelf ? '<span></span>' : `<button class="mic-side" data-self data-testid="mic-self" aria-label="${selfAria}">${icon(mobileRec ? 'headphones' : 'starLine')}<span>${selfLabel}</span></button>`}
       </div>
       <div class="mic-status" aria-live="polite">
-        ${noteCode ? `<button class="mic-chip" data-chip aria-expanded="${noteFull}">${icon('micOff')}<span>${esc(CHIP_HE[noteCode])}</span></button>` : ''}
-        <div class="mic-hint">${noMicAtAll ? 'אין מיקרופון בדפדפן הזה' : 'הקש ודבר'}<bdi class="mic-time"></bdi></div>
+        ${noteCode ? `<button class="mic-chip" data-chip aria-expanded="false" style="min-height:44px" ${noteFull ? 'hidden' : ''}>${icon('micOff')}<span>${esc(CHIP_HE[noteCode])}</span></button>` : ''}
+        <div class="mic-hint">${noMicAtAll ? 'אין מיקרופון בדפדפן הזה' : 'הקש ודבר'}<span class="mic-sep" hidden> · </span><bdi class="mic-time"></bdi></div>
+        <div class="mic-pause" hidden><button class="mic-chip mic-cont" data-cont data-testid="mic-continue" style="min-height:44px">${icon('mic')}<span>המשך לדבר</span></button><button class="link-btn mic-finish" data-finish data-testid="mic-finish" style="min-height:44px">${icon('check')} סיים</button></div>
         <div class="mic-err" hidden>${icon('circleAlert')}<span class="mic-err-t"></span><button class="link-btn mic-retry" data-retry hidden>${icon('refresh')} נסה שוב</button></div>
       </div>
     </div>
@@ -237,9 +253,20 @@ export function micPanel(host, ctx, opts = {}) {
   const typeBtn = q('[data-type]');
   const selfBtn = q('[data-self]');
   const note = q('.mic-note');
+  const chip = q('[data-chip]');
+  const row = q('.mic-row');
+  const status = q('.mic-status');
+  const typedBox = q('.mic-typed');
+  const pauseBox = q('.mic-pause');
+  const sep = q('.mic-sep');
+  const card = q('.transcript-card');
 
   const setState = (s) => { state = s; mic.dataset.state = s; };
   const setHint = (t) => { hint.firstChild.textContent = t; };
+  const setTime = (t) => { timeEl.textContent = t || ''; sep.hidden = !t; };
+  const emitEnd = (info) => { endFns.slice().forEach((f) => { try { f(info); } catch (e) { console.error(e); } }); };
+  // Words from paused earlier takes plus this take. iOS gives separate runs, so a plain join is right.
+  const withCarry = (t) => [carry && carry.text, t].filter(Boolean).join(' ').trim();
 
   function showErr(code, { retry = false } = {}) {
     const msg = ERR_HE[code];
@@ -279,16 +306,17 @@ export function micPanel(host, ctx, opts = {}) {
     const el = (performance.now() - t0) / 1000;
     if (seconds) {
       const left = Math.max(0, seconds - el);
-      opts.onTick ? opts.onTick(Math.ceil(left)) : (timeEl.textContent = fmtTime(Math.ceil(left)));
+      opts.onTick ? opts.onTick(Math.ceil(left)) : setTime(fmtTime(Math.ceil(left)));
       if (left <= 10) mic.classList.add('ending');
-      if (left <= 0) { ctx.sound('tap'); ctx.haptic([30, 40, 30]); stop(); }
+      if (left <= 0) { ctx.sound('tap'); ctx.haptic([30, 40, 30]); stop({ timeUp: true }); }
     } else {
-      opts.onTick ? opts.onTick(Math.floor(el)) : (timeEl.textContent = fmtTime(el));
+      opts.onTick ? opts.onTick(Math.floor(el)) : setTime(fmtTime(el));
     }
   }
 
-  function onText(text) {
-    lastText = text;
+  function onText(raw) {
+    lastText = raw;
+    const text = withCarry(raw);
     if (tx && takeKind !== 'record') {
       tx.innerHTML = (segHtml(A, text, must) || '') + '<span class="caret" aria-hidden="true"></span>';
       tx.scrollTop = tx.scrollHeight;
@@ -307,7 +335,8 @@ export function micPanel(host, ctx, opts = {}) {
     setHint(takeKind === 'record' ? 'מקליט... הקש כדי לסיים' : 'מקשיב... הקש כדי לסיים');
     if (liveTag && takeKind !== 'record') liveTag.hidden = false;
     ctx.haptic(15);
-    t0 = performance.now();
+    // A continued (iOS) answer keeps counting from the time already used.
+    t0 = performance.now() - (carry ? carry.dur * 1000 : 0);
     timer = setInterval(tick, 250);
     tick();
     if (takeKind === 'rec-only') startPulse();
@@ -322,15 +351,38 @@ export function micPanel(host, ctx, opts = {}) {
   function onError(code) {
     lastErr = code;
     const p = errorPolicy(code, takeKind);
-    if (p.sticky) session.micIssue = code;
+    // Sticky only for a denied first start. A refused restart or a continued answer means the mic works.
+    if (p.sticky && state === 'starting' && !carry) session.micIssue = code;
     if (p.show) showErr(code); // 'unsupported' has the note, 'no-speech' is shown by stop()
     // Without a recorder beside recognition there is nothing left to do in this take.
     if (p.endsTake && (state === 'listening' || state === 'starting')) stop();
   }
 
+  // Page listeners live for one take only, so they never pile up across takes or items.
+  let hideBound = false;
+  function bindHide() {
+    if (hideBound) return;
+    hideBound = true;
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+  }
+  function unbindHide() {
+    if (!hideBound) return;
+    hideBound = false;
+    document.removeEventListener('visibilitychange', onHide);
+    window.removeEventListener('pagehide', onHide);
+  }
+
+  function showPause(on) {
+    pauseBox.hidden = !on;
+    btn.setAttribute('aria-label', on ? 'המשך לדבר' : 'הקלט שוב');
+  }
+
   function start(kind) {
     if (finished || state !== 'idle' || noMicAtAll) return Promise.resolve();
+    if (typing) exitTyping();
     takeKind = kind === 'record' ? 'record' : mobileRec ? 'rec-only' : 'both';
+    if (takeKind === 'record' && carry) { carry = null; showPause(false); } // a recording replaces a paused answer
     // AudioContext inside the tap (iOS and Safari keep it suspended otherwise). Only for takes with a
     // mic stream: a mobile recognition-only take has no stream to measure.
     let ac = null;
@@ -346,6 +398,8 @@ export function micPanel(host, ctx, opts = {}) {
     t0 = 0;
     clearErr();
     after.hidden = true;
+    pauseBox.hidden = true;
+    bindHide();
     btn.setAttribute('aria-pressed', 'true');
     btn.setAttribute('aria-label', 'עצור');
     if (selfBtn) {
@@ -353,7 +407,7 @@ export function micPanel(host, ctx, opts = {}) {
       if (takeKind === 'record') selfBtn.querySelector('span').textContent = 'עצור';
     }
     setHint('רגע...');
-    if (tx && takeKind !== 'record') tx.innerHTML = '<span class="caret" aria-hidden="true"></span>';
+    if (tx && takeKind !== 'record') tx.innerHTML = (carry ? segHtml(A, carry.text, must) + ' ' : '') + '<span class="caret" aria-hidden="true"></span>';
     sess = S.createSession({
       lang: 'en-US',
       onDevice: (ctx.state && ctx.state.settings && ctx.state.settings.onDevice) || 'auto',
@@ -368,12 +422,13 @@ export function micPanel(host, ctx, opts = {}) {
       onReady,
       onPermission,
       onError,
+      onEnded: () => { if (state === 'listening' || state === 'starting') stop({ auto: true }); },
     });
     try { opts.onStart && opts.onStart(); } catch (e) { console.error(e); }
     return sess.start();
   }
 
-  async function stop() {
+  async function stop({ auto = false, timeUp = false } = {}) {
     if (state !== 'listening' && state !== 'starting') return;
     const wasReady = state === 'listening';
     setState('processing');
@@ -384,7 +439,10 @@ export function micPanel(host, ctx, opts = {}) {
     btn.disabled = true;
     if (liveTag) liveTag.hidden = true;
     setHint('רגע, מסכם...');
-    const res = (await sess.stop()) || {};
+    let res = {};
+    try { res = (await sess.stop()) || {}; } catch { res = {}; }
+    unbindHide();
+    if (finished) return; // left meanwhile
     const kind = takeKind;
     btn.disabled = false;
     btn.setAttribute('aria-pressed', 'false');
@@ -392,24 +450,46 @@ export function micPanel(host, ctx, opts = {}) {
     if (selfBtn) { selfBtn.disabled = false; selfBtn.querySelector('span').textContent = selfLabel; }
     setState('idle');
     setHint('הקש כדי לנסות שוב');
-    timeEl.textContent = '';
+    setTime('');
     if (res.audioUrl) (session.urls = session.urls || []).push(res.audioUrl);
-    const transcript = kind === 'record' ? '' : (res.transcript || lastText || '').trim();
+    const now = kind === 'record' ? '' : (res.transcript || lastText || '').trim();
+    const dur = (carry ? carry.dur : 0) + (Number(res.durationSec) || 0);
+    if (now && session.micIssue) session.micIssue = null; // the mic works again
+    // iOS: the recognizer ended on its own (or a continued take brought nothing new). Keep the answer
+    // open: "המשך לדבר" appends a new take, "סיים" submits what was heard.
+    if (kind === 'rec-only' && !timeUp && ((auto && now) || (carry && !now))) {
+      carry = { text: withCarry(now), dur };
+      if (tx) tx.innerHTML = segHtml(A, carry.text, must);
+      setHint('נעצר בהפסקה.');
+      if (lastErr && ERR_HE[lastErr] && !now) showErr(lastErr);
+      showPause(true);
+      return;
+    }
+    const transcript = withCarry(now);
     if (transcript) {
-      if (session.micIssue) session.micIssue = null; // the mic works again
       if (tx) tx.innerHTML = segHtml(A, transcript, must);
-      done({ mode: 'speech', transcript, durationSec: res.durationSec, audioUrl: res.audioUrl, analysis: anal(transcript, res.durationSec) });
+      done({ mode: 'speech', transcript, durationSec: dur, audioUrl: res.audioUrl, analysis: anal(transcript, dur) });
       return;
     }
     if (tx) tx.innerHTML = '<span class="ph">...</span>';
     if (res.audioUrl) {
       // A recording without words: listen, then rate (or type).
       fallback(res.audioUrl, res.durationSec);
+      emitEnd({ done: false, reason: 'record' });
       return;
     }
     // Nothing usable from this take: say why, offer a retry. Type and rate stay in the row.
     if (lastErr && ERR_HE[lastErr] && lastErr !== 'unsupported') showErr(lastErr, { retry: true });
     else if (wasReady && kind !== 'record') showErr('no-speech', { retry: true });
+    emitEnd({ done: false, reason: lastErr || (wasReady ? 'no-speech' : 'cancelled') });
+  }
+
+  // iOS paused answer: submit what was heard.
+  function finishCarry() {
+    if (!carry || state !== 'idle' || finished) return;
+    const { text, dur } = carry;
+    showPause(false);
+    done({ mode: 'speech', transcript: text, durationSec: dur, audioUrl: null, analysis: anal(text, dur) });
   }
 
   function fallback(audioUrl, durationSec) {
@@ -433,28 +513,71 @@ export function micPanel(host, ctx, opts = {}) {
     after.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
+  // Typing mode: only a compact text box with send in the block. The note, the transcript card and the
+  // mic row are hidden, so the dock stays small. Class 'typing' lets the page CSS unpin the dock.
+  let typingPrev = null;
   function typed(durationSec = 0, audioUrl = null) {
     if (state === 'listening' || state === 'starting') { stop(); return; }
-    after.hidden = false;
-    after.innerHTML = `<div class="card stack-sm">
-      <label class="field"><span class="lbl">הקלד את התשובה באנגלית</span>
-      <textarea data-testid="typed" class="textarea en" dir="ltr" lang="en" autocomplete="off" autocapitalize="sentences" spellcheck="false" rows="3"></textarea></label>
-      <button class="btn sm" data-check data-testid="typed-check">${icon('check')} בדוק</button>
+    if (finished) return;
+    if (!typing) {
+      typing = true;
+      typingPrev = { note: note ? note.hidden : true, chip: chip ? chip.hidden : true, after: after.hidden, card: card ? card.hidden : true };
+      block.classList.add('typing');
+      panel.classList.add('typing');
+      if (note) note.hidden = true;
+      if (card) card.hidden = true;
+      after.hidden = true;
+      row.hidden = true;
+      status.hidden = true;
+    }
+    const back = noMicAtAll ? 'חזרה' : 'חזרה למיקרופון';
+    typedBox.hidden = false;
+    typedBox.innerHTML = `<div class="card stack-sm mic-typed-card">
+      <textarea data-testid="typed" class="textarea en" dir="ltr" lang="en" aria-label="הקלד את התשובה באנגלית" placeholder="Type your answer in English" autocomplete="off" autocapitalize="sentences" spellcheck="false" rows="2"></textarea>
+      <div class="spread"><button class="link-btn" data-typed-back data-testid="typed-back" style="min-height:44px">${icon('mic')} ${back}</button>
+      <button class="btn sm" data-check data-testid="typed-check">${icon('check')} בדוק</button></div>
     </div>`;
-    const ta = after.querySelector('textarea');
-    ta.focus();
-    after.querySelector('[data-check]').addEventListener('click', () => {
+    const ta = typedBox.querySelector('textarea');
+    if (carry && carry.text) ta.value = carry.text; // iOS paused answer: edit what was heard
+    try { ta.focus({ preventScroll: true }); } catch { ta.focus(); }
+    try { ta.scrollIntoView({ block: 'end' }); } catch { /* layout only */ }
+    typedBox.querySelector('[data-check]').addEventListener('click', () => {
       const t = ta.value.trim();
       if (!t) { ta.focus(); return; }
       const words = A.tokenize(t).length;
-      const dur = durationSec || Math.max(5, (words / 130) * 60);
+      const dur = durationSec || (carry && carry.dur) || Math.max(5, (words / 130) * 60);
       done({ mode: 'typed', transcript: t, durationSec: dur, audioUrl, analysis: anal(t, dur) });
     });
+    typedBox.querySelector('[data-typed-back]').addEventListener('click', () => exitTyping());
+  }
+
+  function exitTyping() {
+    if (!typing) return;
+    typing = false;
+    block.classList.remove('typing');
+    panel.classList.remove('typing');
+    typedBox.hidden = true;
+    typedBox.innerHTML = '';
+    row.hidden = false;
+    status.hidden = false;
+    const p = typingPrev || {};
+    typingPrev = null;
+    if (card) card.hidden = !!p.card;
+    after.hidden = p.after !== false;
+    // The note was seen already: come back as the chip (never both).
+    if (note) note.hidden = true;
+    if (chip) chip.hidden = false;
   }
 
   function done(take) {
     if (finished) return;
+    if (typing) exitTyping();
     finished = true;
+    carry = null;
+    pauseBox.hidden = true;
+    unbindHide();
+    clearInterval(timer); timer = null;
+    stopPulse();
     typeBtn.style.visibility = 'hidden'; // keep the row layout, the mic stays centered
     if (selfBtn) selfBtn.style.visibility = 'hidden';
     clearErr();
@@ -462,26 +585,27 @@ export function micPanel(host, ctx, opts = {}) {
     btn.disabled = true;
     mic.dataset.state = 'done';
     setHint(take.mode === 'speech' ? 'נקלט' : 'נשמר');
-    timeEl.textContent = '';
-    opts.onDone && opts.onDone(take);
+    setTime('');
+    try { opts.onDone && opts.onDone(take); } finally { emitEnd({ done: true, reason: take.mode }); }
   }
 
   // speech.js ends the take itself when the page goes hidden (no error). Finish it here too,
   // so coming back to the app shows the result instead of a stuck "listening" mic.
-  const onHide = (e) => {
+  // Bound only while a take runs (bindHide in start, unbindHide when it ends).
+  function onHide(e) {
     if (e.type === 'pagehide' ? (state === 'listening' || state === 'starting') : (document.visibilityState === 'hidden' && state === 'listening')) stop();
-  };
-  document.addEventListener('visibilitychange', onHide);
-  window.addEventListener('pagehide', onHide);
+  }
   ctx.onLeave(() => {
-    document.removeEventListener('visibilitychange', onHide);
-    window.removeEventListener('pagehide', onHide);
+    unbindHide();
+    finished = true;
     try { sess && sess.cancel(); } catch { /* ignore */ }
     clearInterval(timer);
     stopPulse();
   });
 
   btn.addEventListener('click', () => (state === 'idle' ? start() : (state === 'listening' || state === 'starting') ? stop() : null));
+  pauseBox.querySelector('[data-cont]').addEventListener('click', () => { if (state === 'idle' && carry) start(); });
+  pauseBox.querySelector('[data-finish]').addEventListener('click', finishCarry);
   retryBtn.addEventListener('click', () => { if (state === 'idle') start(takeKind === 'record' ? 'record' : undefined); });
   typeBtn.addEventListener('click', () => typed());
   selfBtn?.addEventListener('click', () => {
@@ -492,17 +616,27 @@ export function micPanel(host, ctx, opts = {}) {
     }
     if (state !== 'listening' && state !== 'starting') fallback(null, 0);
   });
-  q('[data-chip]')?.addEventListener('click', (e) => {
-    if (!note) return;
-    note.hidden = !note.hidden;
-    e.currentTarget.setAttribute('aria-expanded', String(!note.hidden));
+  // Full note or chip, never both: the chip opens the note, a tap on the note folds it back.
+  chip?.addEventListener('click', () => {
+    if (!note || typing) return;
+    note.hidden = false;
+    chip.hidden = true;
+  });
+  note?.addEventListener('click', () => {
+    if (!chip || typing) return;
+    note.hidden = true;
+    chip.hidden = false;
+    try { chip.focus(); } catch { /* ignore */ }
   });
   if (noMicAtAll) fallback(null, 0);
 
   return {
     start: () => start(),
-    stop,
-    get recording() { return state === 'listening' || state === 'starting'; },
+    stop: () => stop(),
+    get recording() { return state === 'listening' || state === 'starting' || state === 'processing' || !!carry; },
+    get paused() { return !!carry && state === 'idle'; },
+    get typing() { return typing; },
+    onEnd(fn) { if (typeof fn === 'function') endFns.push(fn); },
     el: block,
     panel,
   };

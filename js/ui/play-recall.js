@@ -32,7 +32,7 @@ export function mount(el, item, { ctx, finish }) {
 
   el.innerHTML = `<div class="stack">
     <div class="card recall-card">
-      <div class="spread"><span class="tag">${icon('scripts')} ${esc(item.title_he)}</span>
+      <div class="spread"><span class="tag">${icon('scripts')} <bdi dir="rtl">${esc(item.title_he)}</bdi></span>
         <button class="icon-btn light" data-peek aria-label="החזק כדי לראות הכול">${icon('eye')}</button></div>
       <div class="levels" role="group" aria-label="כמה להסתיר">
         ${LEVELS.map((l, k) => `<button class="lvl-pip" data-l="${k}" aria-pressed="${k === level}" aria-label="רמה ${k + 1}: ${l}">${k + 1}</button>`).join('')}
@@ -79,6 +79,8 @@ export function mount(el, item, { ctx, finish }) {
     size: 88,
     label: 'הקלט את הטקסט',
     onStart: () => { levelAtStart = level; lock(true); draw(level); },
+    // An empty, failed or cancelled take ends without onDone: onEnd unlocks the levels and the peek.
+    onEnd: () => lock(false),
     onDone: (take) => {
       lock(false);
       // Level bonus: harder level, small boost, never above 100.
@@ -88,4 +90,14 @@ export function mount(el, item, { ctx, finish }) {
       finish({ score, take, revealHtml: reveal, revealLabel: 'הצג את הטקסט המלא' });
     },
   });
+  // Safety net: whatever ends the take, the mic going back to idle (or off) unlocks the controls.
+  const micEl = el.querySelector('[data-mic] .mic');
+  if (micEl && typeof MutationObserver === 'function') {
+    const mo = new MutationObserver(() => {
+      if (!el.isConnected) { mo.disconnect(); return; }
+      if (['idle', 'off', 'error', 'done'].includes(micEl.dataset.state)) lock(false);
+    });
+    mo.observe(micEl, { attributes: true, attributeFilter: ['data-state'] });
+    ctx.onLeave(() => mo.disconnect());
+  }
 }

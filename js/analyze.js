@@ -475,7 +475,8 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
  *   Components, each 0..1:
  *     target   = targetScore                       (only when a target sentence is given)
  *     must     = mustHit / must.length              (only when must phrases are given)
- *     fluency  = 1 - fillersPerMin / 4             (0/min = 1, 4+/min = 0; "again" counts 0.5)
+ *     fluency  = 1 - fillersPerMin / 4             (0/min = 1, 4+/min = 0; "again" counts 0.5;
+ *                fillers that are also in the target do not count; under 8 words the rate is per answer)
  *     grammar  = 1 - 0.34 * weightedBeDrops        (be/gonna = 1, passive = 0.6, missing -s = 0.5; 3 drops = 0)
  *     pace     = 1 inside 110..160 wpm, linear to 0 at 60 and 220
  *                (only when durationSec >= 5 and at least 5 words)
@@ -500,9 +501,22 @@ export function analyze(transcript, durationSec, { target, must, banned, avoid, 
   const dur = Number(durationSec) > 0 ? Number(durationSec) : 0;
   const wpm = dur > 0 ? Math.round(words / (dur / 60)) : 0;
   // Minutes for the filler rate: real duration, else estimate at 130 wpm. Floor 15 s.
-  const minutes = Math.max(dur > 0 ? dur / 60 : words / 130, 0.25);
+  // A rate is not fair on a very short answer (one "so" in 2 s = 30/min), so under 8 words
+  // fillers count per answer: the floor is 1 minute.
+  const minutes = Math.max(dur > 0 ? dur / 60 : words / 130, words < 8 ? 1 : 0.25);
 
-  const { fillers: fHits, drops, he } = scan(tokens);
+  const { fillers: allHits, drops, he } = scan(tokens);
+  // Fillers that are part of the target text ("basically" inside a quote to recite) are not
+  // the speaker's fillers: each one in the target forgives one of the same kind in the speech.
+  const forgive = {};
+  if (typeof target === 'string' && target.trim()) {
+    for (const f of scan(tokenize(target)).fillers) forgive[f.key] = (forgive[f.key] || 0) + 1;
+  }
+  const fHits = allHits.filter((f) => {
+    if (!forgive[f.key]) return true;
+    forgive[f.key]--;
+    return false;
+  });
   const fillers = {};
   let weighted = 0;
   for (const f of fHits) {
@@ -602,6 +616,23 @@ export function analyze(transcript, durationSec, { target, must, banned, avoid, 
     banned: bannedHits,
     avoidScore, saidAvoid, referenceScore, keyHit, keyMiss, lengthFactor,
   };
+}
+
+/*
+ * Must / banned words for a fix drill (right vs wrong sentence). Built on the same normalized
+ * words analyze() uses (contractions expanded, numbers as digits), then checked with analyze()
+ * itself: a must word is kept only when the right sentence hits it, a banned word only when the
+ * right sentence does not. So saying the right sentence can never lose points to these lists.
+ */
+export function fixWordSets(right, wrong) {
+  const r = String(right || ''), w = String(wrong || '');
+  const rightW = normWords(r, { dropHesitations: true }).filter((x) => !PLACEHOLDER.test(x));
+  const wrongW = normWords(w, { dropHesitations: true }).filter((x) => !PLACEHOLDER.test(x));
+  const must = [...new Set(rightW.filter((x) => !wrongW.includes(x)))]
+    .filter((x) => analyze(r, 3, { must: [x] }).mustHit.length === 1);
+  const banned = [...new Set(wrongW.filter((x) => !rightW.includes(x)))]
+    .filter((x) => analyze(r, 3, { banned: [x] }).banned.length === 0);
+  return { must, banned };
 }
 
 const AVOID_CAP = 30;

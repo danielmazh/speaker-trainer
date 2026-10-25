@@ -37,10 +37,8 @@ export function mount(el, item, api) {
   });
 
   // Words that make the fix: right-only words must be said, wrong-only words must not.
-  const words = (t) => ctx.A.tokenize(String(t || '')).map((x) => String(x.norm || x.w || '').toLowerCase()).filter(Boolean);
-  const rightW = words(item.right), wrongW = words(item.wrong);
-  const must = [...new Set(rightW.filter((w) => !wrongW.includes(w)))];
-  const banned = [...new Set(wrongW.filter((w) => !rightW.includes(w)))];
+  // Built through analyze's own normalization so the right sentence always scores in full.
+  const { must, banned } = ctx.A.fixWordSets(item.right, item.wrong);
   const peekBtn = el.querySelector('[data-peek]');
   micPanel(el.querySelector('[data-mic]'), ctx, {
     target: item.right,

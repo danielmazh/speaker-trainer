@@ -33,6 +33,9 @@ export function render(root, ctx) {
   };
   window.addEventListener('popstate', onPop);
   ctx.onLeave(() => window.removeEventListener('popstate', onPop));
+  // A reload during the questions resumes at the same question (its index lives in history.state).
+  const s0 = history.state;
+  if (s0 && typeof s0.obq === 'number') { q = questions(root, ctx, Math.max(0, Math.floor(s0.obq))); return; }
   slides(root, ctx, (qq) => { q = qq; });
 }
 
@@ -71,7 +74,7 @@ function slides(root, ctx, setQ) {
   function setCur(k) {
     cur = Math.max(0, Math.min(SLIDES.length - 1, k));
     dots.forEach((d, i) => d.classList.toggle('on', i === cur));
-    nextBtn.innerHTML = cur === SLIDES.length - 1 ? `מתחילים ${icon('arrowL')}` : `הבא ${icon('arrowL')}`;
+    nextBtn.innerHTML = cur === SLIDES.length - 1 ? `עוד כמה שאלות קצרות ${icon('arrowL')}` : `הבא ${icon('arrowL')}`;
   }
   let t = null;
   track.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => setCur(idxNow()), 60); }, { passive: true });

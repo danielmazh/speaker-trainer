@@ -40,6 +40,7 @@ const PROMPT_TIMEOUT_MS = 60000; // permission state unknown: a prompt may be op
 const PERM_QUERY_MS = 400;
 const FAST_RUN_MS = 1000; // a recognition run shorter than this, with no result, is a failed run
 const MAX_FAST_RUNS = 3; // then give up on recognition for this take ('rec-failed')
+const START_TIMEOUT_MS = 5000; // exclusive take: no recognition onstart this long after permission is granted
 
 /** Platform flags. Never throws. iPadOS reports a Mac UA, so touch points decide there. */
 export function platform() {
@@ -236,7 +237,12 @@ function killStream(s) {
  *   recognize     default true. false = the "record to listen" take: mic + recorder, no transcript.
  *   exclusiveMic  default platform().mobile. With recognition, never open getUserMedia: no recorder,
  *                 no level meter. Recognition alone owns the mic.
- *   ios           default platform().ios. Non-continuous recognition with restarts.
+ *   ios           default platform().ios. Non-continuous recognition, and no automatic restart:
+ *                 Safari may refuse a start() outside a user tap. When the recognizer ends on its own,
+ *                 the take keeps what was heard and onEnded() fires; the caller stops the take and can
+ *                 offer a "continue" tap (a new take, inside a user gesture).
+ *   restart       default !ios. Restart recognition when it ends on its own (Android, desktop).
+ *   onEnded()     recognition ended on its own and will not restart (restart:false). Call stop().
  *   audioCtx      an AudioContext created and resumed inside the tap (iOS and Safari need that). Used
  *                 for the level meter and closed when the take ends.
  *   onReady()     the take really listens now: recognition onstart, or the recorder started when there is
@@ -247,12 +253,14 @@ function killStream(s) {
  *   onInterim(text), onFinal(text, segment), onLevel(0..1), onError(code)
  * Error codes, all per take: not-allowed (permission denied), audio-capture, network, no-speech,
  *   unsupported, ondevice-unavailable, dictation-off (iOS: Siri and Dictation off), service-off,
- *   mic-timeout (no mic stream 6 s after permission was granted), rec-failed (recognition kept ending at
- *   once, gave up for this take). The browser permission prompt never counts toward a timeout.
+ *   mic-timeout (no mic stream 6 s after permission was granted, or on an exclusive take no recognition
+ *   onstart 5 s after permission was granted), rec-failed (recognition kept ending at once, a restarted
+ *   run failed to start, gave up for this take). A restarted run never reports not-allowed.
+ *   The browser permission prompt never counts toward a timeout.
  * No public method throws. start() never rejects; problems go to onError(code).
  * stop(), cancel() and discard() are idempotent and safe in any order, even before start() resolves.
  * The page going hidden while recording stops the take gracefully (Android cuts the mic in background).
- * micTimeoutMs / promptTimeoutMs / probeTimeoutMs are for tests.
+ * micTimeoutMs / promptTimeoutMs / probeTimeoutMs / startTimeoutMs are for tests.
  */
 export function createSession(opts = {}) {
   try {
@@ -270,13 +278,15 @@ export function createSession(opts = {}) {
 }
 
 function makeSession({
-  lang = 'en-US', onDevice = 'auto', record = true, recognize = true, exclusiveMic, ios, audioCtx: givenCtx = null,
-  onInterim, onFinal, onLevel, onError, onReady, onPermission, onActivity,
+  lang = 'en-US', onDevice = 'auto', record = true, recognize = true, exclusiveMic, ios, restart, audioCtx: givenCtx = null,
+  onInterim, onFinal, onLevel, onError, onReady, onPermission, onActivity, onEnded,
   micTimeoutMs = MIC_TIMEOUT_MS, promptTimeoutMs = PROMPT_TIMEOUT_MS, probeTimeoutMs = PROBE_TIMEOUT_MS,
+  startTimeoutMs = START_TIMEOUT_MS,
 }) {
   const plat = platform();
   const exclusive = exclusiveMic == null ? plat.mobile : !!exclusiveMic;
   const isIOS = ios == null ? plat.ios : !!ios;
+  const autoRestart = restart == null ? !isIOS : !!restart;
   const SR = recognize ? getSR() : null;
   let state = 'idle'; // idle | starting | recording | stopping | done
   let stream = null, audioCtx = givenCtx, levelTimer = null;
@@ -287,7 +297,8 @@ function makeSession({
   let interim = '';
   let t0 = 0, tStart = 0, t1 = 0;
   let ready = false;
-  let runStart = 0, runHadResult = false, fastRuns = 0;
+  let runStart = 0, runHadResult = false, fastRuns = 0, runs = 0;
+  let startTimer = null, permWatch = null; // exclusive take: no onstart in time
   let sawNoSpeech = false;
   let endWaiters = [];
   let abortMic = null; // resolves a pending getUserMedia wait early
@@ -303,9 +314,15 @@ function makeSession({
   const duration = () => { const a = t0 || tStart; return a && t1 ? Math.max(0, Math.round((t1 - a) / 100) / 10) : 0; };
   const flushWaiters = () => { const w = endWaiters; endWaiters = []; w.forEach((f) => { try { f(); } catch { /* ignore */ } }); };
 
+  function clearStartTimer() {
+    if (startTimer) { try { clearTimeout(startTimer); } catch { /* ignore */ } startTimer = null; }
+    if (permWatch) { try { permWatch.onchange = null; } catch { /* ignore */ } permWatch = null; }
+  }
+
   function markReady() {
     if (ready || state !== 'recording') return;
     ready = true;
+    clearStartTimer();
     t0 = now();
     call(onReady);
   }
@@ -431,13 +448,21 @@ function makeSession({
       } catch { /* ignore malformed events */ }
     };
     r.onerror = (ev) => {
+      if (rec !== r) return;
       const code = ev && ev.error;
       if (code === 'no-speech') { sawNoSpeech = true; return; } // Android: restart quietly
       if (code === 'aborted') return; // our own stop, or Android ending early: onend counts it
+      if (runs > 1 && (code === 'not-allowed' || code === 'service-not-allowed')) {
+        // A restarted run was refused (no user gesture). The mic works: never report a denied permission.
+        recDisabled = true;
+        emitErr('rec-failed');
+        return;
+      }
       if (FATAL.has(code)) recDisabled = true;
       emitErr(mapRecError(code, local, isIOS));
     };
     r.onend = () => {
+      if (rec !== r) return;
       recActive = false;
       // Keep the finals of this run, and the last interim words too: when Android ends a run itself
       // (silence, network blip) no final may come. A repeat in the next run is merged by joinSegments.
@@ -445,6 +470,14 @@ function makeSession({
       if (interim) committed.push(interim);
       runFinals = [];
       interim = '';
+      if (state === 'recording' && !recDisabled && !autoRestart) {
+        // iOS: no restart outside a user tap. Keep what was heard and let the caller end the take.
+        recDisabled = true;
+        flushWaiters();
+        if (!ready && !committed.length) emitErr('rec-failed');
+        else call(onEnded);
+        return;
+      }
       if (state === 'recording' && !recDisabled) {
         // A run that ended fast with no result is a failed run (Android: mic busy; each start beeps).
         const fast = !runHadResult && now() - runStart < FAST_RUN_MS;
@@ -461,6 +494,7 @@ function makeSession({
   function startRec() {
     runHadResult = false;
     runStart = now();
+    runs++;
     try {
       rec = newRecognition();
       recActive = true;
@@ -573,11 +607,6 @@ function makeSession({
           if (code === 'not-allowed') recDisabled = true;
           emitErr(code);
         }
-      } else if (exclusiveTake) {
-        // Recognition owns the mic: rely on its own start and errors. Only hint at an open prompt.
-        permStatus(PERM_QUERY_MS).then((st) => {
-          try { if (st && st.state === 'prompt' && !ready && (state === 'starting' || state === 'recording')) call(onPermission, 'prompt'); } catch { /* ignore */ }
-        });
       }
       if (state !== 'starting') { stopTracks(); return; } // cancelled meanwhile
 
@@ -587,11 +616,49 @@ function makeSession({
       tStart = now();
       if (!recDisabled) startRec();
       if (recDisabled) markReady(); // no recognition: listening starts with the recorder
+      else if (exclusiveTake) watchStart();
     } catch {
       if (state === 'starting') state = 'recording';
       tStart = tStart || now();
       markReady();
     }
+  }
+
+  // Exclusive take: recognition owns the mic, so its onstart is the only sign of life. Hint at an open
+  // permission prompt, and give up on the take when nothing starts in time. The timer runs only once
+  // permission is granted; while a prompt is open (or the state is unknown) the long timeout applies.
+  function watchStart() {
+    const live = () => !ready && state === 'recording' && !recDisabled;
+    const arm = (ms) => {
+      if (startTimer) clearTimeout(startTimer);
+      startTimer = setTimeout(onStartTimeout, ms);
+    };
+    permStatus(PERM_QUERY_MS).then((st) => {
+      try {
+        if (!live()) return;
+        const perm = st && st.state;
+        if (perm === 'granted') arm(startTimeoutMs);
+        else if (perm === 'prompt') {
+          call(onPermission, 'prompt');
+          permWatch = st;
+          st.onchange = () => {
+            try { if (live() && st.state === 'granted') { call(onPermission, 'granted'); arm(startTimeoutMs); } } catch { /* ignore */ }
+          };
+        } else if (perm !== 'denied') arm(promptTimeoutMs);
+      } catch { /* ignore */ }
+    });
+  }
+
+  function onStartTimeout() {
+    startTimer = null;
+    if (ready || state !== 'recording' || recDisabled) return;
+    clearStartTimer();
+    recDisabled = true;
+    try { if (rec) rec.abort(); } catch { /* ignore */ }
+    recActive = false;
+    flushWaiters();
+    emitErr('mic-timeout');
+    doStop();
   }
 
   function waitRecEnd(ms) {
@@ -612,6 +679,7 @@ function makeSession({
   }
 
   async function finishStop() {
+    clearStartTimer();
     try {
       if (rec && recActive) { try { rec.stop(); } catch { /* ignore */ } }
       await Promise.all([waitRecEnd(1500), stopRecorder(1500)]);
@@ -662,6 +730,7 @@ function makeSession({
     const was = state;
     cancelled = true;
     state = 'done';
+    clearStartTimer();
     try { abortMic && abortMic(); } catch { /* ignore */ }
     try { if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.onstart = null; rec.abort(); } } catch { /* ignore */ }
     recActive = false;

@@ -97,6 +97,9 @@ test.describe('stats and profile', () => {
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await expect(page.getByText(/תגים/).first()).toBeVisible();
     await page.goto('?nosw#profile');
+    // Look and feel live in the "הגדרות" tab (round 2), not under the fold of the profile tab.
+    const settingsTab = () => page.getByRole('button', { name: 'הגדרות', exact: true }).click();
+    await settingsTab();
 
     // Theme switch applies at once and survives reload.
     await page.getByRole('button', { name: 'כהה', exact: true }).click();
@@ -104,6 +107,7 @@ test.describe('stats and profile', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(18, 13, 36)');
+    await settingsTab();
     await page.getByRole('button', { name: 'אוטומטי', exact: true }).first().click();
     await expect(page.locator('html')).not.toHaveAttribute('data-theme', /./);
 
@@ -116,6 +120,7 @@ test.describe('stats and profile', () => {
     await page.getByTestId('audiences').getByRole('button').nth(1).click();
     expect(await page.evaluate(() => window.__vibes.length)).toBe(0);
     await page.goto('?nosw#profile');
+    await settingsTab();
     await page.getByRole('switch', { name: /רטט/ }).click();
 
     // Some progress, then reset. Escape cancels; confirm resets.
@@ -197,5 +202,10 @@ test.describe('profile auto-save', () => {
     await page.getByLabel('השם שלך').fill('Noa');
     await page.getByRole('navigation').getByRole('link').first().click();
     await expect.poll(async () => (await state(page)).name).toBe('Noa');
+    // Reload (or the app being closed) right after typing: saved on pagehide, not lost to the 600 ms pause.
+    await page.goto('?nosw#profile');
+    await page.getByLabel('השם שלך').fill('Rina');
+    await page.reload();
+    expect((await state(page)).name).toBe('Rina');
   });
 });

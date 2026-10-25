@@ -1,6 +1,6 @@
 // Result per task: band with animated score ring, XP count-up and streak; filler bars, diffs,
 // tips, in-memory recording playback with a privacy line; retry or continue.
-import { esc, ringSvg, setRing, countUp, fmtTime, prefersReducedMotion } from './dom.js';
+import { esc, ringSvg, setRing, countUp, fmtTime, prefersReducedMotion, daysText, daysHtml } from './dom.js';
 import { icon } from './icons.js';
 import { artTrophy } from './art.js';
 import { artStage } from './fx.js';
@@ -29,6 +29,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
   const [title, sub] = headline(avg);
   const st = ctx.state;
   const isUnit = !!(task.unit || task.back === 'track');
+  const isFree = !!task.practice && !isUnit;
   const next = task.practice || isUnit ? null : ctx.nextTask();
 
   // Fillers across all spoken takes.
@@ -69,6 +70,13 @@ export function render(root, ctx, { task, results, outcome, items }) {
   } else if (results.some((r) => r._take && r._take.transcript)) {
     tabs.push(['said', 'מה אמרת', results.filter((r) => r._take && r._take.transcript).map((r) => `<p class="en said-text" dir="ltr" lang="en">${segHtml(ctx.A, r._take.transcript)}</p>`).join('')]);
   }
+  // Choice mistakes: the wrong pick struck through, the right option in green.
+  const choiceMiss = results.filter((r) => r._choice && r.score < 100);
+  if (choiceMiss.length) {
+    tabs.unshift(['answers', 'תשובות', `<ul class="answers" data-testid="choice-answers">${choiceMiss.map((r) => `<li>
+        <p class="en ans-bad" dir="ltr" lang="en"><s>${esc(r._choice.picked)}</s></p>
+        <p class="en ans-good" dir="ltr" lang="en">${icon('check')} ${esc(r._choice.right)}</p></li>`).join('')}</ul>`]);
+  }
   if (tips.length) tabs.push(['tips', 'טיפים', `<ul class="tips">${tips.slice(0, 3).map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`]);
   if (recs.length) {
     tabs.push(['rec', 'הקלטה', `${recs.map(({ r, k }, n) => `<div class="player" data-k="${k}">
@@ -88,7 +96,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
           <p class="sub">${esc(sub)}</p>
           <div class="row">
             <span class="band-pill"><bdi>+<span data-xp data-testid="xp-gained">0</span> XP</bdi><span class="gold-ic">${icon('starLine')}</span></span>
-            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}" aria-label="רצף: ${int(ctx.E.currentStreak(st))} ימים"><bdi>${int(ctx.E.currentStreak(st))}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
+            <span class="band-pill ${outcome.streakUp ? 'pop' : ''}" aria-label="רצף: ${daysText(int(ctx.E.currentStreak(st)))}"><bdi>${int(ctx.E.currentStreak(st))}</bdi><span class="flame-ic">${icon('flameLine')}</span></span>
           </div>
         </div>
       </div>
@@ -97,7 +105,7 @@ export function render(root, ctx, { task, results, outcome, items }) {
     <div class="body">
       ${outcome.unitDone || outcome.bossPassed ? `<div class="card mission-done" data-testid="unit-done"><span class="md-art">${artTrophy(44)}</span><div class="grow"><div class="bold">${outcome.unitDone ? 'יחידה הושלמה!' : 'ניצחת את הבוס!'}</div><div class="tiny muted">${outcome.unitDone ? 'היחידה הבאה במסלול נפתחה.' : 'עוד קצת תרגול, והיחידה מאחוריך.'}</div></div></div>` : ''}
       ${outcome.missionDone ? `<div class="card mission-done" data-testid="mission-done"><span class="md-art">${artTrophy(44)}</span><div class="grow"><div class="bold">המשימה היומית הושלמה!</div><div class="tiny muted">5 מתוך 5, כולל בונוס של 50 XP.</div></div></div>` : ''}
-      ${badgeList.length ? `<div class="card badge-row" data-testid="new-badges">${badgeList.map((b) => `<div class="row nowrap"><span class="ico gold">${ic(b.icon, 'medal')}</span><span class="grow"><span class="bold small d-block">תג חדש: ${esc(b.title_he)}</span><span class="tiny muted">${esc(b.desc_he)}</span></span></div>`).join('')}</div>` : ''}
+      ${badgeList.length ? `<div class="card badge-row" data-testid="new-badges">${badgeList.map((b) => `<div class="row nowrap"><span class="ico gold">${ic(b.icon, 'medal')}</span><span class="grow"><span class="bold small d-block">תג חדש: <bdi dir="rtl">${esc(b.title_he)}</bdi></span><span class="tiny muted"><bdi dir="rtl">${esc(b.desc_he)}</bdi></span></span></div>`).join('')}</div>` : ''}
 
       ${tabs.length ? `<div class="card stack-sm details-card" data-testid="result-details">
         ${tabs.length > 1 ? `<div class="seg sm-seg" role="group" aria-label="פרטים">${tabs.map(([id, label], k) => `<button data-tab="${id}" aria-pressed="${k === 0}">${label}</button>`).join('')}</div>` : `<div class="tiny muted bold">${tabs[0][1]}</div>`}
@@ -106,8 +114,10 @@ export function render(root, ctx, { task, results, outcome, items }) {
       ${recs.length ? '' : `<p class="privacy-line">${icon('lock2')} האפליקציה לא שומרת ולא מעלה הקלטות.</p>`}
 
       <div class="action-bar">
-        <button class="btn line fixed" data-again data-testid="again">${icon('rotate')} שחק שוב</button>
-        ${isUnit ? `<a class="btn big" href="#track" data-testid="result-track">חזרה למסלול ${icon('arrowL')}</a>`
+        ${isFree ? `<a class="btn line fixed" href="#home" data-testid="result-home">הביתה</a>`
+          : `<button class="btn line fixed" data-again data-testid="again">${icon('rotate')} שחק שוב</button>`}
+        ${isFree ? `<button class="btn big" data-more data-testid="result-more">עוד תרגול ${icon('arrowL')}</button>`
+          : isUnit ? `<a class="btn big" href="#track" data-testid="result-track">חזרה למסלול ${icon('arrowL')}</a>`
           : next ? `<button class="btn big" data-next data-testid="result-next">לשלב הבא ${icon('arrowL')}</button>`
           : `<a class="btn big" href="#home" data-testid="result-home">הביתה ${icon('arrowL')}</a>`}
       </div>
@@ -159,8 +169,23 @@ export function render(root, ctx, { task, results, outcome, items }) {
   ctx.onLeave(stopAll);
 
   root.querySelector('[data-next]')?.addEventListener('click', () => { const t = ctx.nextTask(); if (t) ctx.startTask(t); });
-  root.querySelector('[data-again]').addEventListener('click', () => {
+  root.querySelector('[data-again]')?.addEventListener('click', () => {
     ctx.startTask({ ...task, id: task.id });
+  });
+  // Free practice: a new set from the same topics (same number of items per topic), fresh items first.
+  root.querySelector('[data-more]')?.addEventListener('click', () => {
+    const per = {};
+    for (const it of items) if (it && it.cat) per[it.cat] = (per[it.cat] || 0) + 1;
+    const done = new Set(items.map((it) => it && it.id));
+    let ids = [];
+    for (const [cat, n] of Object.entries(per)) {
+      const pick = ctx.pickForCat(cat, n + 4);
+      const fresh = pick.filter((id) => !done.has(id));
+      ids.push(...(fresh.length >= n ? fresh : pick).slice(0, n));
+    }
+    ids = [...new Set(ids)];
+    if (!ids.length) ids = items.map((it) => it.id);
+    ctx.startPractice({ title_he: task.title_he, itemIds: ids, kind: task.kind || 'practice' });
   });
 
   // Celebrations in order: mission complete, level up, badges.
@@ -193,7 +218,7 @@ function missionModal(ctx) {
       <h2>המשימה הושלמה!</h2>
       <p class="muted small">עוד יום של אנגלית בקול. ככה בונים ביטחון לבמה.</p>
       <div class="rewards">
-        <span class="reward warn">${icon('flameLine')} <bdi>${int(ctx.E.currentStreak(st))}</bdi> ימים ברצף</span>
+        <span class="reward warn">${icon('flameLine')} ${daysHtml(int(ctx.E.currentStreak(st)))} ברצף</span>
         <span class="reward">${icon('starLine')} רמה <bdi>${int(lv.level)}</bdi></span>
       </div>
       <button class="btn block big" data-ok>מעולה, ממשיכים</button>`, { label: 'המשימה הושלמה', onClose: resolve });

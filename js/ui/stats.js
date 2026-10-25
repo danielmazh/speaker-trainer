@@ -1,6 +1,6 @@
 // Stats in about one screen: 4 tiles, the weakest topic with a practice button, 30-day heatmap,
 // one trend line with a toggle, then "עוד" for accuracy bars, weakest 3 and badges. SVG only, no libraries.
-import { esc, on } from './dom.js';
+import { esc, on, daysText } from './dom.js';
 import { icon } from './icons.js';
 import { ic, catColor, profileOf } from './shell.js';
 
@@ -20,7 +20,7 @@ function heatmap(days, goal, today) {
   const rows = Math.ceil(days.length / cols);
   const W = cols * cell + (cols - 1) * gap, H = rows * cell + (rows - 1) * gap;
   const lvl = (m) => (m <= 0 ? 0 : m < goal / 2 ? 1 : m < goal ? 2 : 3);
-  return `<svg class="heat" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`פעילות ב-30 הימים האחרונים: ${days.filter((d) => d.min > 0).length} ימים עם אימון`)}">
+  return `<svg class="heat" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(`פעילות ב-30 הימים האחרונים: ${daysText(days.filter((d) => d.min > 0).length)} עם אימון`)}">
     ${days.map((d, i) => {
       const c = i % cols, r = Math.floor(i / cols);
       const x = W - (c + 1) * cell - c * gap, y = r * (cell + gap);
@@ -79,7 +79,7 @@ export function render(root, ctx) {
   root.innerHTML = `<section class="screen stats" data-testid="stats">
     <header class="band compact">
       <div class="band-title">
-        <div class="grow"><h1>ההתקדמות שלי</h1><p class="sub">רמה <bdi>${lv.level}</bdi> - ${esc(lv.title_he)}${name ? ` · <bdi>${esc(name)}</bdi>` : ''}</p></div>
+        <div class="grow"><h1>ההתקדמות שלי</h1><p class="sub">רמה <bdi>${lv.level}</bdi> - <bdi dir="rtl">${esc(lv.title_he)}</bdi>${name ? ` · <bdi>${esc(name)}</bdi>` : ''}</p></div>
       </div>
       <div class="stat-tiles four">
         ${tile(fmt(N(s.minutesTotal)), 'דקות', 'timer')}
@@ -92,12 +92,12 @@ export function render(root, ctx) {
     <div class="body">
       ${weak0 ? `<div class="card weak-pin" data-testid="weakest-pin" style="--c:${esc(catColor(weak0))}">
         <span class="m-ic">${ic(weak0.icon, weak0.id)}</span>
-        <span class="grow"><span class="tiny muted d-block">כדאי לחזק</span><span class="bold small">${esc(weak0.label_he)}</span> <span class="tiny muted">ממוצע <bdi>${(acc[weak0.id] || { avg: 0 }).avg}%</bdi></span></span>
+        <span class="grow"><span class="tiny muted d-block">כדאי לחזק</span><span class="bold small"><bdi dir="rtl">${esc(weak0.label_he)}</bdi></span> <span class="tiny muted">ממוצע <bdi>${(acc[weak0.id] || { avg: 0 }).avg}%</bdi></span></span>
         <button class="btn sm" data-practice="${esc(weak0.id)}">${icon('target')} תרגל</button>
       </div>` : ''}
 
       <div class="card stack-sm">
-        <div class="card-head"><h2>30 ימים אחרונים</h2><span class="tag flame">${icon('flameLine')} <bdi>${activeDays}</bdi> ימים פעילים</span></div>
+        <div class="card-head"><h2>30 ימים אחרונים</h2><span class="tag flame">${icon('flameLine')} ${activeDays === 1 ? 'יום פעיל אחד' : `<bdi>${activeDays}</bdi> ימים פעילים`}</span></div>
         ${heatmap(days, prof.dailyGoalMin, today)}
         <div class="heat-key tiny muted" aria-hidden="true"><span>פחות</span><i class="h0"></i><i class="h1"></i><i class="h2"></i><i class="h3"></i><span>יותר</span><span class="grow"></span><span>יעד: <bdi>${prof.dailyGoalMin}</bdi> דק' ביום</span></div>
       </div>
@@ -115,7 +115,7 @@ export function render(root, ctx) {
           <div class="stack-sm">
             <div class="card-head"><h2>דיוק לפי נושא</h2><span class="tiny muted"><bdi class="en-num">${N(s.mastered)}</bdi> נשלטו</span></div>
             ${accRows.length ? `<ul class="mastery">
-              ${accRows.map(([c, a]) => { const cat = ctx.cat(c); return `<li style="--c:${esc(catColor(cat))}"><span class="m-ic">${ic(cat.icon, cat.id)}</span><span class="grow"><span class="spread small"><span>${esc(cat.label_he)}</span><span class="muted"><bdi class="en-num">${a.avg}%</bdi> <span class="tiny">(<bdi>${a.count}</bdi>)</span></span></span><span class="bar thin"><i style="--p:${a.avg}%"></i></span></span></li>`; }).join('')}
+              ${accRows.map(([c, a]) => { const cat = ctx.cat(c); return `<li style="--c:${esc(catColor(cat))}"><span class="m-ic">${ic(cat.icon, cat.id)}</span><span class="grow"><span class="spread small"><span><bdi dir="rtl">${esc(cat.label_he)}</bdi></span><span class="muted"><bdi class="en-num">${a.avg}%</bdi> <span class="tiny">(<bdi>${a.count}</bdi>)</span></span></span><span class="bar thin"><i style="--p:${a.avg}%"></i></span></span></li>`; }).join('')}
             </ul>` : '<p class="small muted">עוד אין נתונים. כל תרגיל שתעשה יופיע כאן.</p>'}
           </div>
           ${weakest.length > 1 ? `<div class="stack-sm" data-testid="weakest">
@@ -123,7 +123,7 @@ export function render(root, ctx) {
             <ul class="weak-list">
               ${weakest.map((c) => { const cat = ctx.cat(c); const a = acc[c] || { avg: 0 }; return `<li style="--c:${esc(catColor(cat))}">
                 <span class="m-ic">${ic(cat.icon, cat.id)}</span>
-                <span class="grow"><span class="bold small d-block">${esc(cat.label_he)}</span><span class="tiny muted">ממוצע <bdi>${a.avg}%</bdi></span></span>
+                <span class="grow"><span class="bold small d-block"><bdi dir="rtl">${esc(cat.label_he)}</bdi></span><span class="tiny muted">ממוצע <bdi>${a.avg}%</bdi></span></span>
                 <button class="btn sm ghost" data-practice="${esc(c)}">${icon('target')} תרגל</button>
               </li>`; }).join('')}
             </ul>
@@ -133,7 +133,7 @@ export function render(root, ctx) {
             <div class="badges">
               ${badges.map((b, k) => { const got = have.has(b.id); return `<div class="badge ${got ? 'got' : 'locked'}" tabindex="0" style="--bc:${BADGE_COLORS[k % BADGE_COLORS.length]}" aria-label="${esc(`${b.title_he}: ${b.desc_he}${got ? '' : ' (נעול)'}`)}" title="${esc(b.desc_he)}">
                 <span class="medal">${got ? ic(b.icon, 'medal') : icon('lock2')}</span>
-                <span class="b-name">${esc(b.title_he)}</span>
+                <span class="b-name"><bdi dir="rtl">${esc(b.title_he)}</bdi></span>
               </div>`; }).join('')}
             </div>
           </div>

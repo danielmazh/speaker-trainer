@@ -6,6 +6,8 @@ export const STORE_KEY = 'speakerTrainer.v1';
 
 // Runs in the page before any app code. mode 'mic': fake SpeechRecognition + fake getUserMedia.
 // mode 'nomic': no SpeechRecognition, getUserMedia denied.
+// Recognizer switches on window.__fake: endOnFinish (ends by itself after the last word, like iOS after a
+// pause), noStart (start() never fires 'start': a take stuck in "starting").
 function initFakes(mode) {
   const w = window;
   w.__fake = { text: 'so basically we gonna add users and um the model is fast', stepMs: 35, sessions: 0 };
@@ -15,6 +17,23 @@ function initFakes(mode) {
   w.__audioBeforeGesture = 0;
   const mark = () => { w.__gesture = true; };
   ['pointerdown', 'keydown', 'click', 'touchstart'].forEach((t) => w.addEventListener(t, mark, true));
+
+  // Live page listeners by type (visibilitychange, pagehide), so tests can check they never pile up.
+  w.__listeners = { visibilitychange: 0, pagehide: 0 };
+  const watchListeners = (target) => {
+    const live = new Map(Object.keys(w.__listeners).map((t) => [t, new Set()]));
+    const add = target.addEventListener, rem = target.removeEventListener;
+    target.addEventListener = function (t, f, o) {
+      if (live.has(t) && f && !live.get(t).has(f)) { live.get(t).add(f); w.__listeners[t]++; }
+      return add.call(this, t, f, o);
+    };
+    target.removeEventListener = function (t, f, o) {
+      if (live.has(t) && live.get(t).delete(f)) w.__listeners[t]--;
+      return rem.call(this, t, f, o);
+    };
+  };
+  watchListeners(w);
+  watchListeners(document);
 
   // Haptics recorder.
   try {
@@ -90,7 +109,8 @@ function initFakes(mode) {
       const half = Math.max(1, Math.floor(words.length / 2));
       let i = 0;
       this._words = words;
-      this._emit('start');
+      if (!w.__fake.noStart) this._emit('start');
+      else return;
       const step = () => {
         if (!this._running) return;
         i++;
@@ -105,6 +125,17 @@ function initFakes(mode) {
         }
         this._done = i >= words.length;
         if (this._done) w.__fake.finished = true;
+        if (this._done && w.__fake.endOnFinish) {
+          // The recognizer ends on its own: the rest becomes final, then 'end' (no stop() call).
+          this._timers.push(setTimeout(() => {
+            if (!this._running) return;
+            this._running = false;
+            const said = this._finals.join(' ').split(/\s+/).filter(Boolean).length;
+            const rest = words.slice(said).join(' ');
+            if (rest) { this._finals.push(rest); this._interim = ''; this._emit('result', { resultIndex: this._finals.length - 1, results: resultList(this._results()) }); }
+            this._emit('end');
+          }, 40));
+        }
         if (!this._done) this._timers.push(setTimeout(step, w.__fake.stepMs));
       };
       this._timers.push(setTimeout(step, 30));

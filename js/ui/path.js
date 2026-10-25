@@ -4,10 +4,10 @@ import { esc, ringSvg, on } from './dom.js';
 import { icon } from './icons.js';
 import { band, ic, catColor, catMastery, rememberTrack, profileOf } from './shell.js';
 
-let tab = 'tracks';
-
 export function render(root, ctx) {
-  if (ctx.session.pathTab) { tab = ctx.session.pathTab; ctx.session.pathTab = null; }
+  // The tab opens on Tracks unless a link asked for Topics (Home "כל הנושאים").
+  let tab = ctx.session.pathTab === 'topics' ? 'topics' : 'tracks';
+  ctx.session.pathTab = null;
   const tracks = ctx.tracks();
   const prog = ctx.trackProgress();
   const focus = new Set(profileOf(ctx.state).focusTracks);
@@ -21,7 +21,7 @@ export function render(root, ctx) {
   root.innerHTML = `<section class="screen path" data-testid="path">
     ${band({
       title: 'המסלול שלך',
-      right: `<span class="band-pill" aria-label="${done} מתוך ${total} יחידות הושלמו"><bdi class="en-num">${done}/${total}</bdi><span class="gold-ic">${icon('crown')}</span></span>
+      right: `<span class="band-pill" aria-label="${done} מתוך ${total} יחידות הושלמו"><bdi class="en-num">${done}/${total}</bdi> יחידות</span>
         <a class="band-pill" href="#coach" data-testid="coach-link" aria-label="המאמן: הכנה להרצאה"><span class="gold-ic">${icon('sparkles')}</span>מאמן</a>`,
     }).replace('class="band"', 'class="band compact"')}
     <div class="body">
@@ -40,10 +40,10 @@ export function render(root, ctx) {
           return `<li><button class="track-card" data-track="${esc(t.id)}" style="--c:${esc(col)}" aria-label="${esc(`${t.title_he}. ${p.unitsDone} מתוך ${p.unitsTotal} יחידות`)}">
             <span class="track-ico">${ic(t.icon, t.id.replace(/^t-/, ''))}</span>
             <span class="grow track-text">
-              <span class="track-title">${esc(t.title_he)}${focus.has(t.id) ? ' <span class="tag">בפוקוס</span>' : ''}</span>
+              <span class="track-title"><bdi dir="rtl">${esc(t.title_he)}</bdi>${focus.has(t.id) ? ' <span class="tag">בפוקוס</span>' : ''}</span>
               <span class="track-meta">${complete ? `<span class="good-ink">${icon('check')} הושלם</span>` : `יחידה <bdi>${Math.min(p.unitsDone + 1, p.unitsTotal)}</bdi> מתוך <bdi>${p.unitsTotal}</bdi>`}</span>
             </span>
-            ${ringSvg(p.pct, { size: 40, stroke: 5, color: col, label: `<b class="en-num ring-pct">${p.pct}</b>` })}
+            ${ringSvg(p.pct, { size: 40, stroke: 5, color: col, label: `<b class="en-num ring-pct" dir="ltr">${p.pct}%</b>` })}
           </button></li>`;
         }).join('')}
       </ul>` : `<div class="card empty">המסלולים בדרך. בינתיים יש את המשימה היומית.</div>`}
@@ -57,7 +57,7 @@ export function render(root, ctx) {
             const col = catColor(c);
             return `<button class="skill" data-cat="${esc(c.id)}" style="--c:${esc(col)}" aria-label="${esc(`תרגל ${c.label_he}. נשלט ${m.pct}%`)}">
               <span class="skill-top"><span class="skill-ico">${ic(c.icon, c.id)}</span><bdi class="skill-count en-num">${m.seen}/${m.count}</bdi></span>
-              <span class="skill-name"><bdi>${esc(c.label_he)}</bdi></span>
+              <span class="skill-name"><bdi dir="rtl">${esc(c.label_he)}</bdi></span>
               <span class="bar thin"><i style="--p:${Math.max(m.pct, m.seen ? 4 : 0)}%"></i></span>
             </button>`;
           }).join('')}

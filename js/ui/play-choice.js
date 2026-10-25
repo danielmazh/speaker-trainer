@@ -15,14 +15,16 @@ export function mount(el, item, { ctx, finish }) {
   // Never quote an option word for word: the task would become "do not pick the quoted one".
   const quoteIsOption = !stress && item.wrong && (item.options || []).some((o) => norm(o) === norm(item.wrong));
   const showQuote = item.wrong && (stress || !quoteIsOption);
+  // The label "טעות נפוצה:" is already shown above the quote: do not say it twice.
+  const why = showQuote && !stress ? String(item.why_he || '').replace(/^\s*טעות נפוצה:\s*/, '') : String(item.why_he || '');
   el.innerHTML = `<div class="stack">
-    ${showQuote || item.why_he ? `<div class="card stack-sm">
+    ${showQuote || why ? `<div class="card stack-sm">
       ${stress
         ? `<div class="tiny muted bold">איפה הדגש?</div>
       <p class="en quote-neutral" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</p>`
         : showQuote ? `<div class="tiny muted bold">טעות נפוצה:</div>
       <blockquote class="en quote-bad italic" dir="ltr" lang="en" data-testid="choice-prompt">${esc(item.wrong)}</blockquote>` : ''}
-      ${item.why_he ? `<p class="small muted">${esc(item.why_he)}</p>` : ''}
+      ${why ? `<p class="small muted">${esc(why)}</p>` : ''}
     </div>` : ''}
     <div class="options" role="group" aria-label="אפשרויות">
       ${opts.map((o, n) => `<button class="opt" dir="ltr" lang="en" data-k="${o.k}"><span class="opt-l">${'ABCD'[n] || n + 1}</span><span class="opt-t">${esc(o.t)}</span></button>`).join('')}
@@ -53,6 +55,7 @@ export function mount(el, item, { ctx, finish }) {
     tmr = setTimeout(() => {
       finish({
         score: ok ? 100 : 0, mode: 'tap', silent: true,
+        choice: { picked: item.options[Number(b.dataset.k)], right },
         title: ok ? 'נכון, כל הכבוד!' : 'לא בדיוק. ככה זה נשמע טבעי:',
         rule: right, revealHtml: reveal,
         afterFeedback: (fb) => bindListen(fb, right),

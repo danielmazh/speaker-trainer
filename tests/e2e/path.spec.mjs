@@ -55,6 +55,32 @@ test('closing a unit goes back to the track', async ({ page }) => {
   await page.getByTestId('track').getByRole('button', { name: /^יחידה 1:/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: /התחל יחידה/ }).click();
   await expect(page).toHaveURL(/#play$/);
+  // The kicker names the unit, never "יחידה - יחידה".
+  const kick = await page.getByTestId('play-kicker').textContent();
+  expect(kick).not.toMatch(/יחידה - יחידה/);
+  expect(kick).toMatch(/\d+\/\d+/);
   await page.getByTestId('play-close').click();
   await expect(page).toHaveURL(/#track$/);
+});
+
+test('track back arrow returns to the screen the user came from; Path reopens on Tracks', async ({ page }) => {
+  await seed(page);
+  await page.goto('?nosw#home');
+  const cont = page.getByTestId('continue-path');
+  if (await cont.count()) {
+    await cont.click();
+    await expect(page).toHaveURL(/#track$/);
+    await page.getByTestId('track-back').click();
+    await expect(page).toHaveURL(/#home$/);
+  }
+  await page.goto('?nosw#path');
+  await page.getByTestId('path').getByRole('button', { name: /יחידות/ }).first().click();
+  await expect(page).toHaveURL(/#track$/);
+  await page.getByTestId('track-back').click();
+  await expect(page).toHaveURL(/#path$/);
+  // Leave Path on Topics; coming back later opens Tracks again.
+  await page.getByRole('button', { name: 'נושאים', exact: true }).click();
+  await page.goto('?nosw#stats');
+  await page.goto('?nosw#path');
+  await expect(page.getByRole('button', { name: 'מסלולים', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });

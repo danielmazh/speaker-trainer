@@ -680,7 +680,8 @@ export function ensureDaily(state, ITEMS, dateStr = todayStr()) {
     if (back > 0 && back <= 1) return s;
   }
   const d = generateDaily(s, ITEMS, dateStr);
-  s.daily = { date: d.date, tasks: d.tasks, done: [], bonus: false };
+  const rx = isPlainObject(s.daily.repeatXp) && s.daily.repeatXp.date === d.date ? s.daily.repeatXp : null;
+  s.daily = { date: d.date, tasks: d.tasks, done: [], bonus: false, ...(rx ? { repeatXp: rx } : {}) };
   return s;
 }
 
@@ -931,15 +932,25 @@ export function trackProgress(state, TRACKS, ITEMS) {
 }
 
 // A playable session for one unit. Practice items first, boss last.
-export function buildUnitSession(state, unit, ITEMS) {
+// `now` (optional) sets the day for the replay cap estimate.
+export function buildUnitSession(state, unit, ITEMS, now = Date.now()) {
   const s = normalize(state);
   const itemsById = new Map(contentItems(ITEMS).map((it) => [it.id, it]));
   const bossId = typeof unit?.bossId === 'string' && (!itemsById.size || itemsById.has(unit.bossId)) ? unit.bossId : null;
   const itemIds = [...new Set(unitItemIds(unit, itemsById).filter((id) => id !== bossId))];
   if (bossId) itemIds.push(bossId);
   const tr = s.tracks[unit?.id] || {};
-  const xp = itemIds.length * PRACTICE_ITEM_XP + (bossId && !tr.bossPassed ? BOSS_PASS_XP : 0) + (tr.completed ? 0 : UNIT_DONE_XP);
+  let xp = itemIds.length * PRACTICE_ITEM_XP + (bossId && !tr.bossPassed ? BOSS_PASS_XP : 0) + (tr.completed ? 0 : UNIT_DONE_XP);
+  // A done unit replays for at most REPEAT_XP_CAP item XP per day (boss bonus aside).
+  if (tr.completed) xp = Math.min(xp, (bossId && !tr.bossPassed ? BOSS_PASS_XP : 0) + unitRepeatLeft(s, `unit:${unit?.id}`, now));
   return { id: `unit:${unit?.id}`, kind: 'unit', title_he: unit?.title_he || '', itemIds, bossId, xp };
+}
+
+// Item XP still open today for replays of a done unit (REPEAT_XP_CAP per unit per day).
+function unitRepeatLeft(s, key, now) {
+  const day = todayStr(new Date(now));
+  const rx = isPlainObject(s.daily.repeatXp) && s.daily.repeatXp.date === day ? s.daily.repeatXp : {};
+  return Math.max(0, REPEAT_XP_CAP - (Number(rx[key]) || 0));
 }
 
 // Finish a unit:* or practice:* session (free practice outside the daily mission).
@@ -963,6 +974,17 @@ export function completePractice(state, sessionId, results = [], now = Date.now(
 
   let xp = 0;
   for (const r of list) if (resultScore(r) >= 60) xp += PRACTICE_ITEM_XP;
+  // "Again" on a unit that was already done: item XP capped like daily repeats
+  // (at most REPEAT_XP_CAP per unit per day), so replays are practice, not farming.
+  const wasDone = !!(unit && isSafeKey(unit.id) && isPlainObject(s.tracks[unit.id]) && s.tracks[unit.id].completed);
+  if (wasDone && xp > 0) {
+    const day = todayStr(new Date(now));
+    const rx = isPlainObject(s.daily.repeatXp) && s.daily.repeatXp.date === day ? { ...s.daily.repeatXp } : { date: day };
+    const given = Number(rx[id]) || 0;
+    xp = Math.max(0, Math.min(xp, REPEAT_XP_CAP - given));
+    rx[id] = given + xp;
+    s.daily.repeatXp = rx;
+  }
   recordResults(s, list, { taskId: id, taskKind, now, itemsById });
 
   let bossPassed = false;

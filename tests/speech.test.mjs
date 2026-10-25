@@ -7,7 +7,7 @@ let n = 0;
 const load = () => import(`../js/speech.js?case=${++n}`);
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
-const KEYS = ['navigator', 'SpeechRecognition', 'webkitSpeechRecognition', 'MediaRecorder', 'document', 'AudioContext'];
+const KEYS = ['navigator', 'SpeechRecognition', 'webkitSpeechRecognition', 'MediaRecorder', 'document', 'AudioContext', 'addEventListener', 'removeEventListener'];
 const saved = Object.fromEntries(KEYS.map((k) => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
 function setG(k, v) { Object.defineProperty(globalThis, k, { value: v, configurable: true, writable: true }); }
 afterEach(() => {
@@ -559,4 +559,165 @@ test('mic errorPolicy: only not-allowed is sticky; mobile takes end on any recog
   assert.equal(noticeMode(session, 'unsupported'), 'chip');
   assert.equal(noticeMode(session, 'not-allowed'), 'full');
   assert.equal(noticeMode(session, null), null);
+});
+
+// 12. iOS: no restart outside a user tap; a refused restart is never a denied permission
+
+test('iOS: recognizer ending on its own is not restarted; words are kept and onEnded fires', async () => {
+  workingMic({ ua: IPHONE_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  let ended = 0;
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c), onEnded: () => ended++ });
+  await s.start();
+  const r = SR.made[0];
+  r.onstart();
+  r.onresult({ resultIndex: 0, results: [final('the cache is warm')] });
+  r.onend();
+  await tick(500);
+  assert.equal(SR.made.length, 1, 'no restart from a timer');
+  assert.equal(ended, 1);
+  assert.deepEqual(errs, []);
+  const res = await s.stop();
+  assert.equal(res.transcript, 'the cache is warm');
+});
+
+test('iOS: recognizer ending before it ever started gives rec-failed, not not-allowed', async () => {
+  workingMic({ ua: IPHONE_UA });
+  const SR = fakeSR();
+  SR.endAtOnce = true;
+  const { createSession } = await load();
+  const errs = [];
+  let ended = 0;
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c), onEnded: () => ended++ });
+  await s.start();
+  await tick(500);
+  assert.equal(SR.made.length, 1);
+  assert.deepEqual(errs, ['rec-failed']);
+  assert.equal(ended, 0);
+  await s.stop();
+});
+
+test('Android: a restarted run refused with not-allowed reports rec-failed', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  SR.made[0].onstart();
+  SR.made[0].onresult({ resultIndex: 0, results: [final('first part')] });
+  SR.made[0].onend();
+  await tick(80);
+  assert.equal(SR.made.length, 2, 'Android still restarts');
+  SR.made[1].onerror({ error: 'not-allowed' });
+  assert.deepEqual(errs, ['rec-failed']);
+  const res = await s.stop();
+  assert.equal(res.transcript, 'first part');
+});
+
+test('first run not-allowed is still reported as not-allowed', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', onError: (c) => errs.push(c) });
+  await s.start();
+  SR.made[0].onerror({ error: 'not-allowed' });
+  assert.deepEqual(errs, ['not-allowed']);
+  await s.stop();
+});
+
+// 13. exclusive take stuck in "starting"
+
+test('exclusive take with no onstart: mic-timeout after the start timeout, recognition aborted', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  let ready = 0;
+  const s = createSession({ onDevice: 'off', startTimeoutMs: 60, onError: (c) => errs.push(c), onReady: () => ready++ });
+  await s.start();
+  await tick(600);
+  assert.deepEqual(errs, ['mic-timeout']);
+  assert.equal(SR.made[0].aborted, 1);
+  assert.equal(ready, 0);
+  const t = Date.now();
+  const res = await s.stop();
+  assert.ok(Date.now() - t < 200, 'stop resolves at once');
+  assert.equal(res.transcript, '');
+  SR.made[0].onstart && SR.made[0].onstart();
+  assert.equal(ready, 0, 'a late onstart is ignored');
+});
+
+test('exclusive take: onstart in time means no timeout', async () => {
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  SR.autoStart = true;
+  const { createSession } = await load();
+  const errs = [];
+  const s = createSession({ onDevice: 'off', startTimeoutMs: 60, onError: (c) => errs.push(c) });
+  await s.start();
+  await tick(600);
+  assert.deepEqual(errs, []);
+  await s.stop();
+});
+
+test('exclusive take: the start timeout waits while a permission prompt is open', async () => {
+  const perm = permApi('prompt');
+  setG('navigator', { userAgent: ANDROID_UA, permissions: perm, mediaDevices: { getUserMedia: () => Promise.reject(new Error('no')) } });
+  fakeSR();
+  const { createSession } = await load();
+  const errs = [];
+  const perms = [];
+  const s = createSession({ onDevice: 'off', startTimeoutMs: 60, onError: (c) => errs.push(c), onPermission: (p) => perms.push(p) });
+  await s.start();
+  await tick(600);
+  assert.deepEqual(errs, [], 'no timeout while the prompt is open');
+  assert.deepEqual(perms, ['prompt']);
+  perm.status.state = 'granted';
+  perm.status.onchange();
+  await tick(300);
+  assert.deepEqual(errs, ['mic-timeout']);
+  assert.deepEqual(perms, ['prompt', 'granted']);
+  await s.stop();
+});
+
+// 14. page listeners never pile up across takes
+
+test('visibility and pagehide listeners are removed after every take, on every path', async () => {
+  const live = new Map();
+  const add = (t, f) => { const k = `${t}`; live.set(k, (live.get(k) || 0) + 1); void f; };
+  const rem = (t) => { const k = `${t}`; live.set(k, (live.get(k) || 0) - 1); };
+  setG('document', { hidden: false, visibilityState: 'visible', addEventListener: add, removeEventListener: rem });
+  setG('addEventListener', add);
+  setG('removeEventListener', rem);
+  const total = () => [...live.values()].reduce((a, b) => a + b, 0);
+  workingMic({ ua: ANDROID_UA });
+  const SR = fakeSR();
+  const { createSession } = await load();
+  for (let k = 0; k < 4; k++) {
+    // normal take
+    let s = createSession({ onDevice: 'off' });
+    await s.start();
+    SR.made.at(-1).onstart();
+    await s.stop();
+    // start timeout
+    s = createSession({ onDevice: 'off', startTimeoutMs: 20 });
+    await s.start();
+    await tick(450);
+    await s.stop();
+    // cancel while starting
+    s = createSession({ onDevice: 'off' });
+    const p = s.start();
+    s.cancel();
+    await p;
+    // error that ends recognition, then stop
+    s = createSession({ onDevice: 'off' });
+    await s.start();
+    SR.made.at(-1).onerror({ error: 'network' });
+    await s.stop();
+  }
+  assert.equal(total(), 0, 'every add has a remove');
 });
