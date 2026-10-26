@@ -10,7 +10,7 @@
 //   'level:N'            level from levelFromXp reaches N (used: 5, 10)
 //   'fillerfree:N'       N speak results with fillerTotal 0 (counted across history) (used: 1, 10)
 //   'perfect:N'          N results with score 100 (counted across history) (used: 5)
-//   'cat:<catId>:N'      N completed results on items of that category (used: grammar 20, pronoun 15, phrasing 20, pronunciation 20)
+//   'cat:<catId>:N'      N completed results on items of that category (used: grammar 20, pronoun 15, phrasing 20, pronunciation 20, linking 20, formal 20)
 //   'boss:N'             N completed boss tasks (task kind 'boss') (used: 5)
 //   'night_owl'          a task completed between 22:00 and 04:59 local time
 //   'early_bird'         a task completed between 05:00 and 07:59 local time
@@ -37,7 +37,10 @@ export const CATEGORIES = [
   { id: 'vocab', label_he: `אוצר מילים טכני`, label_en: 'Tech vocabulary', icon: 'book', color: '#5A2BE0', desc_he: `roll out, spin up, phase out ועוד.` },
   { id: 'stress', label_he: `דגש ואינטונציה`, label_en: 'Stress and intonation', icon: 'wave', color: '#FF7A1A', desc_he: `RE-cord מול re-CORD. שאלה עולה, תשובה יורדת.` },
   { id: 'interview', label_he: `ראיון והשפעה`, label_en: 'Interview', icon: 'star', color: '#1B1530', desc_he: `התפקיד שלך, השפעה במספרים, סיפורי STAR.` },
-  { id: 'smalltalk', label_he: `שיחת חולין`, label_en: 'Small talk', icon: 'smile', color: '#F5A524', desc_he: `פתיחה לפני פגישה, סוף שבוע וסיום נעים.` }
+  { id: 'smalltalk', label_he: `שיחת חולין`, label_en: 'Small talk', icon: 'smile', color: '#F5A524', desc_he: `פתיחה לפני פגישה, סוף שבוע וסיום נעים.` },
+  // Phase 4: linking words and professional register
+  { id: 'linking', label_he: `מילות קישור`, label_en: 'Linking words', icon: 'link', color: '#14B8A6', desc_he: `however, as a result, in other words. בלי although ... but ובלי and then.` },
+  { id: 'formal', label_he: `שפה מקצועית גבוהה`, label_en: 'Professional register', icon: 'briefcase', color: '#7C3AED', desc_he: `resolve במקום fix, bottleneck במקום big problem.` }
 ];
 
 export const FILLERS = ['so', 'basically', 'whatever', 'like', 'um', 'uh', 'let\'s say', 'again', 'actually', 'you know'];
@@ -431,6 +434,115 @@ const PRO_ITEMS = [
   SM.shadow('sm-032', 1, 'Have a good one', `HAVE a GOOD one. סיום קליל.`, `Thanks, have a good one.`, `סיום טבעי של דוברי אנגלית.`)
 ];
 
+// =====================================================================
+// PHASE 4 - linking words (lk-) and professional register (fv-).
+// Same 6 item types. src is always null.
+// =====================================================================
+const LK = kit('linking');
+const FV = kit('formal');
+const LKBAN = ['and then', 'so', 'um', 'uh'];
+const FVBAN = ['stuff', 'thing', 'things', 'a lot of', 'kind of', 'um', 'uh'];
+
+const LF_ITEMS = [
+  // =====================================================================
+  // LINKING - connectors and discourse markers
+  // =====================================================================
+  LK.fix('lk-001', 1, `Although the build passed, but the tests are slow.`, `Although the build passed, the tests are slow.`, `although או but. לא שניהם.`, `טעות נפוצה: although ... but, כמו "למרות ש... אבל".`),
+  LK.fix('lk-002', 1, `Even though we tested it, but it failed in production.`, `Even though we tested it, it failed in production.`, `even though כבר עושה את הניגוד. בלי but.`, `טעות נפוצה: even though ... but.`),
+  LK.fix('lk-003', 1, `Despite of the delay, we shipped on Monday.`, `Despite the delay, we shipped on Monday.`, `despite בלי of. או in spite of.`, `טעות נפוצה: despite of.`),
+  LK.fix('lk-004', 1, `In the other hand, the new design costs more.`, `On the other hand, the new design costs more.`, `on the other hand, עם on.`, `טעות נפוצה: in the other hand.`),
+  LK.fix('lk-005', 1, `Because of that reason, we rolled back.`, `For that reason, we rolled back.`, `for that reason. או because of that.`, `טעות נפוצה: because of that reason, כפילות.`),
+  LK.fix('lk-006', 1, `According to me, we should migrate in March.`, `In my view, we should migrate in March.`, `according to משמש למקור אחר, לא לעצמך.`, `טעות נפוצה: according to me.`),
+  LK.fix('lk-007', 2, `On the other side, the managed option needs less maintenance.`, `On the other hand, the managed option needs less maintenance.`, `on the other hand. side זה צד פיזי.`, `תרגום ישיר של "מצד שני".`),
+  LK.fix('lk-008', 2, `We fixed the config and then we deployed and then we checked the logs.`, `First, we fixed the config. Next, we deployed. Finally, we checked the logs.`, `first, next, finally. משפטים קצרים.`, `שימוש יתר ב-and then.`),
+  LK.fix('lk-009', 2, `Latency went up, so we added a cache, so it went down, so we closed the ticket.`, `Latency went up, which is why we added a cache. As a result, it dropped, and we closed the ticket.`, `which is why, as a result. לא so שלוש פעמים.`, `שימוש יתר ב-so.`),
+  LK.fix('lk-010', 2, `Due to the API was slow, we added a timeout.`, `Because the API was slow, we added a timeout.`, `due to + שם עצם. because + משפט.`, `טעות נפוצה: due to לפני משפט שלם.`),
+  LK.fix('lk-011', 2, `Unless the tests don't fail, we ship on Sunday.`, `Unless the tests fail, we ship on Sunday.`, `unless כבר אומר "אם לא". בלי don't.`, `שלילה כפולה עם unless.`),
+  LK.fix('lk-012', 2, `More than that, we need also to update the docs.`, `In addition, we need to update the docs.`, `in addition או moreover. also לא אחרי need.`, `תרגום ישיר של "יותר מזה".`),
+  LK.fix('lk-013', 2, `We support many formats, for example like CSV and JSON.`, `We support many formats, such as CSV and JSON.`, `for example או such as. לא שניהם, ובלי like.`, `כפילות בדוגמאות.`),
+  LK.fix('lk-014', 2, `We need to fix it today, if not the release will slip.`, `We need to fix it today. Otherwise, the release will slip.`, `otherwise = אחרת.`, `תרגום ישיר של "אם לא".`),
+  LK.fix('lk-015', 1, `In short words, the new pipeline is faster.`, `In short, the new pipeline is faster.`, `in short, בלי words.`, `תרגום ישיר של "במילים קצרות".`),
+  LK.fix('lk-016', 2, `The queue is full, what means the jobs wait.`, `The queue is full, which means the jobs wait.`, `which means, לא what means.`, `תרגום ישיר של "מה שאומר".`),
+  LK.choice('lk-017', 1, `Although it works, but it's slow.`, [`It works. However, it's slow.`, `Although it works, but however it's slow.`, `It works, although but it's slow.`], 0, `however בתחילת משפט חדש.`, `ניגוד נקי בלי although ... but.`),
+  LK.choice('lk-018', 1, `We had a lot of traffic, because of this reason the site was slow.`, [`Because this reason, the site was slow.`, `Traffic doubled. As a result, the site slowed down.`, `Of this reason, the site was slow.`], 1, `as a result = סיבה ותוצאה.`, `סיבה ותוצאה בלי כפילות.`),
+  LK.choice('lk-019', 1, `And also more, it's cheaper.`, [`Also more, it's cheaper.`, `And more also, it's cheaper.`, `On top of that, it's cheaper.`], 2, `on top of that = ובנוסף.`, `להוסיף נקודה בטבעיות.`),
+  LK.choice('lk-020', 1, `So first, so we build, and then and then we test.`, [`To begin with, we build. Next, we test.`, `First of all so we build and then test.`, `In first, we build, after we test.`], 0, `to begin with, next.`, `רצף בלי so ו-and then.`),
+  LK.choice('lk-021', 2, `With other words, the job is idempotent.`, [`With another words, it's safe to run twice.`, `In other words, it's safe to run twice.`, `By other words, it's safe to run twice.`], 1, `in other words, עם in.`, `תרגום ישיר של "במילים אחרות".`),
+  LK.choice('lk-022', 2, `There are many risks, like for example data loss.`, [`There are many risks, like for example a data loss.`, `There are many risks, as example data loss.`, `There are many risks, for instance data loss.`], 2, `for instance = לדוגמה.`, `כפילות בדוגמה.`),
+  LK.choice('lk-023', 2, `We can ship on Friday, in condition that QA approves.`, [`We can ship on Friday, provided that QA signs off.`, `We can ship on Friday, in condition QA approves.`, `We can ship on Friday, on condition of QA approves.`], 0, `provided that = בתנאי ש.`, `תרגום ישיר של "בתנאי ש".`),
+  LK.choice('lk-024', 1, `To summarize in short, the test went good.`, [`In short summary, the test went good.`, `Overall, the test went well.`, `To summary, the test went good.`], 1, `overall = בסך הכול. went well, לא good.`, `סיכום קצר וטבעי.`),
+  LK.choice('lk-025', 3, `It's true that it's more expensive, but anyway, but it saves time.`, [`True that expensive, but anyway it saves time.`, `It's expensive, but anyway but it saves time.`, `Admittedly, it costs more. That said, it saves us time.`], 2, `admittedly, that said = מודה, ובכל זאת.`, `להודות בחיסרון ולהמשיך.`),
+  LK.choice('lk-026', 2, `Service A is stateless, and in the opposite, service B keeps state.`, [`Service A is stateless, whereas service B keeps state.`, `Service A is stateless, in the opposite service B keeps state.`, `Service A is stateless, opposite to it service B keeps state.`], 0, `whereas = בעוד ש.`, `תרגום ישיר של "לעומת זאת".`),
+  LK.choice('lk-027', 2, `Now we pass to the next topic, the costs.`, [`Now we pass to the costs topic.`, `Moving on to costs.`, `We go over to the next topic now, costs.`], 1, `moving on to = עוברים ל.`, `מעבר בין נושאים במצגת.`),
+  LK.choice('lk-028', 2, `The fix is small. Even that, we need a review.`, [`The fix is small. Even that so, we need a review.`, `The fix is small. Even though, we need a review.`, `The fix is small. Even so, we need a review.`], 2, `even so = ובכל זאת.`, `תרגום ישיר של "אפילו ככה".`),
+  LK.speak('lk-029', 1, { title_he: `סטטוס עם ניגוד`, prompt_en: `Give a 30-second status update. Use "however" and "as a result".`, seconds: 30, must: ['however', 'as a result'], banned: LKBAN, model_en: `The migration to the new database is 80 percent done. However, two services still read from the old one. As a result, we can't switch off the old cluster this week. We plan to finish by Thursday.`, bad: `the migration is almost done but so two services and then we can't`, why_he: `ניגוד ותוצאה בעדכון אמיתי.` }),
+  LK.speak('lk-030', 2, { title_he: `להסביר תקלה`, prompt_en: `Explain what caused an outage and what you changed. Use "because of", "which means" and "therefore". 30 seconds.`, seconds: 30, must: ['because of', 'which means', 'therefore'], banned: LKBAN, model_en: `Yesterday, checkout failed for 20 minutes because of an expired certificate. The renewal job was disabled, which means nobody got an alert. Therefore, we added a check that warns us 30 days before any certificate expires.`, bad: `checkout failed so the certificate and then nobody knew so we added check`, why_he: `סיבה ותוצאה בלי so.` }),
+  LK.speak('lk-031', 2, { title_he: `תוכנית בשלבים`, prompt_en: `Present a three-step plan in 45 seconds. Use "first of all", "next" and "finally".`, seconds: 45, must: ['first of all', 'next', 'finally'], banned: LKBAN, model_en: `First of all, we'll freeze changes to the old API on Monday. Next, we'll move the five biggest clients to version two and watch their error rates for a week. Finally, we'll switch off the old endpoints at the end of the month.`, bad: `we freeze and then we move and then we switch off`, why_he: `רצף ברור במקום and then.` }),
+  LK.speak('lk-032', 2, { title_he: `להשוות שתי אפשרויות`, prompt_en: `Compare two options and recommend one. Use "whereas", "on the other hand" and "overall". 45 seconds.`, seconds: 45, must: ['whereas', 'on the other hand', 'overall'], banned: LKBAN, model_en: `Option A is a managed queue, whereas option B is our own cluster. The managed queue costs about 20 percent more. On the other hand, it needs almost no maintenance. Overall, I recommend option A for the first year.`, bad: `option A is managed and option B is ours so option A`, why_he: `השוואה ופשרה במילות קישור.` }),
+  LK.speak('lk-033', 3, { title_he: `תנאים לשחרור`, prompt_en: `Explain the conditions for a release. Use "as long as", "unless" and "otherwise". 45 seconds.`, seconds: 45, must: ['as long as', 'unless', 'otherwise'], banned: LKBAN, model_en: `We can release on Sunday as long as the load test passes on Thursday. Unless we see new errors in staging, the plan stays the same. Otherwise, we move the release by one week and tell the customers on Friday.`, bad: `if the test is ok we release and if not so we wait`, why_he: `תנאים בלי if חוזר.` }),
+  LK.speak('lk-034', 3, { title_he: `להודות ולשכנע`, prompt_en: `Admit a downside, then make your case. Use "admittedly", "that said" and "in short". 45 seconds.`, seconds: 45, must: ['admittedly', 'that said', 'in short'], banned: LKBAN, model_en: `Admittedly, rewriting the billing service will take three months. That said, the current code breaks almost every release, and each fix takes two days. In short, the rewrite pays for itself within a year.`, bad: `ok it's long but so it breaks all the time and then`, why_he: `ויתור ואז טיעון. נשמע בוגר ומשכנע.` }),
+  LK.recall('lk-035', 1, `פסקה עם רצף`, `To begin with, we reviewed the logs. Next, we found a slow query in the reports service. As a result, we added an index. Finally, we ran the load test again, and response time dropped from 900 to 200 milliseconds.`, `רצף ותוצאה בפסקה אחת.`),
+  LK.recall('lk-036', 2, `ניגוד ותוספת`, `The new pipeline is faster. In addition, it's cheaper to run. However, it needs a new deploy tool. That said, the team already knows the tool. In short, we should adopt it next quarter.`, `תוספת, ניגוד וסיכום.`),
+  LK.recall('lk-037', 3, `סיכום פוסטמורטם`, `To sum up, the outage lasted 40 minutes. It happened because of a bad config change. In other words, the code was fine, but the rollout wasn't. Moreover, our alert fired 10 minutes late. Therefore, we'll add a config check to CI and tune the alert.`, `פסקת סיכום מלאה במילות קישור.`),
+  LK.shadow('lk-038', 1, 'However,', `HOW-ev-er, ואז הפסקה קצרה.`, `The tests passed. However, the build is still slow.`, `מילת קישור בתחילת משפט, עם עצירה אחריה.`),
+  LK.shadow('lk-039', 1, 'As a result,', `az-a-ri-ZULT. מחברים, ואז עוצרים.`, `The cache was cold. As a result, the first requests were slow.`, `מחברים את המילים לרצף אחד.`),
+  LK.shadow('lk-040', 2, 'On the other hand,', `on-the-OTH-er-HAND. דגש על HAND, ואז הפסקה.`, `The managed service costs more. On the other hand, we don't need to maintain it.`, `אינטונציה של ניגוד.`),
+  LK.shadow('lk-041', 2, 'In other words,', `in-OTH-er-WORDS. הפסקה קצרה אחרי.`, `The job is idempotent. In other words, it's safe to run it twice.`, `להבהיר בלי להאיץ.`),
+
+  // =====================================================================
+  // FORMAL - professional, high-register technical vocabulary
+  // =====================================================================
+  FV.fix('fv-001', 1, `We need to fix the bug before Friday.`, `We need to resolve the issue before Friday.`, `resolve the issue. מול הנהלה ולקוחות.`, `שדרוג רמה: fix ל-resolve.`),
+  FV.fix('fv-002', 1, `Can you check that the backup works?`, `Can you verify that the backup restores correctly?`, `verify = לוודא. מדויק יותר מ-check.`, `שדרוג רמה: check ל-verify.`),
+  FV.fix('fv-003', 1, `We made the API faster.`, `We reduced API latency by 30 percent.`, `reduce latency, ועם מספר.`, `faster כללי מדי. מדד מדויק נשמע מקצועי.`),
+  FV.fix('fv-004', 1, `The database is a big problem for us.`, `The database is our main bottleneck.`, `bottleneck = צוואר בקבוק.`, `big problem לא אומר כלום. מונח מדויק כן.`),
+  FV.fix('fv-005', 2, `We'll start using the new logging tool next month.`, `We'll adopt the new logging tool next month.`, `adopt = לאמץ כלי.`, `שדרוג רמה: start using ל-adopt.`),
+  FV.fix('fv-006', 2, `We'll stop using the old endpoint in June.`, `We'll deprecate the old endpoint in June.`, `deprecate = להוציא משימוש באופן רשמי.`, `שדרוג רמה: stop using ל-deprecate.`),
+  FV.fix('fv-007', 1, `The script gets the data from the API.`, `The script retrieves the data from the API.`, `retrieve = לשלוף.`, `get כללי מדי.`),
+  FV.fix('fv-008', 2, `This graph shows that the cache helps.`, `This graph demonstrates the impact of the cache.`, `demonstrate the impact.`, `שדרוג רמה: show ו-help.`),
+  FV.fix('fv-009', 2, `The new tool helps teams to deploy alone.`, `The new tool enables teams to deploy independently.`, `enable, independently.`, `שדרוג רמה: help ו-alone.`),
+  FV.fix('fv-010', 1, `It takes about two hours.`, `It takes approximately two hours.`, `approximately בעדכון רשמי.`, `about טוב בשיחה. approximately במסמך ובהנהלה.`),
+  FV.fix('fv-011', 1, `We got a lot of complaints from customers.`, `We received a significant number of customer complaints.`, `a significant number of. received.`, `a lot of נשמע לא רשמי.`),
+  FV.fix('fv-012', 2, `I think the risk is low.`, `We assessed the risk as low.`, `assess = להעריך באופן מסודר.`, `I think נשמע כמו ניחוש.`),
+  FV.fix('fv-013', 2, `We found the main reason for the problem.`, `We identified the root cause.`, `identify the root cause.`, `מונח של פוסטמורטם.`),
+  FV.fix('fv-014', 2, `We did something so it hurts less.`, `We applied a mitigation to reduce the impact.`, `apply a mitigation, reduce the impact.`, `ניסוח עמום מול ניסוח מקצועי.`),
+  FV.fix('fv-015', 3, `The new version won't break the old clients.`, `The new version is backward compatible.`, `backward compatible = תואם לאחור.`, `מונח מדויק במקום הסבר ארוך.`),
+  FV.fix('fv-016', 3, `We need to give more people to this project.`, `We need to allocate more resources to this project.`, `allocate resources.`, `קולוקציה של ניהול.`),
+  FV.fix('fv-017', 2, `We'll tell them what to expect.`, `We'll set clear expectations with the stakeholders.`, `set expectations with.`, `קולוקציה של ניהול בעלי עניין.`),
+  FV.choice('fv-018', 2, `How do we handle the worry Alex raised?`, [`How do we answer to the worry of Alex?`, `How do we address the concern Alex raised?`, `How do we solve Alex's worry thing?`], 1, `address a concern.`, `קולוקציה: address a concern.`),
+  FV.choice('fv-019', 1, `We have to finish on the deadline.`, [`We have to meet the deadline.`, `We have to catch the deadline in time.`, `We have to do the deadline.`], 0, `meet a deadline.`, `קולוקציה: meet a deadline.`),
+  FV.choice('fv-020', 2, `The system works also when a server falls.`, [`The system is strong also when a server falls.`, `The system is resisting to failures.`, `The system is resilient to server failures.`], 2, `resilient = עמיד.`, `מונח מדויק לעמידות.`),
+  FV.choice('fv-021', 3, `Running it twice gives the same result, it's not a problem.`, [`The operation is idempotent.`, `The operation is the same-same.`, `The operation is double safe.`], 0, `idempotent = אותה תוצאה גם בהרצה חוזרת.`, `מונח מדויק במקום הסבר ארוך.`),
+  FV.choice('fv-022', 2, `How many requests it can take in one second?`, [`How much it can swallow per second?`, `What's the throughput of the service?`, `What's the speed amount of the service?`], 1, `throughput = תפוקה.`, `מונח של ביצועים.`),
+  FV.choice('fv-023', 2, `Every option has good and bad, you know.`, [`Every option has good stuff and bad stuff.`, `Each option has pluses and minuses things.`, `Each option comes with trade-offs.`], 2, `trade-off = פשרה בין יתרון לחיסרון.`, `מונח של החלטות.`),
+  FV.choice('fv-024', 3, `We need more detailed permissions, small small.`, [`We need more granular permissions.`, `We need more tiny permissions.`, `We need permissions in small pieces things.`], 0, `granular = ברזולוציה גבוהה.`, `מונח מדויק להרשאות.`),
+  FV.choice('fv-025', 1, `I want to open a worry about the timeline.`, [`I want to open a concern on the timeline.`, `I'd like to raise a concern about the timeline.`, `I want to lift a worry about the timeline.`], 1, `raise a concern.`, `קולוקציה: raise a concern.`),
+  FV.choice('fv-026', 2, `We put double servers for if one dies.`, [`We put servers two times for safety.`, `We have backup-backup servers.`, `We built in redundancy with a second server.`], 2, `redundancy = יתירות.`, `מונח של זמינות.`),
+  FV.choice('fv-027', 2, `All the sides in the project need to agree.`, [`All stakeholders need to sign off.`, `All the sides need to sign on.`, `All the parties people need to agree.`], 0, `stakeholders, sign off.`, `תרגום ישיר של "כל הצדדים".`),
+  FV.choice('fv-028', 2, `What do we give at the end of the quarter?`, [`What do we hand at the end of the quarter?`, `What are the key deliverables for this quarter?`, `What are the giving things for the quarter?`], 1, `deliverable = תוצר.`, `מונח של תכנון.`),
+  FV.choice('fv-029', 1, `We tested it from start to finish, all the way.`, [`We tested it from start to end all.`, `We tested it all the way full.`, `We ran end-to-end tests.`], 2, `end-to-end tests.`, `מונח של בדיקות.`),
+  FV.speak('fv-030', 2, { title_he: `עדכון ביצועים`, prompt_en: `Give a 45-second performance update to stakeholders. Use "latency", "bottleneck" and "optimize".`, seconds: 45, must: ['latency', 'bottleneck', 'optimize'], banned: FVBAN, model_en: `Over the past two weeks, we focused on checkout latency. We identified the database as the main bottleneck. We added two indexes and optimized the slowest queries. As a result, latency dropped from 800 to 350 milliseconds. Next, we plan to optimize the search service.`, bad: `we did a lot of stuff to make it faster, kind of`, why_he: `מונחי ביצועים במקום stuff ו-a lot of.` }),
+  FV.speak('fv-031', 2, { title_he: `עדכון מיגרציה`, prompt_en: `Give a 45-second migration update. Use "rollout", "backward compatible" and "dependency".`, seconds: 45, must: ['rollout', 'backward compatible', 'dependency'], banned: FVBAN, model_en: `The rollout of the new storage layer is 70 percent complete. The new API is backward compatible, which means clients don't need to change anything. The main open dependency is the billing team, who need to upgrade their client library by June 10.`, bad: `the thing is kind of done, the other team needs to do stuff`, why_he: `עדכון מקצועי עם מונחים מדויקים.` }),
+  FV.speak('fv-032', 3, { title_he: `פוסטמורטם קצר`, prompt_en: `Summarize an incident in 60 seconds. Use "root cause", "mitigation" and "resolve".`, seconds: 60, must: ['root cause', 'mitigation', 'resolve'], banned: FVBAN, model_en: `On Tuesday, the payments API returned errors for 25 minutes. The root cause was a connection pool limit that was too low for peak traffic. Our first mitigation was to scale out to six instances, which restored service. To fully resolve the issue, we raised the limit and added an alert at 80 percent usage.`, bad: `the API kind of broke because of a thing, we fixed stuff`, why_he: `שפה של פוסטמורטם: סיבה, מיטיגציה, פתרון.` }),
+  FV.speak('fv-033', 3, { title_he: `הצעה ארכיטקטונית`, prompt_en: `Propose a design change in 60 seconds. Use "scalable", "resilient" and "trade-off".`, seconds: 60, must: ['scalable', 'resilient', 'trade-off'], banned: FVBAN, model_en: `I propose that we move the export jobs to a queue. This design is more scalable, because we can add workers when demand grows. It's also more resilient, since a failed job is retried automatically. The trade-off is one more component to operate, which adds approximately four hours of work per month.`, bad: `a queue is kind of better, it has a lot of good things`, why_he: `להציג פשרה במונחים מקצועיים.` }),
+  FV.speak('fv-034', 2, { title_he: `הודעת deprecation`, prompt_en: `Announce that an old reporting API is going away. Use "deprecation", "timeline" and "stakeholders". 45 seconds.`, seconds: 45, must: ['deprecation', 'timeline', 'stakeholders'], banned: FVBAN, model_en: `I'd like to announce the deprecation of the version one reporting API. The timeline is six months. We'll notify all stakeholders this week and publish a migration guide. After December 31, the endpoints will return an error.`, bad: `we stop the old thing soon, tell people`, why_he: `הודעה רשמית: מה, מתי, ומה עושים.` }),
+  FV.speak('fv-035', 3, { title_he: `בקשת משאבים`, prompt_en: `Ask management for more engineers. Use "allocate", "deliverable" and "mitigate". 45 seconds.`, seconds: 45, must: ['allocate', 'deliverable', 'mitigate'], banned: FVBAN, model_en: `To meet the March deadline, we need to allocate two more engineers to the data platform. The key deliverable is a complete audit log for every customer. Without extra people, we can't mitigate the risk of a late launch.`, bad: `we need a lot of people because there is a lot of stuff`, why_he: `בקשה להנהלה בשפה של משאבים וסיכון.` }),
+  FV.qa('fv-036', 2, `Is the new release safe for existing customers?`, `Yes. The release is backward compatible, and we validated it with the top 20 customer integrations in staging. We'll roll it out gradually over three days and monitor error rates closely.`, `כן או לא קודם, ואז הראיה.`, `תשובה לבעל עניין בשפה מקצועית.`),
+  FV.qa('fv-037', 2, `Why did the project slip by two weeks?`, `The main reason is an unplanned dependency on the identity team. Their API change arrived ten days late. We've already adjusted the plan, and the new delivery date is May 14.`, `סיבה אחת, עובדה, ותאריך חדש.`, `להסביר עיכוב בלי להתנצל יותר מדי.`),
+  FV.qa('fv-038', 3, `What's the risk of this migration?`, `The main risk is data loss during the cutover. To mitigate it, we take a full snapshot before we start, and we run both systems in parallel for one week. If anything looks wrong, we can roll back within 15 minutes.`, `סיכון, מיטיגציה, ותוכנית חזרה.`, `שפה של ניהול סיכונים.`),
+  FV.qa('fv-039', 2, `How confident are you in this estimate?`, `Reasonably confident. We estimate six weeks, with a margin of approximately one week. The biggest unknown is the performance of the new storage engine, and we'll validate it in the first sprint.`, `רמת ביטחון, טווח, והנעלם הגדול.`, `הערכה מקצועית במקום "I think".`),
+  FV.qa('fv-040', 3, `Are we compliant with the new data retention policy?`, `Not fully yet. Logs are compliant, because we delete them after 30 days. Backups are not, since we keep them for a year. We'll close that gap by the end of the quarter.`, `תשובה כנה, מה תקין, מה לא, ומתי.`, `מונחי compliance בלי להתחמק.`),
+  FV.qa('fv-041', 3, `Why should we invest in observability now?`, `Because our mean time to resolve incidents is over two hours. Most of that time goes to finding the root cause. Better observability would reduce it significantly and free roughly one engineer per week.`, `נימוק במספרים, לא בתחושה.`, `לשכנע הנהלה בשפה מקצועית.`),
+  FV.shadow('fv-042', 2, 'deprecation', `dep-re-KAY-shen. הדגש בהברה השלישית.`, `We announced the deprecation of the old API.`, `מילה ארוכה עם דגש שזז.`),
+  FV.shadow('fv-043', 3, 'idempotent', `eye-dem-POH-tent. הדגש בהברה השלישית.`, `The retry is safe because the endpoint is idempotent.`, `מילה שדוברי עברית נוטים להגות לא נכון.`),
+  FV.shadow('fv-044', 2, 'infrastructure', `IN-fra-struc-cher. הדגש בהתחלה.`, `We manage the infrastructure as code.`, `דגש בהברה הראשונה.`),
+  FV.shadow('fv-045', 1, 'throughput', `THROO-put. th רכה, הדגש בהתחלה.`, `Throughput doubled after the upgrade.`, `th ודגש נכון.`),
+  FV.shadow('fv-046', 3, 'compatibility', `kom-pat-i-BIL-i-tee. הדגש ב-BIL.`, `We test backward compatibility on every release.`, `מילה ארוכה עם דגש באמצע.`),
+  FV.shadow('fv-047', 3, 'granularity', `gran-yu-LAR-i-tee. הדגש ב-LAR.`, `We need more granularity in the access rules.`, `דגש שזז מ-granular.`),
+  FV.shadow('fv-048', 3, 'orchestration', `or-kes-TRAY-shen. ch נשמע כמו k.`, `The orchestration layer restarts failed containers.`, `ch שנשמע כמו k.`),
+  FV.shadow('fv-049', 2, 'resilience', `re-ZIL-yens. z ולא s, הדגש בהברה השנייה.`, `We test resilience by shutting down one zone.`, `z ודגש בהברה השנייה.`)
+];
+
 export const ITEMS = [
   // =====================================================================
   // GRAMMAR - type 'fix'
@@ -663,7 +775,10 @@ export const ITEMS = [
   H('sh-018', 3, null, 'parameters', `pa-RAM-e-ters. הדגש בהברה השנייה.`, `The function takes three parameters.`, `דגש במקום הלא נכון.`),
 
   // Phase 3 professional items (defined above ITEMS)
-  ...PRO_ITEMS
+  ...PRO_ITEMS,
+
+  // Phase 4 linking and professional register items (defined above ITEMS)
+  ...LF_ITEMS
 ];
 
 // =====================================================================
@@ -772,7 +887,9 @@ export const BADGES = [
   { id: 'b-daily-1', title_he: `יום מלא`, desc_he: `סיימת את כל המשימות של היום.`, icon: 'check', rule: 'daily:1' },
   { id: 'b-daily-10', title_he: `עשרה ימים מלאים`, desc_he: `10 ימים עם כל המשימות.`, icon: 'calendar', rule: 'daily:10' },
   { id: 'b-calm-5', title_he: `קצב רגוע`, desc_he: `5 משימות דיבור בקצב של 110 עד 150 מילים בדקה.`, icon: 'gauge', rule: 'wpm_band:5' },
-  { id: 'b-mastered-25', title_he: `25 בכיס`, desc_he: `25 תרגילים שנשלטו לגמרי.`, icon: 'brain', rule: 'mastered:25' }
+  { id: 'b-mastered-25', title_he: `25 בכיס`, desc_he: `25 תרגילים שנשלטו לגמרי.`, icon: 'brain', rule: 'mastered:25' },
+  { id: 'b-linking-20', title_he: `מחבר משפטים`, desc_he: `20 תרגילי מילות קישור.`, icon: 'link', rule: 'cat:linking:20' },
+  { id: 'b-formal-20', title_he: `שפה של מנהלים`, desc_he: `20 תרגילי שפה מקצועית גבוהה.`, icon: 'briefcase', rule: 'cat:formal:20' }
 ];
 
 export const LEVEL_TITLES_HE = [
@@ -874,5 +991,19 @@ export const TRACKS = [
     unit('stage-4', `שאלות מהקהל`, `תשובה קודם, הסבר אחר כך.`, ['r-008', 'r-009', 's-013', 'q-008', 'q-013', 'q-017'], 'q-014'),
     unit('stage-5', `מול הנהלה`, `קצר, מספרים, בקשה.`, ['r-006', 's-010', 'f-007', 'q-001', 'q-010'], 's-011'),
     unit('stage-6', `דקה שלמה בלי מילוי`, `שליטה מלאה בקצב ובשקט.`, ['f-011', 's-012', 's-014', 'q-016', 'r-012'], 'f-010')
+  ] },
+  { id: 't-linking', title_he: `מילות קישור`, title_en: 'Linking like a native', desc_he: `ניגוד, סיבה, רצף ותנאי. לחבר רעיונות כמו דובר אנגלית.`, icon: 'link', color: '#14B8A6', units: [
+    unit('linking-1', `ניגוד בלי although ... but`, `however, whereas, despite.`, ['lk-001', 'lk-002', 'lk-003', 'lk-004', 'lk-017', 'lk-026', 'lk-038'], 'lk-029'),
+    unit('linking-2', `סיבה ותוצאה`, `because, due to, as a result, which means.`, ['lk-005', 'lk-009', 'lk-010', 'lk-016', 'lk-018', 'lk-039'], 'lk-030'),
+    unit('linking-3', `רצף, תוספת ומעבר`, `first of all, next, in addition, moving on to.`, ['lk-008', 'lk-012', 'lk-019', 'lk-020', 'lk-027', 'lk-035'], 'lk-031'),
+    unit('linking-4', `הבהרה, דוגמה ותנאי`, `in other words, such as, unless, otherwise.`, ['lk-011', 'lk-013', 'lk-014', 'lk-021', 'lk-022', 'lk-023', 'lk-041'], 'lk-033'),
+    unit('linking-5', `דעה, ויתור וסיכום`, `in my view, admittedly, that said, overall.`, ['lk-006', 'lk-007', 'lk-015', 'lk-024', 'lk-025', 'lk-028', 'lk-040'], 'lk-034')
+  ] },
+  { id: 't-formal', title_he: `שפה מקצועית`, title_en: 'Professional register', desc_he: `לשדרג ניסוח יומיומי לשפה מקצועית ומדויקת מול הנהלה ולקוחות.`, icon: 'briefcase', color: '#7C3AED', units: [
+    unit('formal-1', `לשדרג מילים בסיסיות`, `resolve, verify, retrieve, approximately.`, ['fv-001', 'fv-002', 'fv-007', 'fv-010', 'fv-011', 'fv-019'], 'fv-036'),
+    unit('formal-2', `ביצועים וקיבולת`, `latency, bottleneck, throughput, resilient.`, ['fv-003', 'fv-004', 'fv-020', 'fv-022', 'fv-026', 'fv-045', 'fv-049'], 'fv-030'),
+    unit('formal-3', `שינויים ופריסה`, `adopt, deprecate, backward compatible, end to end.`, ['fv-005', 'fv-006', 'fv-015', 'fv-021', 'fv-029', 'fv-042', 'fv-046'], 'fv-031'),
+    unit('formal-4', `תקלות וסיכונים`, `root cause, mitigation, assess, raise a concern.`, ['fv-012', 'fv-013', 'fv-014', 'fv-018', 'fv-025', 'fv-043'], 'fv-032'),
+    unit('formal-5', `מול הנהלה ובעלי עניין`, `allocate resources, set expectations, deliverables.`, ['fv-008', 'fv-009', 'fv-016', 'fv-017', 'fv-027', 'fv-028', 'fv-044'], 'fv-035')
   ] }
 ];

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenize, analyze, highlight, fixWordSets } from '../js/analyze.js';
+import { tokenize, analyze, highlight, fixWordSets, fixMarks } from '../js/analyze.js';
 
 const drops = (t) => analyze(t, 10).beDrops.map((d) => d.text.toLowerCase());
 
@@ -355,4 +355,52 @@ test('fillers that are part of the target text cost nothing; short answers are n
   assert.equal(analyze('so ' + target, 4, { target }).fillers.so, 1);
   // One "so" in a 4-word answer: fluency is not 0.
   assert.ok(analyze('so we fixed it', 2).score >= 85);
+});
+
+test('fix focus (targetEase): changed words carry the score, small wording changes elsewhere pass', () => {
+  const right = 'a service that is connected', wrong = 'a service that connected';
+  const opts = { target: right, avoid: wrong, ...fixWordSets(right, wrong), targetEase: 0.7 };
+  assert.equal(analyze(right, 2, opts).score, 100);
+  assert.ok(analyze('a system that is connected', 2, opts).score >= 80);
+  assert.ok(analyze('the service which is connected now', 2, opts).score >= 80);
+  assert.ok(analyze(wrong, 2, opts).score <= 30);
+  assert.ok(analyze('is', 1, opts).score < 50, 'the must word alone stays low');
+  // Without targetEase the old weights hold; without must the option changes nothing.
+  assert.equal(analyze('a system that connected', 2, { target: right, targetEase: 0.7 }).score,
+    analyze('a system that connected', 2, { target: right }).score);
+});
+
+test('fix focus: every fix item, right >= 95 and wrong unchanged <= 30 with targetEase', async () => {
+  const { ITEMS } = await import('../js/content.js');
+  const dur = (t) => Math.max(1, (t.split(/\s+/).length / 130) * 60);
+  for (const it of ITEMS.filter((i) => i.type === 'fix')) {
+    const opts = { target: it.right, avoid: it.wrong, ...fixWordSets(it.right, it.wrong), targetEase: 0.7 };
+    assert.ok(analyze(it.right, dur(it.right), opts).score >= 95, `${it.id} right`);
+    assert.ok(analyze(it.wrong, dur(it.wrong), opts).score <= 30, `${it.id} wrong`);
+  }
+});
+
+test('fixMarks: changed words, missing-word gaps and new words of the right sentence', () => {
+  const m = fixMarks('a service that is connected', 'a service that connected');
+  assert.deepEqual(m.wrong.map((t) => t.text), ['a', 'service', 'that', 'connected']);
+  assert.equal(m.wrong[3].gap, 'is');
+  assert.ok(m.wrong.every((t) => !t.bad));
+  assert.deepEqual(m.right.filter((t) => t.add).map((t) => t.text), ['is']);
+  assert.deepEqual(m.changes, [{ from: '', to: 'is', before: 'that', after: 'connected' }]);
+  // Contractions are no change; a dropped word is marked bad.
+  const c = fixMarks("We're on track.", 'We are on the track.');
+  assert.deepEqual(c.wrong.filter((t) => t.bad).map((t) => t.text), ['the']);
+  assert.ok(c.right.every((t) => !t.add));
+  // Replacement: the new word rides after the changed one; a missing last word goes to end.
+  const r = fixMarks('fixing things that are not working well', 'fixing stuff that not working so well');
+  assert.equal(r.wrong.find((t) => t.text === 'stuff').fix, 'things');
+  assert.deepEqual(r.changes[0], { from: 'stuff', to: 'things' });
+  assert.equal(fixMarks('the engineers working on it', 'the engineers working on').end, 'it');
+  // Every fix item has at least one visible change.
+  return import('../js/content.js').then(({ ITEMS }) => {
+    for (const it of ITEMS.filter((i) => i.type === 'fix')) {
+      const k = fixMarks(it.right, it.wrong);
+      assert.ok(k.changes.length > 0, `${it.id} has no change`);
+    }
+  });
 });

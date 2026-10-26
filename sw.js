@@ -14,7 +14,7 @@
 // - Google Fonts: the CSS and every font file it lists are cached on first use. Offline,
 //   the CSS is served without the faces that are not cached, so no request fails.
 // Privacy: nothing about audio ever passes through here. Recordings are blob URLs in page memory.
-const VERSION = 'v9-2026-10-25';
+const VERSION = 'v10-2026-10-26';
 const CACHE = `speaker-trainer-${VERSION}`;
 const STAGE = `${CACHE}-next`;
 const FONT_CACHE = 'speaker-trainer-fonts';

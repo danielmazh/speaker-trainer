@@ -238,3 +238,63 @@ test.describe('word stress choice', () => {
     await expect(page.getByTestId('feedback-next')).toBeVisible();
   });
 });
+
+test.describe('fix drill: marked error, hint and answer', () => {
+  test.use({ micMode: 'mic', fixedDate: DAY_A });
+  test('error words are marked, rule shows, hint and answer work, a correct variant passes', async ({ page }) => {
+    await seed(page);
+    await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('speakerTrainer.v1'));
+      s.daily.done = s.daily.tasks.filter((t) => t.kind === 'warmup').map((t) => t.id);
+      s.daily.tasks.find((t) => t.kind === 'fix').itemIds = ['g-005'];
+      localStorage.setItem('speakerTrainer.v1', JSON.stringify(s));
+    });
+    await page.reload();
+    await page.goto('?nosw#mission');
+    await page.getByTestId('mission-start').click();
+    const stage = page.getByTestId('stage');
+    // "fixing stuff that not working so well" -> "fixing things that are not working well"
+    await expect(stage.getByText('תקן את המילים המסומנות ואמור את כל המשפט בקול')).toBeVisible();
+    await expect(stage.getByTestId('fix-wrong')).toHaveAttribute('dir', 'ltr');
+    expect(await stage.getByTestId('fix-bad').allTextContents()).toEqual(['stuff', 'so']);
+    await expect(stage.getByTestId('fix-gap')).toHaveCount(1);
+    await expect(stage.getByTestId('fix-rule')).toBeVisible();
+    await expect(stage.locator('.fx-new').first()).toBeHidden();
+    await expect(stage.getByTestId('fix-answer-box')).toBeHidden();
+    // Prompt, help and mic all on screen without scrolling.
+    for (const id of ['fix-wrong', 'fix-hint', 'fix-answer', 'mic']) await expect(stage.getByTestId(id).first()).toBeInViewport();
+
+    // 1. No help, a correct answer with a small wording change elsewhere: passes, full score.
+    await speak(page, 'fixing the things that are not working very well');
+    const fb = page.getByTestId('feedback');
+    await expect(page.getByTestId('feedback-next')).toBeVisible();
+    await expect(fb.getByTestId('fix-review')).toContainText('מה היה צריך לתקן');
+    await expect(fb.locator('.fix-changes li').first()).toContainText('stuff');
+    await expect(fb.getByTestId('fb-help')).toHaveCount(0);
+    const full = Number((await fb.locator('.fb-head .tag bdi').textContent()).replace('%', ''));
+    expect(full).toBeGreaterThanOrEqual(80);
+
+    // 2. Hint: the missing word fills the gap in green, the replacement shows; score x0.8.
+    await page.getByTestId('retry').click();
+    await stage.getByTestId('fix-hint').click();
+    await expect(stage.getByTestId('fix-gap').locator('.fx-new')).toHaveText('are');
+    await expect(stage.locator('.fx-after')).toHaveText('things');
+    await expect(stage.getByTestId('fix-answer-box')).toBeHidden();
+    await speak(page, 'fixing things that are not working well');
+    await expect(fb.getByTestId('fb-help')).toHaveText('עם רמז');
+    await expect(fb.locator('.fb-head .tag bdi')).toHaveText('80%');
+
+    // 3. Answer: the full right sentence with the new words in green; still said aloud; score x0.6.
+    await page.getByTestId('retry').click();
+    await expect(stage.getByTestId('fix-hint')).toBeDisabled(); // the hint stays used for this item
+    await stage.getByTestId('fix-answer').click();
+    const box = stage.getByTestId('fix-answer-box');
+    await expect(box).toContainText('fixing things that are not working well');
+    expect(await box.locator('.fx-add').allTextContents()).toEqual(['things', 'are']);
+    await speak(page, 'fixing things that are not working well');
+    await expect(fb.getByTestId('fb-help')).toHaveText('עם תשובה');
+    await expect(fb.locator('.fb-head .tag bdi')).toHaveText('60%');
+    await a11y(page, 'fix feedback');
+    await noHScroll(page, 'fix feedback');
+  });
+});

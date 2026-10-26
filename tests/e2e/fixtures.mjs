@@ -371,8 +371,10 @@ export async function playItem(page, it, k, mode, { allRight = false } = {}) {
   }
   if (mode === 'mic') {
     if (it.type === 'fix' && k === 2) {
-      await stage.locator('[data-peek]').click();
-      await stage.locator('[data-star="4"]').click();
+      // Show the answer, then say it aloud (repeat after): 60 % of the score.
+      await stage.getByTestId('fix-answer').click();
+      await expect(stage.getByTestId('fix-answer-box')).toBeVisible();
+      await speak(page, it.right);
       return 'peek';
     }
     if (it.type === 'speak') {
@@ -382,7 +384,7 @@ export async function playItem(page, it, k, mode, { allRight = false } = {}) {
     await speak(page, sayText);
     return 'speech';
   }
-  // No mic: self rating for shadow, peek for the second fix, typed for the rest.
+  // No mic: self rating for shadow, hint then typed for the second fix, typed for the rest.
   // The no-mic note shows in full once per session, then as a small chip by the mic.
   await expect(stage.locator('.mic-note:not([hidden]), .mic-chip').first()).toBeVisible();
   if (it.type === 'shadow') {
@@ -391,8 +393,11 @@ export async function playItem(page, it, k, mode, { allRight = false } = {}) {
     return 'self';
   }
   if (it.type === 'fix' && k === 1) {
-    await stage.locator('[data-peek]').click();
-    await stage.locator('[data-peekbox] [data-star="5"]').click();
+    // Hint, then type the corrected sentence.
+    await stage.getByTestId('fix-hint').click();
+    await stage.getByTestId('mic-type').click();
+    await stage.getByTestId('typed').fill(sayText);
+    await stage.getByTestId('typed-check').click();
     return 'peek';
   }
   await stage.getByTestId('mic-type').click();

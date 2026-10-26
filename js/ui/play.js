@@ -16,7 +16,7 @@ import * as result from './result.js';
 const PLAYERS = { shadow, fix, choice, speak, recall, qa };
 const TITLE = {
   shadow: 'חזור אחרי: אמור את המשפט בקול',
-  fix: 'אמור את המשפט הנכון בקול',
+  fix: 'תקן את הטעות',
   choice: 'איזה משפט נשמע טבעי?',
   speak: 'דבר בקול',
   recall: 'אמור את הטקסט בעל פה',
@@ -247,7 +247,7 @@ export function render(root, ctx) {
       <div class="fb-scroll">
         <div class="fb-head">
           <span class="fb-ico">${icon(good ? 'check' : ok ? 'sparkles' : 'x')}</span>
-          <div class="grow"><div class="fb-title">${esc(title)}</div>${source ? `<div class="tiny muted">${source}</div>` : ''}</div>
+          <div class="grow"><div class="fb-title">${esc(title)}</div>${source || r.helpNote ? `<div class="tiny muted">${source}${r.helpNote ? `<span class="fb-help" data-testid="fb-help">${esc(r.helpNote)}</span>` : ''}</div>` : ''}</div>
           <span class="tag ${good ? 'good' : ok ? 'warn' : 'bad'}">${icon(good ? 'check' : 'target')} <bdi>${score}%</bdi></span>
         </div>
         ${r.rule ? `<p class="en fb-rule" dir="ltr" lang="en">${esc(r.rule)}</p>` : ''}

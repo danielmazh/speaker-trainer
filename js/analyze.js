@@ -491,10 +491,16 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
  *   Then, when opts.avoid is given (the wrong sentence of a fix drill) and the speech matches it
  *   better than the target, the score is capped at 30.
  *
+ *   Fix focus (opts.targetEase, 0..1, used with a target and a non-empty must list): the score
+ *   leans on the changed words, the rest of the sentence counts lightly. coverage =
+ *   min(1, targetScore / targetEase); weights become target 0.2 (coverage), must 0.5, and the
+ *   score is also multiplied by coverage, so saying only the must words stays low while small
+ *   wording changes elsewhere (targetScore >= targetEase) cost nothing.
+ *
  * targetScore = 0.85 * recall + 0.15 * precision, on normalized words
  *   (contractions expanded, numbers as digits, um/uh removed, filler extras ignored for precision).
  */
-export function analyze(transcript, durationSec, { target, must, banned, avoid, reference, minWords } = {}) {
+export function analyze(transcript, durationSec, { target, must, banned, avoid, reference, minWords, targetEase } = {}) {
   const text = String(transcript ?? '');
   const tokens = tokenize(text);
   const words = tokens.length;
@@ -589,9 +595,13 @@ export function analyze(transcript, durationSec, { target, must, banned, avoid, 
 
   // score
   const parts = [];
-  if (targetScore !== null) parts.push([0.45, targetScore]);
+  const hasMust = Array.isArray(must) && must.length > 0;
+  const ease = Number(targetEase) > 0 && Number(targetEase) < 1 ? Number(targetEase) : 0;
+  const focus = !!ease && targetScore !== null && hasMust;
+  const coverage = focus ? clamp01(targetScore / ease) : 1;
+  if (targetScore !== null) parts.push(focus ? [0.2, coverage] : [0.45, targetScore]);
   if (referenceScore !== null) parts.push([0.35, clamp01(referenceScore / 0.75)]);
-  if (Array.isArray(must) && must.length) parts.push([0.25, mustHit.length / must.length]);
+  if (hasMust) parts.push([focus ? 0.5 : 0.25, mustHit.length / must.length]);
   parts.push([0.15, clamp01(1 - fillersPerMin / 4)]);
   const dropLoad = drops.reduce((s, d) => s + (DROP_WEIGHT[d.kind] ?? 1), 0);
   parts.push([0.1, clamp01(1 - 0.34 * dropLoad)]);
@@ -602,6 +612,7 @@ export function analyze(transcript, durationSec, { target, must, banned, avoid, 
   const wsum = parts.reduce((s, p) => s + p[0], 0);
   let score = words ? (parts.reduce((s, p) => s + p[0] * p[1], 0) / wsum) * 100 : 0;
   if (lengthFactor !== null) score *= lengthFactor;
+  if (focus) score *= coverage;
   const bannedCount = bannedHits.reduce((s, b) => s + b.count, 0);
   score -= Math.min(30, bannedCount * 10);
   if (saidAvoid) score = Math.min(score, AVOID_CAP);
@@ -633,6 +644,69 @@ export function fixWordSets(right, wrong) {
   const banned = [...new Set(wrongW.filter((x) => !rightW.includes(x)))]
     .filter((x) => analyze(r, 3, { banned: [x] }).banned.length === 0);
   return { must, banned };
+}
+
+/*
+ * Display marks for a fix drill: which words of the wrong sentence change, where words are
+ * missing, and which words of the right sentence are new. Uses the same normalized words as
+ * analyze() (contractions expanded, numbers as digits), so "We are" vs "We're" is no change.
+ * -> { wrong: [{ text, bad, gap, fix }], end, right: [{ text, add }], changes: [{ from, to }] }
+ *    wrong[k].bad: this word changes or goes. wrong[k].gap: words are missing before it, gap is
+ *    the missing text. wrong[k].fix: the replacement text after a changed run. end: missing text
+ *    after the last word ('' when none). changes: from '' means "add" (with before / after: the
+ *    wrong-sentence words around the gap), to '' means "remove".
+ */
+export function fixMarks(right, wrong) {
+  const R = normWordsOrig(right), W = normWordsOrig(wrong);
+  const group = (o) => {
+    const tok = [], texts = [];
+    o.orig.forEach((s) => { if (s !== '' || !texts.length) texts.push(s); tok.push(texts.length - 1); });
+    return { tok, texts };
+  };
+  const rg = group(R), wg = group(W);
+  const a = R.words, b = W.words, n = a.length, m = b.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  }
+  const chunks = [];
+  let cur = null, i = 0, j = 0;
+  const open = () => { if (!cur) { cur = { add: [], drop: [], at: j }; chunks.push(cur); } };
+  while (i < n || j < m) {
+    if (i < n && j < m && a[i] === b[j]) { cur = null; i++; j++; }
+    else if (j >= m || (i < n && dp[i + 1][j] >= dp[i][j + 1])) { open(); cur.add.push(i); i++; }
+    else { open(); cur.drop.push(j); j++; }
+  }
+  const clean = (s) => s.replace(/^[^\w$']+|[^\w%']+$/g, '');
+  const textOf = (idx, g) => [...new Set(idx.map((k) => g.tok[k]))].map((t) => clean(g.texts[t])).filter(Boolean).join(' ');
+  const wrongOut = wg.texts.map((text) => ({ text, bad: false, gap: '', fix: '' }));
+  const rightAdd = new Set();
+  let end = '';
+  const changes = [];
+  for (const c of chunks) {
+    const to = textOf(c.add, rg), from = textOf(c.drop, wg);
+    c.add.forEach((k) => rightAdd.add(rg.tok[k]));
+    c.drop.forEach((k) => { wrongOut[wg.tok[k]].bad = true; });
+    if (!from && !to) continue;
+    const ch = { from, to };
+    // An insertion carries the words around it, so "+ are" reads "that are not".
+    if (!c.drop.length) {
+      ch.before = c.at > 0 ? clean(wg.texts[wg.tok[c.at - 1]]) : '';
+      ch.after = c.at < m ? clean(wg.texts[wg.tok[c.at]]) : '';
+    }
+    changes.push(ch);
+    if (c.drop.length) {
+      if (to) { const last = wrongOut[wg.tok[c.drop[c.drop.length - 1]]]; last.fix = last.fix ? `${last.fix} ${to}` : to; }
+    } else if (c.at < m) {
+      const t = wrongOut[wg.tok[c.at]];
+      t.gap = t.gap ? `${t.gap} ${to}` : to;
+    } else end = end ? `${end} ${to}` : to;
+  }
+  return {
+    wrong: wrongOut, end,
+    right: rg.texts.map((text, k) => ({ text, add: rightAdd.has(k) })),
+    changes,
+  };
 }
 
 const AVOID_CAP = 30;

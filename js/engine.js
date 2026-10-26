@@ -12,7 +12,7 @@ export const MISSION_BONUS_XP = 50;
 export const TASK_XP = { warmup: 20, fix: 30, choice: 30, speak: 50, boss: 70 };
 export const TASK_MINUTES = { warmup: 2, fix: 3, choice: 2, speak: 3, boss: 2 };
 export const SCHEMA = 2;
-export const APP_VERSION = '3.1.0';
+export const APP_VERSION = '3.2.0';
 export const PASS_SCORE = 70; // unit item and boss pass mark
 export const PRACTICE_ITEM_XP = 5; // per item with score >= 60
 export const BOSS_PASS_XP = 40; // first boss pass in a unit
